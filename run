@@ -1,0 +1,7 @@
+npm run seed
+npm start
+npm run grant-admin -- your_email@example.com
+
+
+
+npm run dev

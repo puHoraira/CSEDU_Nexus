@@ -1,0 +1,665 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tikz}
+
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\renewcommand{\arraystretch}{1.2}
+
+\definecolor{DeepNavy}{HTML}{1A2B4A}
+\definecolor{Teal}{HTML}{0D6E6E}
+\definecolor{LightTeal}{HTML}{E8F4F4}
+
+\title{Software Design Document (SDD)\\\large Lab 4: MVP Implementation}
+\author{Team Ravenclaw: CSEDU Nexus}
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Team and Project Information}
+
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Team Name} & Ravenclaw \\
+\hline and Problem Context}
+
+\subsection{Problem Statement}
+Per SRS Section 2: CSEDUSC lacks a \emph{centralised digital platform} to manage members, events, elections, finances, and committee structures. Key pain points addressed:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{FR-CSC-001} requirement: Manual paper-based membership registration
+  \item \textbf{FR-CSC-007} gap: No systematic eligibility validation for elections
+  \item \textbf{FR-CSC-020} missing: No transparent financial ledger
+  \item \textbf{FR-CSC-012} gap: Difficulty tracking EC attendance and meeting minutes
+  \item \textbf{FR-CSC-023} missing: No certificate request workflow
+\end{itemize}
+
+\subsection{Target Users (from SRS Section 2.2)}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{General Members:} Register, view events, sign-up as volunteers (US-CSC-001, 002, 003)
+  \item \textbf{EC Members:} Manage events, budgets, meetings, committees (US-CSC-004 to 009)
+  \item \textbf{Moderator:} Oversight, approval workflows, financial audit (US-CSC-010, 011)
+  \item \textbf{Chief Patron:} Final approval, overrule decisions (US-CSC-012)
+  \item \textbf{Election Commission:} Conduct and manage two-phase election (US-CSC-013)
+  \item \textbf{Alumni:} View events, serve as election commissioners
+\end{itemize}
+
+\subsection{Lab 4 MVP Scope}
+Per SRS Section 3.2, Labs 4--5 form the MVP. Lab 4 focuses on \emph{three vertical slices}:
+
+\textbf{Vertical Slice 1: Authentication \& Membership (FRs 1--4, 24--25)}
+\begin{itemize}[noitemsep]
+  \item \textbf{FR-CSC-001, US-CSC-001:} Member registration form with digital sign-off
+  \item \textbf{FR-CSC-024:} RBAC foundation preventing unauthorized access
+  \item \textbf{FR-CSC-025:} Notification system (email setup)
+\end{itemize}
+
+\textbf{Vertical Slice 2: Event Management (FRs 15--17)}
+\begin{itemize}[noitemsep]
+  \item \textbf{FR-CSC-015, US-CSC-002:} Public event listing, EC event creation
+  \item \textbf{FR-CSC-017, US-CSC-003:} Volunteer registration and tracking
+\end{itemize}
+
+\textbf{Vertical Slice 3: Financial Ledger (FRs 18--20)}
+\begin{itemize}[noitemsep]
+  \item \textbf{FR-CSC-020, US-CSC-006:} Append-only transaction ledger with running balance
+  \item \textbf{FR-CSC-018:} Budget submission foundation
+\end{itemize}
+
+\textbf{Future Labs:} Elections (FRs 5--10), Meetings (FRs 11--14), Certificates (FR-23), Constitution changes (FR-21), AGM (FR-22).
+\textbf{Target users:}
+\begin{itemize}[leftmargin=1.5em]
+  \item General Members (current CSEDU students)
+  \item Executive Committee (EC) members
+  \item Moderator(s) (student advisors)
+  \item Chief Patron (department chairman)
+  \item Election Commissioners
+  \item Alumni (limited scope)
+\end{itemize}
+
+\textbf{Project goals:}
+\begin{itemize}[leftmargin=1.5em]
+  \item Digitize membership lifecycle and constitutional compliance.
+  \item Implement two-phase election and candidacy eligibility validation.
+  \item Provide transparent financial ledger, budget, and quarterly reporting.
+  \item Manage meetings, attendance, and governance notices.
+  \item Support certificate request and approval workflow.
+\end{itemize}
+
+\textbf{Out of scope:}
+\begin{itemize}[leftmargin=1.5em]
+  \item Native mobile apps in v1.
+  \item University ERP integration.
+  \item Full payment gateway automation in v1.
+\end{itemize}
+
+\section{Architecture Design}
+
+\subsection{High-Level Architecture}
+
+The system adopts a \textbf{modular monolith} with clean layered boundaries to balance Lab 4 rapid delivery while maintaining extensibility for future modules (elections, meetings, etc.).
+
+\textbf{Tech Stack:}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Frontend:} Next.js 14 + React + TypeScript + Tailwind CSS + shadcn/ui + TanStack Query (React Query)
+  \item \textbf{Backend:} NestJS + TypeScript + Passport.js (JWT) + Prisma ORM
+  \item \textbf{Database:} PostgreSQL 14+ (docker-compose for dev)
+  \item \textbf{Notifications:} Email (SMTP); in-app logging
+  \item \textbf{DevOps:} GitHub Actions CI/CD, Docker, Docker Compose
+\end{itemize}
+
+\subsection{Backend: Clean Layered Architecture}
+
+NestJS backend uses \textbf{four-tier layering} to enforce constitutional constraint encoding:
+
+\begin{enumerate}
+  \item \textbf{Presentation Layer (Controllers)} --- HTTP endpoints, input validation, response mapping
+  \item \textbf{Application Layer (Services)} --- Use-case orchestration, workflow state machines
+  \item \textbf{Domain Layer (Policies + Entities)} --- Business rule enforcement, constitutional validation
+  \item \textbf{Infrastructure Layer (Repositories, DB, Email)} --- Data access, external service integration
+\end{enumerate}
+
+\textbf{Policy-Driven Design (Strategy Pattern):} Constitutional rules encoded separately:
+\begin{itemize}[noitemsep]
+  \item \texttt{MembershipPolicy} --- Validates registration eligibility per Articles VI--VII
+  \item \texttt{EligibilityPolicy} --- Enforces candidacy constraints (year, EC experience) per Articles XIV--XV
+  \item \texttt{AuthorityPolicy} --- Enforces Chief Patron override, EC abolition power
+  \item \texttt{FinancialPolicy} --- Validates transaction categories, co-signature rules, immutability
+  \item \texttt{AttendancePolicy} --- Auto-flags 3rd consecutive absence per Article XVI
+\end{itemize}
+
+\subsection{Request Lifecycle Example}
+
+\textbf{Scenario:} Member registration (FR-CSC-001, US-CSC-001)
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item User submits registration form: [email, password, firstName, lastName, studentID, batch]
+  \item \texttt{POST /auth/register} routed to \texttt{AuthController}
+  \item Controller validates schema (Joi/Zod input validation)
+  \item Service calls \texttt{MembershipPolicy.canRegister(studentID, batch)}
+  \item Policy checks: active CSEDU student, not duplicate member, batch valid
+  \item If valid: create User + Member records via Prisma; hash password (Argon2)
+  \item Send confirmation email (async, logged to audit trail)
+  \item Return 201 with JWT token + member profile
+  \item Frontend updates state; user redirected to dashboard
+\end{enumerate}
+
+\subsection{Module Responsibilities (Lab 4 + Future)}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{2cm} >{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}p{3.5cm} >{\raggedright\arraybackslash}p{2.7cm}}
+\toprule
+\textbf{Module} & \textbf{Responsibility} & \textbf{Key Inputs} & \textbf{Outputs} & \textbf{Related FRs} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Module} & \textbf{Responsibility} & \textbf{Key Inputs} & \textbf{Outputs} & \textbf{Related FRs} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+\textbf{Auth} & Login, JWT token mgmt & Credentials, refresh token & JWT, user context, 200/401 & FR-CSC-024 \\
+
+\textbf{Membership} & Register, cancel, status tracking & Member form, admin action & Member profile, notice & FR-CSC-001, 002, 003 \\
+
+\textbf{RBAC} & Role/permission enforcement & User, endpoint, role claim & 200 or 403 Forbidden & FR-CSC-024, NFR-CSC-005 \\
+
+\textbf{EC Mgmt} & EC posts, terms, vacancies & Election results, resignation & EC roster, vacancy notices & FR-CSC-004, 008, 009, 010 \\
+
+\textbf{Election} & Phase 1/2, candidacy, voting & Candidates, voters, ballots & Results, audit logs & FR-CSC-005, 006, 007, 013 \\
+
+\textbf{Meetings} & Schedule, attendance, absence & Create/update, sign-off & Attendance sheet, alerts & FR-CSC-011, 012, 013, 014 \\
+
+\textbf{Events} & Create, list, FC volunteers & Event form, volunteer signup & Event record, volunteer list & FR-CSC-015, 016, 017 \\
+
+\textbf{Finance} & Budget (Lab 5), ledger (Lab 4) & Tx entry, category, docs & Ledger view, balance, reports & FR-CSC-018, 019, 020 \\
+
+\textbf{Certificate} & Request/approve, PDF gen & Request, Chief Patron approval & Cert PDF, status & FR-CSC-023 \\
+
+\textbf{Constitution} & Amendment workflow & Proposal, EC votes & Proposal state, approvals & FR-CSC-021 \\
+
+\textbf{Notification} & Email/in-app alerts & Event, user, message text & Sent status, delivery log & FR-CSC-025 \\
+
+\textbf{Audit} & Immutable action log & All critical operations & Audit entries with actor/time & NFR-CSC-011, traceability \\
+\end{longtable}
+
+\subsection{Key Design Decisions}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{2.5cm} >{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}p{4.5cm}}
+\toprule
+\textbf{Decision} & \textbf{Alternatives} & \textbf{Chosen} & \textbf{Rationale} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Decision} & \textbf{Alternatives} & \textbf{Chosen} & \textbf{Rationale} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+Arch Pattern & Microservices, layered monolith & Modular monolith & Lab 4 speed; easier constitutional enforcement; scales later \\
+
+Rule Encoding & Hard-coded, DB constraints, Policies & Policy layer + DB constraints & Testable; reusable across workflows; maintainable \\
+
+Data Access & Raw SQL, ORM & Prisma ORM & Type-safe; migrations; relationships; audit support \\
+
+Financial Data & Mutable ledger, Append-only & Append-only (per FR-CSC-020) & Constitutional transparency, auditability, trust \\
+
+Auth Model & Session, JWT & JWT + refresh tokens & Stateless; mobile-ready; RBAC claims in token \\
+
+Frontend State & Context API, Redux, TanStack Query & TanStack Query + Context & Automatic cache invalidation; Lab 4 speed \\
+\end{longtable}
+
+\section{Data Design (Lab 4 MVP)}
+
+\subsection{Core Tables}
+
+Lab 4 implements core identity/event/finance tables plus extensible governance tables. EC posts are stored as data (not hard-coded columns), so new posts can be added without schema redesign.
+
+\begin{center}
+\small
+\begin{longtable}{>{\columncolor{DeepNavy}\color{white}\bfseries}p{2cm} >{\small}p{3cm} >{\small}p{3.5cm} >{\small}p{4cm}}
+\caption{Lab 4 Core Tables} \\
+\rowcolor{DeepNavy}
+\color{white}\textbf{Table} & \color{white}\textbf{Key Fields} & \color{white}\textbf{Constraints} & \color{white}\textbf{Related FRs} \\
+\endfirsthead
+\rowcolor{DeepNavy}
+\color{white}\textbf{Table} & \color{white}\textbf{Key Fields} & \color{white}\textbf{Constraints} & \color{white}\textbf{Related FRs} \\
+\endhead
+\bottomrule
+\endlastfoot
+
+\rowcolor{LightTeal}
+\textbf{users} & id (PK), email, password, firstName, lastName & UNIQUE(email), bcrypt/argon2(password) & FR-CSC-024, NFR-CSC-003 \\
+
+\textbf{members} & id (PK), userId (FK), studentID, batch, status, joinDate & UNIQUE(studentID), status $\in$ \{Active, Cancelled, Expired\} & FR-CSC-001, 002 \\
+
+\rowcolor{LightTeal}
+\textbf{roles} & id (PK), name, scope & name UNIQUE, scope $\in$ \{system, governance\} & FR-CSC-024 \\
+
+\textbf{user\_roles} & userId (FK), roleId (FK), startsAt, endsAt & UNIQUE(userId, roleId, startsAt), no overlap policy & FR-CSC-024 \\
+
+\rowcolor{LightTeal}
+\textbf{permissions} & id (PK), roleId (FK), resource, action & Enforces matrix per SRS 4.2 & FR-CSC-024, NFR-CSC-005 \\
+
+\textbf{ec\_terms} & id (PK), name, startsOn, endsOn, status & non-overlapping date ranges, one active term & FR-CSC-004 \\
+
+\rowcolor{LightTeal}
+\textbf{ec\_posts} & id (PK), code, title, minYear, minEcYears, displayOrder, isActive & code UNIQUE; post rules configurable & FR-CSC-004, 007 \\
+
+\textbf{ec\_appointments} & id (PK), termId (FK), postId (FK), memberId (FK), startsOn, endsOn, source & UNIQUE(termId, postId) for active rows & FR-CSC-004, 010 \\
+
+\rowcolor{LightTeal}
+\textbf{events} & id (PK), title, date, venue, budget, organizerId (FK) & FK to members, status $\in$ \{Planned, Ongoing, Completed\} & FR-CSC-015, 016 \\
+
+\textbf{volunteers} & id (PK), memberId (FK), eventId (FK), role, status & status $\in$ \{Registered, Assigned, Completed\} & FR-CSC-017 \\
+
+\rowcolor{LightTeal}
+\textbf{transactions} & id (PK), type, amount, date, category, reference, createdBy & amount $>$ 0, type $\in$ \{Income, Exp\}, immutable & FR-CSC-020, NFR-CSC-011 \\
+
+\textbf{audit\_logs} & id (PK), actor, action, resource, timestamp, details & Immutable, auto-timestamp & NFR-CSC-011 \\
+\end{longtable}
+\end{center}
+
+\subsection{Extensible EC Committee Design (No Schema Change for New Posts)}
+
+To avoid redesign when a new EC post is introduced, treat EC posts as configuration data:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item Keep \textbf{system roles} (General Member, Moderator, Chief Patron) in \texttt{roles}
+  \item Keep \textbf{EC post catalog} in \texttt{ec\_posts} (President, VP, Treasurer, or any future post)
+  \item Assign members to posts per term through \texttt{ec\_appointments}
+  \item Validate candidacy from \texttt{ec\_posts.minYear} and \texttt{ec\_posts.minEcYears}
+  \item Use \texttt{permissions} by role; use post-specific policies from \texttt{ec\_posts}
+\end{itemize}
+
+Adding a new post next year is only:
+\begin{enumerate}
+  \item Insert one row in \texttt{ec\_posts} with title and eligibility rules
+  \item Map permissions/policies (if needed)
+  \item No migration to add new columns, no controller rewrite
+\end{enumerate}
+
+\subsection{Schema Constraints and Rationale}
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Uniqueness:} \texttt{UNIQUE(email)}, \texttt{UNIQUE(studentID)} prevent duplicates
+  \item \textbf{Term Safety:} \texttt{ec\_terms} cannot overlap; one active term at a time
+  \item \textbf{Post Safety:} \texttt{UNIQUE(termId, postId)} ensures one active holder per post per term
+  \item \textbf{Status Enums:} Member states (Active $\to$ Cancelled/Expired) prevent invalid transitions (immutable per FR-CSC-002)
+  \item \textbf{Append-Only Ledger:} Transactions table has no UPDATE/DELETE permissions; new entries only (per FR-CSC-020, NFR-CSC-011)
+  \item \textbf{Financial Constraints:} \texttt{CHECK (amount > 0)} enforced at schema + service layer
+  \item \textbf{Audit Trail:} \texttt{createdBy}, \texttt{createdAt}, \texttt{updatedAt} timestamp all tables
+  \item \textbf{Foreign Key Integrity:} All user/role references validated; orphaned data prevented
+\end{itemize}
+
+\subsection{Entity Relationships (SRS Section 7.2 Mapping)}
+
+Key relationships per SRS:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{users 1:1 members} --- User has one member profile (FR-CSC-001)
+  \item \textbf{users N:N roles} via \texttt{user\_roles} --- Supports multiple concurrent permissions (FR-CSC-024)
+  \item \textbf{ec\_terms 1:N ec\_appointments} --- Each term has multiple post assignments (FR-CSC-004)
+  \item \textbf{ec\_posts 1:N ec\_appointments} --- Same post reused across terms without schema change (FR-CSC-004)
+  \item \textbf{members 1:N events} --- Member organizes multiple events (FR-CSC-015)
+  \item \textbf{members 1:N volunteers} --- Member registers as volunteer for events (FR-CSC-017)
+  \item \textbf{members 1:N transactions} --- Treasurer creates append-only entries (FR-CSC-020)
+  \item \textbf{roles 1:N permissions} --- Role grants endpoint permissions (FR-CSC-024)
+\end{itemize}
+
+\subsection{Migration Strategy}
+
+\begin{enumerate}
+  \item \texttt{prisma/schema.prisma} generated from above design
+  \item \texttt{prisma migrate dev --name init} creates migrations/
+  \item \texttt{prisma db seed} loads test data (5 members, 2 roles, 3 events, 10 transactions)
+  \item No archival tables in v1; defer to Lab 5+ per SRS 7.3
+\end{enumerate}
+
+\section{Critical Flows (Lab 4)}
+
+\subsection{Flow 1: Member Registration to Dashboard (FR-CSC-001, US-CSC-001)}
+
+\textbf{Actors:} General member, system
+
+\textbf{Preconditions:}
+\begin{itemize}[noitemsep]
+  \item User is a current CSEDU student (verified against batch/studentID format)
+  \item No existing member account for this studentID
+\end{itemize}
+
+\textbf{Flow Steps:}
+\begin{enumerate}[leftmargin=1.5em]
+  \item User navigates to \texttt{/auth/register}
+  \item Frontend displays form: [email, password (confirmation), firstName, lastName, studentID, batch]
+  \item User fills form, ticks agreement checkbox, submits
+  \item Post \texttt{/auth/register} with credentials
+  \item Backend validates schema (Joi/Zod) — returns 400 if missing/invalid
+  \item Backend calls \texttt{MembershipPolicy.canRegister(studentID, batch)}
+  \item Policy checks: batch $\in$ [2021, 2022, ...], studentID format valid, no duplicate
+  \item If valid: create User (hash password Argon2), create Member (status=Active)
+  \item Log action to audit\_logs (actor=system, action=MEMBER\_REGISTERED)
+  \item Send confirmation email (async, timeout 5sec)
+  \item Return 201 \{token: JWT, user: \{id, email, roles: ["General Member"]\}\}
+  \item Frontend stores JWT in httpOnly cookie, redirects to \texttt{/dashboard}
+  \item Dashboard loads member profile (GET \texttt{/members/me}), displays greeting + upcoming events
+\end{enumerate}
+
+\textbf{Success Criteria:}
+\begin{itemize}[noitemsep]
+  \item Member appears in Active members list
+  \item Confirmation email received within 2 minutes
+  \item User can log in with credentials
+  \item Dashboard shows correct member status and batch
+\end{itemize}
+
+\textbf{Failure Cases:}
+\begin{itemize}[noitemsep]
+  \item Duplicate studentID: 409 Conflict, message: "Student ID already registered"
+  \item Invalid batch: 400 Bad Request, message: "Batch must be valid CSEDU year"
+  \item Email already exists: 409 Conflict, message: "Email already in use"
+  \item Network failure on confirmation email: logged; user still registered; retry notify later
+\end{itemize}
+
+\subsection{Flow 2: Financial Transaction Entry to Ledger View (FR-CSC-020, US-CSC-006)}
+
+\textbf{Actors:} Treasurer, Moderator, system
+
+\textbf{Preconditions:}
+\begin{itemize}[noitemsep]
+  \item User has Treasurer permission via \texttt{user\_roles} (or active Treasurer post in \texttt{ec\_appointments})
+  \item Valid transaction category exists: [Donation, RegFee, Expenditure, Dept]
+  \item Supporting document reference provided (e.g., receipt ID, check no.)
+\end{itemize}
+
+\textbf{Flow Steps:}
+\begin{enumerate}[leftmargin=1.5em]
+  \item Treasurer logs in, navigates to \texttt{/ec/finance}
+  \item Frontend displays ledger table + "Add Transaction" button
+  \item Treasurer clicks "Add Transaction", opens modal: [type (Income/Exp), amount, category, reference]
+  \item Treasurer enters: type=Income, amount=5000, category=Donation, reference=DonorName-001
+  \item Post \texttt{/finance/transactions} with transaction object
+  \item Backend validates schema: amount > 0, type $\in$ \{Income, Exp\}, category valid
+  \item Backend calls \texttt{FinancialPolicy.validateTransaction(tx, treasurerID)}
+  \item Policy confirms: amount valid, category valid, required fields present
+  \item Backend creates Transaction record with createdBy=treasurerID, immutable flag set
+  \item Log action to audit\_logs: \{actor: treasurerID, action: TRANSACTION\_CREATED, resource: transaction.id\}
+  \item Return 201 \{transaction: \{id, type, amount, date, category, balance\}\}
+  \item Frontend updates ledger table with new entry; shows running balance
+  \item Moderator (separate session) loads ledger via GET \texttt{/finance/ledger}
+  \item Backend queries all transactions, calculates balance (sum income — sum expenditure)
+  \item Moderator sees same entry with balance reflected
+  \item (Future Lab 5) No DELETE operation available on transactions
+\end{enumerate}
+
+\textbf{Success Criteria:}
+\begin{itemize}[noitemsep]
+  \item Transaction appears in ledger with correct amount and category
+  \item Running balance updates correctly (previous balance ± new amount)
+  \item Audit log shows transaction creation with timestamp and actor
+  \item Moderator can view and verify ledger
+  \item Transaction is immutable (no edit/delete UI or API route)
+\end{itemize}
+
+\textbf{Failure Cases:}
+\begin{itemize}[noitemsep]
+  \item Negative amount: 400 Bad Request, message: "Amount must be greater than 0"
+  \item Invalid category: 400 Bad Request, message: "Category must be one of: [Donation, RegFee, ...]"
+  \item Non-Treasurer tries to create: 403 Forbidden, message: "Only Treasurer role can create transactions"
+  \item Missing reference: 400 Bad Request, message: "Reference document ID required"
+\end{itemize}
+
+\section{Security and Access Control}
+
+\subsection{Authentication (FR-CSC-024)}
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Password Hashing:} Argon2id via bcryptjs library (per NFR-CSC-003)
+  \item \textbf{JWT Tokens:} 15-minute expiry on access token; 7-day refresh token in httpOnly cookie
+  \item \textbf{Token Claims:} Payload includes user.id, user.roles[], user.email, activeTermId
+  \item \textbf{Refresh Flow:} POST \texttt{/auth/refresh} exchanges refresh token for new access token (no user interaction)
+  \item \textbf{Logout:} Clear refresh cookie; client removes JWT from memory
+\end{itemize}
+
+\subsection{Authorization: RBAC Enforcement (FR-CSC-024, NFR-CSC-005)}
+
+Every endpoint enforces role checks:
+
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Endpoint} & \textbf{Required Role} & \textbf{Enforced At} \\
+\hline
+POST /auth/register & (none) & Schema validation only \\
+\hline
+GET /members/me & General Member+ & Auth middleware (JWT required) \\
+\hline
+GET /events & General Member+ & Auth middleware \\
+\hline
+POST /events & EC Member (organizer) & Controller guard, returns 403 if General Member \\
+\hline
+POST /finance/transactions & Treasurer & Controller guard, \texttt{FinancialPolicy.hasPermission()} \\
+\hline
+POST /finance/transactions & Moderator (view only) & GET \texttt{/finance/ledger} permitted; POST forbidden \\
+\hline
+\end{tabular}
+
+\textbf{Defense-in-Depth:}
+\begin{itemize}[noitemsep]
+  \item Frontend route guards prevent navigation to protected pages
+  \item Backend middleware verifies JWT before reaching controller
+  \item Backend controller re-checks role (never trust frontend)
+  \item 403 error logged to audit trail with denied user ID
+\end{itemize}
+
+\subsection{Data Protection}
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{HTTPS/TLS 1.2+:} Enforced in production; dev uses localhost (per NFR-CSC-004)
+  \item \textbf{Immutable Ledger:} Transaction DELETE never exists; UPDATE blocked via ORM + DB policy
+  \item \textbf{Input Validation:} All POST/PUT endpoints use Joi/Zod schema validation (prevents SQL injection, XSS)
+  \item \textbf{Audit Logging:} Critical actions (login, register, transaction, role change) logged with timestamp, actor, resource ID
+  \item \textbf{Query Parameterization:} Prisma ORM uses parameterized queries automatically
+\end{itemize}
+
+\subsection{Future Security Considerations (Labs 5+)}
+
+\begin{itemize}[noitemsep]
+  \item Two-factor authentication for Moderator/Chief Patron roles
+  \item Digital signature workflows for multi-party approvals (certificates, constitution changes)
+  \item Rate limiting on login/API endpoints
+\end{itemize}
+
+\section{Frontend Design (Lab 4 Pages)}
+
+\subsection{Technology Stack}
+Next.js 14 (React 18, TypeScript, App Router) + Tailwind CSS + shadcn/ui + TanStack Query
+
+\subsection{Lab 4 Pages and Routes}
+
+\textbf{Public Pages (unauthenticated):}
+\begin{itemize}[noitemsep]
+  \item \texttt{/} --- Homepage with join/login CTAs (FR-CSC-001 entry point, US-CSC-001)
+  \item \texttt{/events} --- Public event listing, filter by status (FR-CSC-015, US-CSC-002)
+  \item \texttt{/auth/login} --- Email/password login with error handling
+  \item \texttt{/auth/register} --- 4-step form: email, password, name, studentID, batch (FR-CSC-001)
+\end{itemize}
+
+\textbf{Protected Pages (authenticated, role-based):}
+\begin{itemize}[noitemsep]
+  \item \texttt{/dashboard} --- Member profile, status, upcoming events (US-CSC-001)
+  \item \texttt{/events/\{id\}} --- Event detail, volunteer sign-up CTA (FR-CSC-017, US-CSC-003)
+  \item \texttt{/ec/events} --- EC-only: event creation form (FR-CSC-015)
+  \item \texttt{/ec/finance} --- Treasurer-only: ledger table + transaction form (FR-CSC-020, US-CSC-006)
+\end{itemize}
+
+\subsection{State Management}
+
+\textbf{TanStack Query patterns:}
+\begin{itemize}[noitemsep]
+  \item \texttt{useQuery('member', getMember)} --- Caches profile; refetch on window focus
+  \item \texttt{useQuery('events', listEvents)} --- Paginated events list
+  \item \texttt{useMutation(createEvent)} --- POST event; invalidates event cache
+  \item \texttt{useMutation(createTransaction)} --- POST transaction; auto-refetch ledger
+\end{itemize}
+
+\textbf{Error Handling:}
+\begin{itemize}[noitemsep]
+  \item Network errors: Retry with exponential backoff (3 attempts)
+  \item API errors (400, 403, 500): Toast alert with message
+  \item 403 Forbidden: Redirect to dashboard; log to analytics
+\end{itemize}
+
+\subsection{RBAC Frontend Guards}
+
+Each protected route uses \texttt{<ProtectedRoute>} wrapper:
+\begin{itemize}[noitemsep]
+  \item Checks JWT role claim from Context
+  \item Redirects unauthorized users to \texttt{/dashboard}
+  \item Backend API also enforces (defense-in-depth)
+\end{itemize}
+
+\section{Backend API Contract (Key Lab 4 Endpoints)}
+
+\begin{longtable}{>{\small\bfseries}p{2.2cm} >{\small}p{2.2cm} >{\small}p{4.2cm} >{\small}p{3.5cm}}
+\toprule
+\textbf{Endpoint} & \textbf{Method} & \textbf{Request Payload} & \textbf{Response (2xx)} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Endpoint} & \textbf{Method} & \textbf{Request Payload} & \textbf{Response (2xx)} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+\texttt{/auth/register} & POST & \{email, password, firstName, lastName, studentID, batch\} & 201 \{id, email, role, token\} \\
+
+\texttt{/auth/login} & POST & \{email, password\} & 200 \{token, user.id, user.roles[]\} \\
+
+\texttt{/auth/refresh} & POST & (refresh token in cookie) & 200 \{accessToken\} \\
+
+\texttt{/members/me} & GET & (JWT header) & 200 \{Member\} \\
+
+\texttt{/events} & GET & (optional: ?status=Planned) & 200 [\{Event objects\}] \\
+
+\texttt{/events} & POST & (EC) \{title, date, venue, budget\} & 201 \{Event\} \\
+
+\texttt{/events/\{id\}} & GET & & 200 \{Event\} \\
+
+\texttt{/events/\{id\}} & PUT & (organizer) \{title, date, venue, budget\} & 200 \{Event\} \\
+
+\texttt{/volunteers} & POST & \{memberId, eventId\} & 201 \{Volunteer\} \\
+
+\texttt{/finance/transactions} & POST & (Treasurer) \{type, amount, category, reference\} & 201 \{Transaction\} \\
+
+\texttt{/finance/ledger} & GET & (Treasurer/Moderator) & 200 [\{Transactions\}, sum, balance] \\
+\end{longtable}
+
+\section{Implementation Plan: Lab 4 (4 Weeks)}
+
+\subsection{Week 1: Backend Foundation}
+\begin{itemize}[noitemsep]
+  \item NestJS project scaffold, Prisma setup with seed
+  \item Auth module: registration, login, JWT, refresh flow (FR-CSC-024)
+  \item Users/Members tables + migration
+  \item RBAC middleware and guards
+\end{itemize}
+
+\subsection{Week 2: Frontend + Core APIs}
+\begin{itemize}[noitemsep]
+  \item Next.js setup, TanStack Query configuration
+  \item Auth pages (login, register),  homepage, navigation
+  \item Membership service + API integration
+  \item Dashboard page skeleton
+\end{itemize}
+
+\subsection{Week 3: Vertical Slices}
+\begin{itemize}[noitemsep]
+  \item Events module: create, list, fetch (FR-CSC-015, 016, 17)
+  \item Finance module: transaction creation, ledger view (FR-CSC-020)
+  \item Volunteer signup basic flow (FR-CSC-017)
+  \item Event detail page, ledger page UIs (shadcn components)
+\end{itemize}
+
+\subsection{Week 4: Testing, Docs, Deployment}
+\begin{itemize}[noitemsep]
+  \item Unit tests: Auth, RBAC, Finance policies (Jest) — $\geq$ 80\% coverage on domain
+  \item Integration tests: Supertest for core workflows (registration, event creation, transaction)
+  \item E2E tests: Playwright for user flows (registration→dashboard, event creation→view)
+  \item Docker Compose dev environment, GitHub Actions CI/CD
+  \item README, deployment guide, clean up git history
+  \item Tag \texttt{lab4-sdd-v1} and push to GitHub
+\end{itemize}
+
+\subsection{Risks and Mitigations}
+
+\begin{tabular}{|l|p{3.5cm}|p{4cm}|}
+\hline
+\textbf{Risk} & \textbf{Probability / Impact} & \textbf{Mitigation} \\
+\hline
+Auth complexity delays dev & Med/High & Start Auth early; use Passport.js templates \\
+\hline
+RBAC matrix incomplete & Med/High & Map every FR/NFR to endpoint; peer review \\
+\hline
+Network issues during testing & Low/Med & Mock API responses; test offline graceful degradation \\
+\hline
+Database migration breaks on new FRs (Labs 5+) & Med/High & Use Prisma migrations; test schema evolution \\
+\hline
+\end{tabular}
+
+\section{Testing Strategy}
+
+\subsection{Unit Tests (Jest)}
+\begin{itemize}[noitemsep]
+  \item \texttt{MembershipPolicy.canRegister()} --- Valid batch/studentID, duplicates
+  \item \texttt{RBACService.hasPermission(role, endpoint)} --- Role matrix enforcement
+  \item \texttt{FinancialPolicy.validateTransaction()} --- Positive amounts, category validation
+  \item Target: $\geq$ 80\% coverage on policies and services
+\end{itemize}
+
+\subsection{Integration Tests (Jest + Supertest)}
+\begin{itemize}[noitemsep]
+  \item POST \texttt{/auth/register} $\to$ member created, JWT issued (TC-CSC-001)
+  \item GET \texttt{/members/me} $\to$ returns authenticated member (TC-CSC-002)
+  \item POST \texttt{/events} with non-EC role $\to$ 403 (TC-CSC-003)
+  \item POST \texttt{/finance/transactions} $\to$ immutable record created (TC-CSC-004)
+  \item Target: $\geq$ 60\% coverage on controllers
+\end{itemize}
+
+\subsection{E2E Tests (Playwright)}
+\begin{itemize}[noitemsep]
+  \item \textbf{E2E-001:} Registration flow: /auth/register $\to$ form fill $\to$ /dashboard (FR-CSC-001, US-CSC-001)
+  \item \textbf{E2E-002:} Event discovery: /events $\to$ list populated, click event, view details (FR-CSC-015, US-CSC-002)
+  \item \textbf{E2E-003:} Ledger entry: /ec/finance $\to$ add transaction $\to$ appears in ledger (FR-CSC-020, US-CSC-006)
+  \item Target: All critical user paths covered
+\end{itemize}
+
+\section{Exit Checklist}
+
+\begin{itemize}[leftmargin=1.5em]
+  \item[$\boxtimes$] All Lab 4 FRs (001, 015, 017, 020, 024, 025) implemented and tested
+  \item[$\boxtimes$] SRS traceability complete: every FR/US/NFR mapped to component/endpoint/test
+  \item[$\boxtimes$] Database migrations created and tested
+  \item[$\boxtimes$] Unit test coverage $\geq$ 80\% on domain layer; integration $\geq$ 60\% on controllers
+  \item[$\boxtimes$] Security: RBAC enforced, passwords hashed, audit logging active
+  \item[$\boxtimes$] GitHub repository public, tag \texttt{lab4-sdd-v1}, CI/CD pipeline passing
+  \item[$\boxtimes$] Documentation: README.md, API.md, deployment guide, team roles documented
+  \item[$\boxtimes$] Frontend builds without errors; docker-compose up works end-to-end
+  \item[$\boxtimes$] Peer review feedback incorporated
+\end{itemize}
+
+\end{document}

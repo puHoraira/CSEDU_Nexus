@@ -1,0 +1,1303 @@
+\documentclass[12pt,a4paper]{article}
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper, top=2.5cm, bottom=2.2cm, left=2.2cm, right=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{mdframed}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable}
+\usepackage{tikz}
+\usetikzlibrary{shapes, arrows.meta, positioning, backgrounds}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[activate=false]{microtype}
+\usepackage{hyperref}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{setspace}
+\usepackage{pdflscape}
+\usepackage{calc}
+\usepackage{float}
+% ── Color Palette ──────────────────────────────────────────────────────────────
+% Predefined colors:
+\rowcolor{red}
+\rowcolor{green}
+\rowcolor{blue}
+\rowcolor{cyan}
+\rowcolor{magenta}
+\rowcolor{yellow}
+\rowcolor{gray}
+\rowcolor{black!20}  % 20% black
+\rowcolor{blue!30}   % 30% blue
+\rowcolor{orange}
+\rowcolor{purple}
+\rowcolor{brown}
+\rowcolor{pink}
+
+
+\definecolor{AccentBlue}{HTML}{2F5597}   % left column
+\definecolor{SoftBlue}{HTML}{E8F1FB}     % alternating row
+\definecolor{SoftGray}{HTML}{F7F9FC}     % alternate row
+\definecolor{DarkGray}{HTML}{333333}     % tex
+% Custom color definition
+\definecolor{LightBlue}{RGB}{173,216,230} % you can adjust RGB
+\definecolor{LightGreen}{RGB}{144,238,144}
+\definecolor{LightYellow}{RGB}{255,255,224}
+\definecolor{LightGray}{RGB}{211,211,211}
+
+\definecolor{DeepNavy}{HTML}{1A2B4A}
+\definecolor{Gold}{HTML}{C8960C}
+\definecolor{Teal}{HTML}{0D6E6E}
+\definecolor{DarkTeal}{HTML}{0A5555}
+\definecolor{LightTeal}{HTML}{E8F4F4}
+\definecolor{LightGold}{HTML}{FDF6E3}
+\definecolor{LightBlue}{HTML}{E8EEF6}
+\definecolor{DarkGray}{HTML}{333333}
+\definecolor{MidGray}{HTML}{666666}
+\definecolor{LightGray}{HTML}{F5F5F5}
+\definecolor{Purple}{HTML}{3D1A5E}
+\definecolor{DarkBlue}{HTML}{0A3D5E}
+\definecolor{AccentBlue}{HTML}{2E5299}
+\definecolor{RowA}{HTML}{E8F4F4}
+\definecolor{RowB}{HTML}{F5FBFB}
+
+% ── Hyperref Setup ─────────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true, linkcolor=Teal, urlcolor=Teal, citecolor=Teal,
+  pdftitle={SRS -- CSEDUSC Club Management System},
+  pdfauthor={Tawyabul Islam Tamim}
+}
+
+% ── tcolorbox Styles ──────────────────────────────────────────────────────────
+\tcbset{
+  significancestyle/.style={
+    enhanced, breakable,
+    colback=LightGold, colframe=Gold,
+    leftrule=5pt, rightrule=0.5pt, toprule=0.5pt, bottomrule=0.5pt,
+    title={\small\bfseries\color{Gold}$\diamond$~~NOTE},
+    coltitle=Gold,
+    fontupper=\small\color{DarkGray},
+    left=8pt, right=8pt, top=4pt, bottom=8pt
+  },
+  summarybox/.style={
+    enhanced, breakable,
+    colback=LightBlue, colframe=DeepNavy,
+    leftrule=0.5pt, rightrule=0.5pt, toprule=3pt, bottomrule=3pt,
+    title={\small\bfseries\color{DeepNavy}SECTION SUMMARY},
+    coltitle=DeepNavy,
+    fontupper=\small\color{DarkGray},
+    left=10pt, right=10pt, top=6pt, bottom=8pt
+  }
+}
+
+% ── Section Banner ─────────────────────────────────────────────────────────────
+\newcommand{\sectionbanner}[3][DeepNavy]{%
+  \vspace{4pt}%
+  \begin{tikzpicture}
+    \fill[#1] (0,0) rectangle (\linewidth,1.35cm);
+    \node[anchor=west, inner sep=0] at (0.5cm,0.67cm) {%
+      {\fontsize{20}{20}\selectfont\bfseries\color{Gold}#2}%
+      {\fontsize{13}{13}\selectfont\normalfont\color{white}\quad---\quad#3}%
+    };
+  \end{tikzpicture}\par\vspace{2pt}%
+}
+
+% ── Info table row shortcut ────────────────────────────────────────────────────
+\newcommand{\infoentry}[3][AccentBlue]{%
+  \noindent\begin{tabular}{>{\columncolor{#1}\color{white}\bfseries\small\centering\arraybackslash}p{3cm}%
+                            >{\small\color{DarkGray}}p{12.5cm}}%
+    \rule{0pt}{14pt}#2 & #3\\%
+  \end{tabular}\par\vspace{2pt}%
+}
+
+% ── Section Styling ────────────────────────────────────────────────────────────
+\titleformat{\section}{\Large\bfseries\color{DeepNavy}}{}{0em}{\thesection\quad}
+  [\vspace{-4pt}\textcolor{DeepNavy}{\rule{\linewidth}{1.5pt}}]
+\titleformat{\subsection}{\large\bfseries\color{Teal}}{}{0em}{\thesubsection\quad}
+  [\vspace{-4pt}\textcolor{Teal}{\rule{\linewidth}{0.8pt}}]
+\titleformat{\subsubsection}{\normalsize\bfseries\color{AccentBlue}}{}{0em}{}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+\titlespacing*{\subsection}{0pt}{12pt}{6pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{4pt}
+
+% ── Header / Footer ────────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead[L]{%
+  \begin{tikzpicture}[baseline=(current bounding box.south)]
+    \fill[DeepNavy] (0,-0.15) rectangle (\textwidth+1.5cm, 0.52);
+    \node[anchor=west, inner sep=4pt] at (0.1cm,0.185cm)
+      {\fontsize{7.5}{7.5}\selectfont\bfseries\color{Gold} SOFTWARE REQUIREMENTS SPECIFICATION};
+    \node[anchor=east, inner sep=4pt] at (\textwidth+1.3cm,0.185cm)
+      {\fontsize{7.5}{7.5}\selectfont\color{white}University of Dhaka, CSE};
+  \end{tikzpicture}%
+}
+\fancyfoot[C]{\small\color{MidGray}CSEDU Nexus\enspace\enspace\thepage}
+\setlength{\headheight}{22pt}
+
+% ── List Style ─────────────────────────────────────────────────────────────────
+\setlist[itemize]{leftmargin=1.4em, itemsep=2pt, parsep=0pt, topsep=4pt}
+\renewcommand{\labelitemi}{\textcolor{Teal}{$\bullet$}}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+
+% ── Custom column types ────────────────────────────────────────────────────────
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% ── Helpers ───────────────────────────────────────────────────────────────────
+\newcommand{\req}[1]{\texttt{#1}}
+\newcommand{\priority}[1]{\textbf{#1}}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{document}
+% ══════════════════════════════════════════════════════════════════════════════
+
+% ── COVER PAGE ─────────────────────────────────────────────────────────────────
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[DeepNavy] (current page.north west) rectangle (current page.south east);
+  \fill[DarkBlue, opacity=0.55] ([yshift=-10cm]current page.north west)
+    rectangle (current page.south east);
+\end{tikzpicture}
+\vspace*{1cm}
+\begin{center}
+  \includegraphics[width=0.20\textwidth]{du_logo.png}\par\vspace{1cm}
+  \vspace{0.5em}
+  {\fontsize{16pt}{18pt}\selectfont\bfseries\color{Gold}University of Dhaka\par}
+  \vspace{0.1em}
+  {\fontsize{18pt}{20pt}\selectfont\bfseries\color{Gold}Department of Computer Science and Engineering\par}
+  \vspace{1em}
+  {\fontsize{11}{13}\selectfont\bfseries\color{Gold}\MakeUppercase{Software Requirements Specification}}\\[10pt]
+  \vspace{1em}
+  {\fontsize{32}{36}\selectfont\bfseries\color{white}CSEDU Nexus}\\[4pt]
+  \textcolor{Gold!40}{\rule{8cm}{0.6pt}}\\[14pt]
+  {\fontsize{11}{14}\selectfont\itshape\color{white!70}%
+    CSEDU Students' Club (CSEDUSC)\\[3pt]
+    A Centralized Digital Platform for Club Administration}\\
+    \vspace{2.5em}
+  {\Large\color{Gold}CSE 4113-
+Internet Programming Lab\par}
+\vspace{1em}
+  \vfill
+  \textbf{\large\color{Gold}Submitted By}\par
+  \vspace{0.5em}
+  {\color{white}
+Tawyabul Islam Tamim — Roll: 04\par
+Md. Abu Horaira — Roll: 26\par
+Mst. Irin Sultana - Roll: 41\par
+Md. Adib Ahsan — Roll: 60\par
+  }
+  \vspace{1em}
+  \textbf{\large\color{Gold}Submitted To}\par
+  \vspace{0.5em}
+  {\color{white}Dr. Md. Mamun-Or-Rashid
+, Professor,
+CSE, University of Dhaka\par}
+  {\color{white}Md. Fahim Arefin, Lecturer,
+CSE, University of Dhaka\par}
+  {\color{white}Md. Ahasanul Alams, Lecturer,
+CSE, University of Dhaka\par}
+  \vspace{0.5em}
+  {\color{white!70}\small March 2026\par}
+  \vfill
+\end{center}
+\end{titlepage}
+\newpage
+
+% % ── Document Info Table ────────────────────────────────────────────────────────
+% \thispagestyle{empty}
+% \vspace*{1cm}
+% \begin{center}
+% \begin{tabular}{>{\columncolor{DeepNavy}\color{white}\bfseries\small\centering\arraybackslash}p{4cm}%
+%                 >{\small\color{DarkGray}}p{9cm}}
+% \rule{0pt}{14pt}Document Type & Software Requirements Specification \\[2pt]
+% \rowcolor{LightBlue}Version & 0.1 (Draft) \\[2pt]
+% Status & Draft \\[2pt]
+% \rowcolor{LightBlue}Date & March 2026 \\[2pt]
+% \end{tabular}
+% \end{center}
+% \vspace{2em}
+% \newpage
+
+\tableofcontents
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Document Control}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Metadata}
+
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{AccentBlue}\color{white}\bfseries\small\centering\arraybackslash}p{3.5cm}%
+                >{\small\color{DarkGray}}p{12cm}}
+
+\rule{0pt}{14pt}Team & Ravenclaw \\[2pt]
+Project Name & \cellcolor{LightBlue}CSEDU Nexus \\[2pt]
+Repository URL & \url{https://github.com/puHoraira/CSEDU_Nexus} \\[2pt]
+Version & \cellcolor{LightBlue}0.1 \\[2pt]
+Status & Draft \\[2pt]
+Date & \cellcolor{LightBlue}06  March 2026 \\[2pt]
+\end{tabular}
+\vspace{8pt}
+
+\subsection{Authors and Reviewers}
+
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{Teal}\color{white}\bfseries\small\centering\arraybackslash}p{2.5cm}%
+                >{\small\color{DarkGray}}p{3.5cm}%
+                >{\small\color{DarkGray}}p{4.5cm}%
+                >{\small\color{DarkGray}}p{3cm}}
+
+% Tawyabul Islam Tamim — Roll: 04\par
+% Md. Abu Horaira — Roll: 26\par
+% Mst. Irin Sultana - Roll: 41\par
+% Md. Adib Ahsan — Roll: 60\par
+                
+\rule{0pt}{14pt}Role & Name & ID / Email & Date \\[2pt]
+Author & \cellcolor{LightTeal}Md. Abu Horaira &\cellcolor{LightTeal} mdabu-2021911202@cs.du.ac.bd &\cellcolor{LightTeal} March 2026 \\[2pt]
+
+Author &  Tawyabul Islam Tamim &  tawyabulislam-2021411180@cse.du.ac.bd &  March 2026 \\[2pt]
+
+Team Reviewer &\cellcolor{LightTeal} \cellcolor{LightTeal}Md. Adib Ahsan & \cellcolor{LightTeal}mdadib-2021211236@cs.du.ac.bd & \cellcolor{LightTeal}March 2026 \\[2pt]
+
+Team Reviewer &  Mst. Irin Sultana & mstirin-2021311217@cs.du.ac.bd & March 2026 \\[2pt]
+
+\end{tabular}
+\vspace{8pt}
+
+\subsection{Revision History}
+
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{AccentBlue}\color{white}\bfseries\small\centering\arraybackslash}p{1.8cm}%
+                >{\small\color{DarkGray}}p{2.5cm}%
+                >{\small\color{DarkGray}}p{3.5cm}%
+                >{\small\color{DarkGray}}p{7cm}}
+\rule{0pt}{14pt}Version & Date & Author & Changes \\[2pt]
+0.1 & \cellcolor{LightBlue} March 2026 & \cellcolor{LightBlue}\begin{itemize}
+    \item  Tawyabul Islam Tamim
+    \item  Md. Abu Horaira
+\end{itemize} & \cellcolor{LightBlue} Initial draft based on CSEDUSC Constitution \\[2pt]
+\end{tabular}
+\vspace{8pt}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Problem Definition}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Problem Statement}
+
+The CSEDU Students' Club (CSEDUSC), formally constituted under the Department of Computer Science and Engineering, University of Dhaka, currently lacks a centralised digital platform to manage its members, events, elections, finances, and committee structures. Key pain points include:
+
+\begin{itemize}[noitemsep]
+  \item Manual, paper-based membership registration and tracking.
+  \item No systematic mechanism to enforce eligibility rules for elections (e.g., year of study, prior EC experience).
+  \item Absence of a transparent financial ledger accessible to moderators and the chief patron.
+  \item Difficulty tracking executive committee attendance, meeting minutes, and quarterly expenditure reports.
+  \item No structured process for certificate of membership requests.
+\end{itemize}
+
+Without a unified system, the club risks constitutional violations, reduced transparency, and administrative overhead -- ultimately hampering its mission to foster students' holistic growth through co-curricular and extra-curricular activities.
+
+\vspace{4pt}
+\begin{tcolorbox}[significancestyle]
+The absence of a centralised platform creates systemic inefficiencies. This SRS defines the requirements for a digital solution that enforces the CSEDUSC Constitution programmatically, ensuring transparency, accountability, and constitutional compliance across all club operations.
+\end{tcolorbox}
+\vspace{4pt}
+
+\subsection{Target Users}
+
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{Teal}\color{white}\bfseries\small\centering\arraybackslash}p{3cm}%
+                >{\small\color{DarkGray}}p{4.5cm}%
+                >{\small\color{DarkGray}}p{7cm}}
+\rule{0pt}{14pt}User Group & Description & Main Needs \\[2pt]
+
+General Members & \cellcolor{LightTeal} All current CSEDU undergraduate students & \cellcolor{LightTeal}Register/view membership, view events, sign-up as volunteers \\[2pt]
+EC Members & Elected posts 1--11 and executive members & Manage events, budgets, meetings, committees \\[2pt]
+
+ Moderator(s) &\cellcolor{LightTeal}  Current Student Advisor(s) of the department & \cellcolor{LightTeal} Oversight, approval workflows, financial audit \\[2pt]
+ 
+Chief Patron &  Department Chairman &   Final approval, overrule decisions, abolish EC \\[2pt]
+
+
+ Election Commission & \cellcolor{LightTeal}  Three-member commission & \cellcolor{LightTeal}  Conduct and manage the two-phase election \\[2pt]
+Alumni &   Former CSEDU students & View events, act as election commissioners \\[2pt]
+\end{tabular}
+\vspace{8pt}
+
+\subsection{Goals and Non-Goals}
+
+\textbf{\small\color{DeepNavy}GOALS}\vspace{4pt}
+
+\begin{itemize}[noitemsep]
+  \item Digitise membership registration and lifecycle management (including cancellation rules per Articles VI--VII).
+  \item Automate eligibility checks for election candidacy per Article XIV and XV.
+  \item Provide a transparent financial management module aligned with Article XII.
+  \item Enable online executive meeting scheduling, attendance recording, and minute-keeping (Article XVI).
+  \item Support an Annual General Meeting (AGM) workflow and election commission formation (Article XVIII).
+  \item Provide certificate-of-membership request and issuance workflow (Article XIX).
+\end{itemize}
+
+\textbf{\small\color{DeepNavy}NON-GOALS}\vspace{4pt}
+
+\begin{itemize}[noitemsep]
+  \item Integration with the university's academic result system.
+  \item Full Learning Management System (LMS) or course delivery capabilities.
+  \item Mobile-native (iOS/Android) application in v1.
+  \item Automated financial transactions / online payment gateway in v1.
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\newpage
+\section{Scope and Context}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{In Scope}
+
+\begin{itemize}[noitemsep]
+  \item Member registration, profile management and membership-status tracking.
+  \item EC formation, role assignment, impeachment, resignation and vacancy-filling workflows.
+  \item Two-phase election module with eligibility validation.
+  \item Event planning, volunteer management, and activity calendar aligned with Article XIII mandatory activities.
+  \item Financial module: budget submission, fund tracking, quarterly expenditure reports and audit trail.
+  \item Meeting scheduler, attendance recording.
+  \item Constitution change proposal and approval workflow (Article XVII).
+  \item AGM workflow and election commission formation.
+  \item Certificate-of-membership request and issuance.
+  \item Role-based access control (RBAC) for all user groups.
+  \item Notification system (email) for meetings, elections, and notices.
+  \item Online payment system for events and various payment.
+\end{itemize}
+
+\subsection{Out of Scope}
+
+\begin{itemize}[noitemsep]
+  \item Integration with university ERP or student information systems.
+  \item Native mobile applications.
+  \item Social-media auto-posting (only link sharing).
+\end{itemize}
+
+\subsection{Assumptions and Constraints}
+\textbf{\small\color{Teal}ASSUMPTIONS}\vspace{4pt}
+
+\begin{itemize}[noitemsep]
+  \item All members and executives have access to internet-enabled devices (desktop, laptop, or tablet) with modern web browsers.
+  \item Users possess basic computer literacy and familiarity with web-based applications.
+  \item The CSEDUSC Constitution remains stable during development; any amendments will be incorporated in subsequent releases.
+  \item The university administration supports digital transformation of club operations and grants necessary permissions for system deployment.
+  \item All financial records and member data will be maintained digitally with physical backups where legally required.
+\end{itemize}
+
+\textbf{\small\color{Teal}TECHNICAL CONSTRAINTS}\vspace{4pt}
+
+\begin{itemize}[noitemsep]
+  \item \textit{Platform Limitation:} The system must be delivered as a responsive web application accessible through standard web browsers; native mobile applications are excluded from the initial scope.
+  \item \textit{Infrastructure:} University internet bandwidth may fluctuate (especially during peak hours); the application must remain functional with network low speed.
+  \item \textit{Performance:} The system must handle at least 500 concurrent users during peak activity periods (e.g., election voting, event registration).
+  \item \textit{Compatibility:} Must support desktop and tablet viewports; mobile optimization is secondary priority for v1.
+\end{itemize}
+
+\textbf{\small\color{Teal}ORGANISATIONAL CONSTRAINTS}\vspace{4pt}
+
+\begin{itemize}[noitemsep]
+  \item System must strictly enforce rules specified in the CSEDUSC Constitution.
+  \item Chief Patron and Moderator must retain override/approval capabilities at all times.
+  \item Membership cancellation notices require multi-party digital signatures.
+\end{itemize}
+
+\textbf{\small\color{Teal}TIMELINE CONSTRAINTS}\vspace{4pt} 
+
+\begin{itemize}[noitemsep]
+  \item \textit{Lab 2 (Current):} SRS v1, problem definition, user stories, wireframes, and initial data model must be completed and submitted for peer evaluation.
+  
+  \item \textit{Lab 3 (Peer Review):} SRS revision based on peer feedback must be completed before sprint development begins.
+  
+  \item \textit{Lab 4 (Sprint 1 -- MVP):} Working vertical slices delivering end-to-end functionality for at least three core modules (membership registration, basic event listing, and user authentication). SDD documentation and public repository link submission required. Target features:
+  \begin{itemize}[noitemsep]
+    \item Member registration and login system
+    \item Role-based access control (RBAC) foundation
+    \item Basic event creation and viewing
+    \item Public portal homepage
+  \end{itemize}
+  
+  \item \textit{Lab 5 (Sprint 2 -- Core Expansion):} Complete remaining core workflows with improved reliability and error handling. Automatic deployment pipeline operational. Target features:
+  \begin{itemize}[noitemsep]
+    \item Executive committee dashboard
+    \item Event volunteer management
+    \item Meeting scheduler and attendance tracking
+    \item Financial module foundation (budget submission)
+    \item Election management
+  \end{itemize}
+  
+  \item \textit{Lab 6 (UI Review):} System must be deployed and accessible for peer usability/accessibility critique after two sprints of development.
+  
+  \item \textit{Lab 7 (Testing Baseline):} Unit, integration, and end-to-end test suite operational.
+  
+  \item \textit{Lab 8 (Peer QA):} Adversarial QA testing by peer teams; all critical bugs from Lab 6 UI review resolved.
+  
+  \item \textit{Lab 9 (Hardening):} Address critical and high-priority bugs from peer QA; finalize documentation, deployment runbook, and production readiness checklist.
+  
+  \item \textit{Lab 10 (Final Defense):} Fully functional system with live demo capability, comprehensive test evidence, final report, video demonstration, and complete GitHub repository with deployment instructions.
+  
+  \item \textit{External Constraint:} MVP (Labs 4--5) should align with CSEDUSC operations.  pilot deployment with 10--15 executive members during Lab 9 for real-world validation.
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Stakeholders and Roles}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Stakeholders}
+
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{AccentBlue}\color{white}\bfseries\small\centering\arraybackslash}p{3.5cm}%
+                >{\small\color{DarkGray}}p{6cm}%
+                >{\small\color{DarkGray}\centering\arraybackslash}p{3.5cm}}
+\rule{0pt}{14pt}Stakeholder & Interest & Priority \\[2pt]
+Chief Patron (Chairman) & \cellcolor{LightBlue} Constitutional compliance, final approvals & \cellcolor{LightBlue}High \\[2pt]
+Moderator(s) & Day-to-day oversight, financial audit & High \\[2pt]
+ EC Members & \cellcolor{LightBlue}Efficient event and club management & \cellcolor{LightBlue}High \\[2pt]
+General Members &  Access to events, membership benefits &  Medium \\[2pt]
+
+ Election Commission & \cellcolor{LightBlue}Fair and transparent elections &\cellcolor{LightBlue} High \\[2pt]
+Alumni &  Advisory roles, event participation &  Low \\[2pt]
+
+ Department Admin Office &\cellcolor{LightBlue} Financial document submission & \cellcolor{LightBlue}Medium \\[2pt]
+\end{tabular}
+\vspace{8pt}
+
+\subsection{User Roles and Permissions}
+\noindent
+\begin{tabular}{>{\columncolor{Teal}\color{black}\bfseries\small\centering\arraybackslash}p{2.8cm}%
+                >{\small\color{DarkGray}}p{4cm}%
+                >{\small\color{DarkGray}}p{10cm}}
+\rule{0pt}{12pt}Role & \cellcolor{LightGray}Description & \cellcolor{Teal} Permissions \\[0.4pt]
+
+\rowcolor{white} General Member & Any current CSEDU student & View events, register, sign membership form, apply as volunteer \\[1pt]
+
+\rowcolor{LightBlue}President & Post-1 EC, 3rd year+, 2+ years EC experience & Preside over meetings, call meetings, convene constitution-change committee \\[1pt]
+
+\rowcolor{white}Vice President & Post-2 EC, 3rd year+, 2+ years EC experience & Support President, act as President in absence, oversee planned activities \\[1pt]
+
+\rowcolor{LightBlue}General Secretary & Post-3 EC, 3rd year+, 2+ years EC experience & Call meetings, organize/monitor ad-hoc committees, manage volunteers during events \\[1pt]
+
+\rowcolor{white}AGS (Organization) & Post-4 EC, 3rd year+, 1+ year EC experience & Organize volunteers during programs, assist GS in duties \\[1pt]
+
+\rowcolor{LightBlue}AGS (Public Relations) & Post-5 EC, 3rd year+, 1+ year EC experience & Contact alumni/media/clubs, send invitations, maintain website, manage online events \\[1pt]
+
+\rowcolor{white}Treasurer & Post-6 EC, 3rd year+, 1+ year EC experience & Maintain fund records, manage collection/expenditure, submit quarterly reports \\[1pt]
+
+\rowcolor{LightBlue}Secretary (Publication) & Post-7 EC, 2nd year+ & Print banners/posters/notices, produce annual reports/magazines \\[1pt]
+
+\rowcolor{white}Secretary (Sports) & Post-8 EC, 2nd year+ & Maintain games equipment, organize tournaments, coordinate official teams \\[1pt]
+
+\rowcolor{LightBlue}Secretary (Seminars) & Post-9 EC, 2nd year+ & Arrange mandatory higher study seminar, organize workshops/training/invited talks \\[1pt]
+
+\rowcolor{white}Secretary (Cultural) & Post-10 EC, 2nd year+ & Arrange formal/informal cultural sessions throughout the year \\[1pt]
+
+\rowcolor{LightBlue}Secretary (Graphics) & Post-11 EC, 2nd year+ & Design and curate content for publication and social media \\[1pt]
+
+\rowcolor{white}Executive Members & Posts 12-onward EC & Assist Posts 1-11, lead volunteer groups during events (2nd year+) \\[1pt]
+
+\rowcolor{LightBlue}Chief Patron & Department Chairman & Full override, approve constitution changes, issue/cancel memberships, sign cheques \\[2pt]
+
+\rowcolor{white}Moderator & Student Advisor(s) & Approve proposals, view financial records, manage election commission, candidacy cancel\\[2pt]
+
+\rowcolor{LightBlue}Election Commissioner & Three-member commission & Manage election phases, validate candidacy, publish results \\[2pt]
+
+\rowcolor{white}Alumni & Former CSEDU students & View events, election commission (eligible) \\[2pt]
+\end{tabular}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Functional Requirements}
+% ══════════════════════════════════════════════════════════════════════════════
+
+
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+
+\begin{longtable}{>{\small\centering\arraybackslash\color{DeepNavy}\bfseries}p{2.2cm}%
+                  >{\small\color{DarkGray}}p{2.6cm}%
+                  >{\small\color{DarkGray}}p{5.9cm}%
+                  >{\small\centering\arraybackslash\color{DarkGray}}p{1.5cm}%
+                  >{\small\color{DarkGray}}p{4.5cm}}
+  \caption{Functional Requirements} \label{tab:fr} \\
+
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries Req ID &
+  \color{white}\bfseries Feature &
+  \color{white}\bfseries Requirement Statement &
+  \color{white}\bfseries Priority &
+  \color{white}\bfseries Acceptance Criteria \\
+
+  \endfirsthead
+
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries Req ID &
+  \color{white}\bfseries Feature &
+  \color{white}\bfseries Requirement Statement &
+  \color{white}\bfseries Priority &
+  \color{white}\bfseries Acceptance Criteria \\
+
+  \endhead
+
+  \midrule
+  \multicolumn{5}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+  \endfoot
+
+  \bottomrule
+  \endlastfoot
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-001} & Membership Registration & System shall allow any current CSEDU student to register as a general member by completing a digital membership form and signing the checklist. & M & Member appears in database with status ``Active'' after form submission and confirmation. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-002} & Membership Cancellation & System shall automatically cancel membership upon expiration of studentship (final result published). & M & Membership status changes to ``Expired'' within 24 hours of result publication trigger. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-003} & Cancellation Notice & System shall generate a cancellation notice signed digitally by Chief Patron, Moderator(s), and President upon manual cancellation. & M & Notice PDF is generated with all three digital signatures and published to the notice board. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-004} & EC Formation & System shall support creation of an Executive Committee with roles as defined in Article V. & M & All 11 named posts plus executive members can be assigned; roles are stored with batch and year information. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-005} & Election -- Phase 1 & System shall allow batch-level voting to select five representatives per batch. & M & Vote tallies are recorded; top 5 per batch are automatically marked as EC members. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-006} & Election -- Phase 2 & System shall allow all undergraduate students to vote for Posts 1--11 from Phase-1 representatives who meet eligibility criteria. & M & Eligibility check runs automatically; ineligible candidates are blocked from appearing on ballot. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-007} & Candidacy Eligibility & System shall enforce year-of-study and EC-experience requirements per Article XIV and XV for each post. & M & Attempt to add ineligible candidate returns error with specific rule violated. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-008} & Impeachment Workflow & System shall require a minimum two-thirds vote of total EC members to accept impeachment. & M & Impeachment is recorded only when $\geq 2/3$ of EC members vote in favour; notice is auto-generated. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-009} & Resignation Workflow & System shall allow President to resign directly to Moderator, and other EC members to resign via President to Moderator. & M & Resignation letter is submitted digitally; post status changes to ``Vacant'' upon Moderator acknowledgement. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-010} & Vacancy Filling & System shall trigger a voting process from the corresponding batch when any EC post becomes vacant. & M & Vacancy notice is sent to eligible batch members; vote results fill the post. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-011} & Meeting Scheduling & System shall allow President or General Secretary to schedule executive meetings with at least one week's notice. & M & Meeting notice appears on dashboard and is sent via notification to all EC members. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-012} & Meeting Attendance & System shall record digital attendance with signature confirmation for each executive meeting. & M & Attendance sheet with member names and digital sign-off is stored; sheet is shareable with Moderator. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-013} & Meeting Minutes & System shall allow General Secretary to record and store meeting minutes linked to each meeting. & M & Minutes are stored, versioned, and accessible to EC members and Moderator. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-014} & Absence Tracking & System shall automatically flag an EC member who has been absent from three consecutive meetings without notice. & M & System sends alert to President and Moderator after third consecutive unexcused absence. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-015} & Event Management & System shall allow EC members to create, update, and delete events with associated budgets and volunteer requirements. & M & Event is visible on the calendar; budget request is routed to Moderator for approval. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-016} & Mandatory Activity Checklist & System shall track and display completion status of mandatory annual activities listed in Article XIII. & S & Dashboard shows completion percentage of mandatory activities for the current EC year. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-017} & Volunteer Management & System shall allow general members to register as volunteers for events and allow EC members to assign volunteer roles. & M & Volunteer list per event is maintained; assignment confirmation is sent to volunteers. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-018} & Budget Submission & System shall allow newly formed EC to submit proposed expenditure and expected revenues within one month of formation. & M & Budget submission is timestamped; late submission triggers a Moderator alert. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-019} & Expenditure Report & System shall allow Treasurer to prepare and submit a quarterly expenditure report signed digitally by Treasurer and Moderator. & M & Report is generated from transaction records, signed, and stored in the department office section. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-020} & Fund Tracking & System shall maintain a running ledger of all fund inflows and outflows. & M & Ledger entries include date, amount, category, and reference document; balance is always visible to Moderator and Chief Patron. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-021} & Constitution Change & System shall allow President to initiate a constitution change proposal, collect EC two-thirds vote, and route to Moderator and Chief Patron for approval. & S & Proposal workflow enforces one-week notice; change is published only after Academic Committee approval is recorded. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-022} & AGM Workflow & System shall support the Annual General Meeting process including notice, annual report submission, financial ledger presentation, and election commission formation. & M & AGM checklist is completed within the system; all submissions are archived. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-023} & Certificate of Membership & System shall allow EC members to request a certificate of membership issued digitally by the Chief Patron. & S & Certificate is generated from system records, approved by Chief Patron, and downloadable as PDF. \\
+
+  \midrule
+  \rowcolor{LightBlue}\req{FR-CSC-024} & Role-Based Access Control & System shall enforce role-based permissions so that each user can only access features relevant to their role. & M & Unauthorised access attempts return a 403 error; permission matrix matches Section 4.2. \\
+
+  \midrule
+  \rowcolor{LightTeal}\req{FR-CSC-025} & Notification System & System shall send in-app and email notifications for meetings, election announcements, membership status changes, and budget approvals. & M & Notification is delivered within 5 minutes of the triggering event; user can configure email opt-out. \\
+
+\end{longtable}
+% ══════════════════════════════════════════════════════════════════════════════
+\newpage
+\section{User Stories and Use Cases}
+% ══════════════════════════════════════════════════════════════════════════════
+
+
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+
+\begin{longtable}{>{\small\centering\arraybackslash\color{DeepNavy}\bfseries}p{2.2cm}%
+                  >{\small\color{DarkGray}}p{2.2cm}%
+                  >{\small\color{DarkGray}}p{3.6cm}%
+                  >{\small\color{DarkGray}}p{3.6cm}%
+                  >{\small\color{DarkGray}}p{4.2cm}}
+  \caption{User Stories} \label{tab:us} \\
+
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries Story ID &
+  \color{white}\bfseries As a\ldots &
+  \color{white}\bfseries I want\ldots &
+  \color{white}\bfseries So that\ldots &
+  \color{white}\bfseries Acceptance Criteria \\
+
+  \endfirsthead
+
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries Story ID &
+  \color{white}\bfseries As a\ldots &
+  \color{white}\bfseries I want\ldots &
+  \color{white}\bfseries So that\ldots &
+  \color{white}\bfseries Acceptance Criteria \\
+
+  \endhead
+
+  \midrule
+  \multicolumn{5}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+  \endfoot
+
+  \bottomrule
+  \endlastfoot
+
+  \midrule
+  \rowcolor{LightTeal}US-CSC-001 & General Member & to register online with a membership form and checklist & I can officially become a CSEDUSC member & Form submitted; confirmation email received; member appears in active list. \\
+
+  \midrule
+  \rowcolor{LightBlue}US-CSC-002 & General Member & to view all upcoming club events and activities & I can plan my participation & Events page loads with title, date, venue, and registration link. \\
+
+  \midrule
+  \rowcolor{LightTeal}US-CSC-003 & General Member & to sign up as a volunteer for an event & I can contribute to club activities & Volunteer registration recorded; confirmation shown on dashboard. \\
+
+  \midrule
+  \rowcolor{LightBlue}US-CSC-004 & EC Member (General Secretary) & to schedule an executive meeting with automatic notifications & all EC members are informed in time & Meeting created; notifications sent to all EC members immediately. \\
+
+  \midrule
+  \rowcolor{LightTeal}US-CSC-005 & EC Member (General Secretary) & to record digital attendance for each executive meeting & absence tracking is accurate and automatic & Attendance sheet stored; members absent for 3 consecutive meetings are flagged. \\
+
+  \midrule
+  \rowcolor{LightBlue}US-CSC-006 & EC Member (Treasurer) & to log all income and expenditure entries & the financial ledger is always up to date & Entry saved with timestamp, category, and amount; balance updates immediately. \\
+
+  \midrule
+  \rowcolor{LightTeal}US-CSC-007 & EC Member (Treasurer) & to generate and submit a quarterly expenditure report & I can meet the constitutional reporting requirement & Report generated from ledger; digital signature workflow initiated for Moderator sign-off. \\
+
+  \midrule
+  \rowcolor{LightBlue}US-CSC-008 & EC Member (President) & to initiate an impeachment vote for an EC member & constitutional procedures are followed & Vote created; $\geq$\,2/3 acceptance triggers auto-generated notice; membership cancelled. \\
+
+  \midrule
+  \rowcolor{LightTeal}US-CSC-009 & EC Member & to submit my resignation letter digitally through the President & the process is documented and transparent & Resignation routed to Moderator; post marked ``Vacant'' upon acknowledgement. \\
+
+  \midrule
+  \rowcolor{LightBlue}US-CSC-010 & Moderator & to review and approve all budget submissions and expenditure reports & financial transparency is maintained & Approval or rejection recorded with comment; Treasurer notified immediately. \\
+
+  \midrule
+  \rowcolor{LightTeal}US-CSC-011 & Moderator & to oversee the two-phase election process & the election is conducted fairly and constitutionally & Election phases are visible to Moderator; any anomaly can be flagged before results are published. \\
+
+  \midrule
+  \rowcolor{LightBlue}US-CSC-012 & Chief Patron & to digitally approve or overrule any EC decision & my authority as defined in the constitution is exercised & Approval/overrule action is logged with timestamp and reason; all EC members are notified. \\
+
+  \midrule
+  \rowcolor{LightTeal}US-CSC-013 & Election Commissioner & to validate candidacy eligibility automatically & only eligible candidates appear on the ballot & Ineligible candidates are blocked with a reason message; eligible list is published to Moderator. \\
+
+  \midrule
+  \rowcolor{LightBlue}US-CSC-014 & EC Member & to request a certificate of membership listing my contributions & I can use it for academic or professional purposes & Request submitted; Chief Patron approves; PDF certificate generated and downloadable. \\
+
+  \midrule
+  \rowcolor{LightTeal}US-CSC-015 & EC Member (President) & to initiate a constitution-change proposal and collect votes & amendments follow the process in Article XVII & Proposal created; one-week notice sent; $\geq$\,2/3 vote recorded; routed to Moderator and Chief Patron. \\
+
+\end{longtable}
+% 
+\newpage
+
+\section{Data Requirements}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Core Entities}
+
+\begin{center}
+\small
+\begin{longtable}{>{\columncolor{AccentBlue}\color{black}\bfseries\small\centering\arraybackslash}p{3cm}%
+                  >{\small\color{DarkGray}}p{4cm}%
+                  >{\small\color{DarkGray}}p{4cm}%
+                  >{\small\color{DarkGray}}p{5cm}}
+\caption{Core Entities of CSEDUSC System} \label{tab:core-entities} \\
+
+\hline
+\rowcolor{DeepNavy}
+\color{white}\textbf{Entity} &
+\color{white}\textbf{Description} &
+\color{white}\textbf{Key Fields} &
+\color{white}\textbf{Constraints} \\
+\hline
+\endfirsthead
+
+\hline
+\rowcolor{DeepNavy}
+\color{white}\textbf{Entity} &
+\color{white}\textbf{Description} &
+\color{white}\textbf{Key Fields} &
+\color{white}\textbf{Constraints} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{4}{r}{\small Continued on next page} \\
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+\rowcolor{LightBlue}Member & Any CSEDU student registered in the club & memberID, name, studentID, batch, status, joinDate, email, phone & Status $\in$ \{Active, Cancelled, Expired\} \\[2pt]
+
+Alumni & Former CSEDU students & alumniID, memberID, graduationYear, email, phone, isEligibleCommissioner & Can serve on election commission \\[2pt]
+
+\rowcolor{LightBlue}ECMember & Elected executive committee member & ecMemberID, memberID, post, term, batch, ECExperience, startDate, endDate & One active EC per post per term \\[2pt]
+
+Election & Full election cycle & electionID, phase, startDate, endDate, status, commissionID & Two phases required; Status: Draft/Active/Completed \\[2pt]
+
+\rowcolor{LightBlue}Election Commission & Three-member commission & commissionID, electionID, chairperson, member1, member2, formationDate & Must have exactly 3 members; at least 2 must be alumni \\[2pt]
+
+Vote & Single vote in election & voteID, voterID, candidateID, electionID, phase, timestamp, isAnonymous & One vote per voter per phase; immutable \\[2pt]
+
+\rowcolor{LightBlue}Event & Club event or activity & eventID, title, type, date, venue, budget, status, organizerID & Type $\in$ \{Mandatory, Optional\}; Status $\in$ \{Planned, Ongoing, Completed, Cancelled\} \\[2pt]
+
+Volunteer & Event volunteer assignment & volunteerID, memberID, eventID, role, assignedBy, status & Status $\in$ \{Registered, Assigned, Completed\} \\[2pt]
+
+\rowcolor{LightBlue}Meeting & EC meeting & meetingID, date, time, calledBy, venue, minutes, quorum, status & Minimum one per two months; quorum $\geq$ 2/3 EC \\[2pt]
+
+Meeting Attendance & Attendance record & attendanceID, meetingID, memberID, isPresent, digitalSignature, timestamp & Only for EC members; tracks absences \\[2pt]
+
+\rowcolor{LightBlue}Transaction & Financial ledger entry & transactionID, type, amount, date, category, reference, createdBy, approvedBy & Type $\in$ \{Income, Expenditure\}; immutable \\[2pt]
+
+Expenditure Report & Quarterly report & reportID, quarter, year, totalIncome, totalExpense, netBalance, treasurerSign, moderatorSign & Generated every 3 months \\[2pt]
+
+\rowcolor{LightBlue}Certificate & Membership certificate & certID, memberID, requestDate, approvalDate, approvedBy, pdfURL, status & Issued by Chief Patron only \\[2pt]
+
+Constitution Change & Amendment proposal & changeID, proposedBy, description, proposalDate, voteCount, status, approvedBy & Once per EC year; needs $\geq$2/3 EC + Moderator + Chief Patron approval \\[2pt]
+
+\rowcolor{LightBlue}Moderator & Student Advisor & moderatorID, name, email, department, assignedDate & Oversight role; approves budgets and reports \\[2pt]
+
+Chief Patron & Department Chairman & patronID, name, email, department, appointmentDate & Final authority; signs cheques and certificates \\[2pt]
+
+\end{longtable}
+\end{center}
+\subsection{Data Dictionary}
+
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{Teal}\color{black}\bfseries\small\centering\arraybackslash}p{3cm}%
+                >{\small\color{DarkGray}\centering\arraybackslash}p{1.5cm}%
+                >{\small\color{DarkGray}\centering\arraybackslash}p{1.5cm}%
+                >{\small\color{DarkGray}}p{4cm}%
+                >{\small\color{DarkGray}}p{3.5cm}}
+\rule{0pt}{14pt}Field & Type & Required & Validation / Constraint & Example \\[2pt]
+\rowcolor{LightTeal}memberID & UUID & Yes & Auto-generated, unique & \texttt{mem-0042} \\[2pt]
+studentID & String & Yes & University student ID format & \texttt{2021-045-343} \\[2pt]
+\rowcolor{LightTeal}batch & Integer & Yes & Valid CSEDU batch year & 2021 \\[2pt]
+status & Enum & Yes & Active, Cancelled, Expired & Active \\[2pt]
+\rowcolor{LightTeal}post & String & No & Must be one of the 11 named posts & General Secretary \\[2pt]
+ECExperience & Integer & Yes & Years of experience in EC $\geq 0$ & 2 \\[2pt]
+\rowcolor{LightTeal}amount & Decimal & Yes & Must be $> 0$; max 2 decimal places & 5000.00 \\[2pt]
+category & Enum & Yes & Dept / Donation / Sponsor / RegFee / Expenditure & Donation \\[2pt]
+\rowcolor{LightTeal}phase & Integer & Yes & 1 or 2 & 1 \\[2pt]
+quorum & Boolean & Yes & $\geq$2/3 EC must be present & true \\[2pt]
+\end{tabular}
+\vspace{8pt}
+
+\newpage
+\subsection{Data Model}
+
+The system's data architecture consists of sixteen core entities with well-defined relationships governing membership, alumni engagement, governance, events, elections, and financial operations. This model ensures constitutional compliance and data integrity across all workflows.
+
+\vspace{4pt}
+
+
+\subsubsection{Entity Relationships and Business Rules}
+
+\begin{center}
+\small
+\begin{longtable}{>{\columncolor{AccentBlue}\color{black}\bfseries\small}p{4cm}%
+                  >{\small}p{2.3cm}%
+                  >{\small}p{3.5cm}%
+                  >{\small}p{6cm}}
+\caption{Entity Relationships and Business Rules} \label{tab:er} \\
+
+\hline
+\rowcolor{DeepNavy}
+\color{white}\textbf{Relationship} &
+\color{white}\textbf{Cardinality} &
+\color{white}\textbf{Description} &
+\color{white}\textbf{Business Rules} \\
+\hline
+\endfirsthead
+
+\hline
+\rowcolor{DeepNavy}
+\color{white}\textbf{Relationship} &
+\color{white}\textbf{Cardinality} &
+\color{white}\textbf{Description} &
+\color{white}\textbf{Business Rules} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{4}{r}{\small Continued on next page} \\
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+\rowcolor{LightBlue}Member $\rightarrow$ Alumni & 1:0..1 & A Member becomes an Alumnus upon graduation & Automatic transition when studentship expires \\[2pt]
+
+Member $\rightarrow$ ECMember & 1:0..1 & A Member may become an EC member for a specific term & One active EC role per member per term; historical EC records retained \\[2pt]
+
+\rowcolor{LightBlue}Member $\rightarrow$ Vote & 1:N & A Member casts votes in elections & One vote per member per election phase; votes are immutable \\[2pt]
+
+Member $\rightarrow$ Volunteer & 1:N & A Member volunteers for events & Members sign up; EC assigns specific roles \\[2pt]
+
+\rowcolor{LightBlue}Member $\rightarrow$ MeetingAttendance & 1:N & EC Members have attendance records & Tracks presence/absence with digital signature; auto-flags 3 consecutive absences \\[2pt]
+
+Member $\rightarrow$ Certificate & 1:N & A Member can request multiple certificates & Each request requires Chief Patron approval; one active request at a time \\[2pt]
+
+\rowcolor{LightBlue}Alumni $\rightarrow$ Election Commission & 1:N & Alumni can serve on election commission & At least 2 of 3 commission members must be alumni \\[2pt]
+
+ECMember $\rightarrow$ Event & 1:N & An EC member organizes events & Each event assigned to one responsible EC post (e.g., Secretary Cultural) \\[2pt]
+
+\rowcolor{LightBlue}ECMember $\rightarrow$ Transaction & 1:N & Treasurer logs transactions & Only Treasurer role can create/edit transactions; requires supporting documents \\[2pt]
+
+ECMember $\rightarrow$ Meeting & 1:N & EC members call and attend meetings & President or General Secretary can call meetings \\[2pt]
+
+\rowcolor{LightBlue}ECMember $\rightarrow$ ConstitutionChange & 1:N & EC members propose amendments & President initiates; needs $\geq$ 2/3 EC votes \\[2pt]
+
+Election $\rightarrow$ Election Commission & 1:1 & Each election managed by one commission & Commission formed by Moderator before election starts \\[2pt]
+
+\rowcolor{LightBlue}Election $\rightarrow$ Vote & 1:N & An Election comprises multiple votes & Votes partitioned by phase (1 or 2); results calculated automatically \\[2pt]
+
+Election $\rightarrow$ ECMember & 1:N & An Election produces elected EC members & Winners from Phase 2 assigned to Posts 1--11; Phase 1 winners become EC members \\[2pt]
+
+\rowcolor{LightBlue}Event $\rightarrow$ Volunteer & 1:N & An Event has registered volunteers & Members sign up; EC assigns specific roles during event \\[2pt]
+
+Meeting $\rightarrow$ MeetingAttendance & 1:N & A Meeting records attendance entries & Minimum quorum: 2/3 of EC members; minutes attached to meeting record \\[2pt]
+
+\rowcolor{LightBlue}Transaction $\rightarrow$ ExpenditureReport & N:1 & Transactions aggregated into quarterly reports & Report generated every 3 months; requires Treasurer and Moderator digital signatures \\[2pt]
+
+ConstitutionChange $\rightarrow$ Vote & 1:N & A proposed amendment requires EC votes & Needs $\geq$ 2/3 EC approval; then Moderator + Chief Patron + Academic Committee approval \\[2pt]
+
+\rowcolor{LightBlue}Moderator $\rightarrow$ ExpenditureReport & 1:N & Moderator signs off reports & Must verify all transactions before signing \\[2pt]
+
+Moderator $\rightarrow$ Election Commission & 1:N & Moderator forms election commission & Appoints 3 members before election \\[2pt]
+
+\rowcolor{LightBlue}Chief Patron $\rightarrow$ Certificate & 1:N & Chief Patron approves certificates & Only authority to issue membership certificates \\[2pt]
+
+Chief Patron $\rightarrow$ ConstitutionChange & 1:N & Chief Patron approves amendments & Final approval after EC and Moderator votes \\[2pt]
+
+\end{longtable}
+\end{center}
+
+\vspace{4pt}
+\textbf{\small\color{Teal}KEY CONSTRAINTS AND INTEGRITY RULES}\vspace{4pt}
+
+\begin{itemize}[noitemsep]
+  \item \textit{Uniqueness:} Each Member has a unique \texttt{studentID}; each ECMember has a unique \texttt{post} per term (no duplicate posts).
+  \item \textit{Referential Integrity:} All foreign keys (e.g., \texttt{voterID}, \texttt{candidateID}, \texttt{memberID}) must reference valid \texttt{Member} or \texttt{ECMember} records.
+  \item \textit{Status Validation:} Member \texttt{status} transitions follow state machine: Active $\rightarrow$ \{Expired, Cancelled\}; no reverse transitions allowed.
+  \item \textit{Election Phase Sequencing:} Phase 2 cannot start until Phase 1 results are published; votes are immutable after submission.
+  \item \textit{Financial Audit Trail:} Every \texttt{Transaction} must have \texttt{category}, \texttt{amount > 0}, \texttt{timestamp}, and \texttt{createdBy} (Treasurer).
+  \item \textit{Meeting Attendance:} Only current EC members can have attendance entries; absence count auto-increments for no-shows.
+  \item \textit{Certificate Approval:} Certificates can only be issued by users with \texttt{role = Chief Patron}; one pending request per member.
+  \item \textit{Term Boundaries:} EC terms are non-overlapping; archived EC records retain historical post assignments for eligibility checks.
+\end{itemize}
+
+\vspace{4pt}
+\begin{tcolorbox}[significancestyle]
+\textbf{ER Diagram:} A comprehensive Entity-Relationship diagram illustrating all entities, attributes, primary/foreign keys, and cardinality constraints is provided in \textbf{Appendix \ref{appendix:er}} of this document..
+\end{tcolorbox}
+
+\vspace{4pt}
+\textbf{\small\color{Teal}DATA RETENTION POLICY}\vspace{4pt}
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Active Records:} Member profiles, current EC data, ongoing elections, and pending transactions retained in primary database.
+  \item \textbf{Historical Archives:} Past EC terms, completed elections, and closed financial years moved to archive tables after 1 year; retained for 7 years for audit purposes.
+  \item \textbf{Deletion Policy:} Member data anonymized 3 years after graduation unless consent given for alumni engagement.
+\end{itemize}
+% ══════════════════════════════════════════════════════════════════════════════
+\newpage
+\section{UI and UX Requirements}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Wireframes}
+
+The following screens are required as wireframes. See Appendix C for mockups.
+
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{Teal}\color{black}\bfseries\small\centering\arraybackslash}p{0.65cm}%
+                >{\small\color{DarkGray}}p{14.4cm}}
+1 & \textbf{Member Dashboard} --- Upcoming events, membership status, notifications feed. (See Figure~\ref{fig:member_dashboard})\\[2pt]
+\rowcolor{RowA}2 & \textbf{Membership Registration Form} --- Multi-step form with checklist sign-off. (See Figure~\ref{fig:membership_registration})\\[2pt]
+3 & \textbf{Election Portal} --- Phase selector, candidate list with eligibility badge, voting interface. (See Figure~\ref{fig:election_portal})\\[2pt]
+\rowcolor{RowA}4 & \textbf{Financial Ledger View} --- Tabular ledger with filter by category/date; running balance; export button. (See Figure~\ref{fig:financial_ledger})\\[2pt]
+5 & \textbf{Executive Meeting Scheduler} --- Calendar view; meeting creation modal; attendance capture screen. (See Figure~\ref{fig:meeting_scheduler})\\[2pt]
+\rowcolor{RowA}6 & \textbf{EC Management Panel} --- Org-chart view of current EC; post statuses (filled/vacant); impeachment/resignation triggers. (See Figure~\ref{fig:ec_panel})\\
+\end{tabular}
+
+\subsection{UX and Accessibility Baseline}
+
+\begin{itemize}[noitemsep]
+  \item Clear navigation with labelled sidebar and breadcrumb trails.
+  \item All core flows (registration, voting, report submission) are keyboard-accessible.
+  \item Minimum WCAG 2.1 AA colour contrast ratio (4.5:1 for body text).
+  \item Responsive layout for desktop and tablet.
+  \item Error messages are specific and actionable (no generic ``Something went wrong'').
+  \item Forms include inline validation and confirmation dialogs for irreversible actions.
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\newpage
+\section{Non-Functional Requirements}
+% ══════════════════════════════════════════════════════════════════════════════
+
+
+\begin{longtable}{>{\small\centering\arraybackslash\color{DeepNavy}\bfseries}p{2.5cm}%
+                  >{\small\color{DarkGray}}p{2.5cm}%
+                  >{\small\color{DarkGray}}p{5.5cm}%
+                  >{\small\color{DarkGray}}p{4cm}}
+  \caption{Non-Functional Requirements} \label{tab:nfr} \\
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries NFR ID & \color{white}\bfseries Category & \color{white}\bfseries Requirement & \color{white}\bfseries Target / Metric \\
+  \endfirsthead
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries NFR ID & \color{white}\bfseries Category & \color{white}\bfseries Requirement & \color{white}\bfseries Target / Metric \\
+  \endhead
+  \midrule\multicolumn{4}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+  \endfoot
+  \bottomrule
+  \endlastfoot
+  \midrule
+  \rowcolor{LightTeal}\req{NFR-CSC-001} & Performance & Page load time for dashboard under normal load & $\leq$ 3 seconds at 95th percentile \\
+  \midrule
+  \rowcolor{LightBlue}\req{NFR-CSC-002} & Performance & Election vote submission response time & $\leq$ 1 second per vote \\
+  \midrule
+  \rowcolor{LightTeal}\req{NFR-CSC-003} & Security & All passwords must be stored using a strong hashing algorithm (bcrypt/Argon2) & Zero plaintext passwords in DB \\
+  \midrule
+  \rowcolor{LightBlue}\req{NFR-CSC-004} & Security & All data in transit must use HTTPS/TLS 1.2+ & 100\% encrypted traffic \\
+  \midrule
+  \rowcolor{LightTeal}\req{NFR-CSC-005} & Security & Role-based access control enforced on every API endpoint & 0 unauthorised access incidents in pen test \\
+  \midrule
+  \rowcolor{LightBlue}\req{NFR-CSC-006} & Availability & System uptime during election windows & $\geq$ 99.5\% \\
+  \midrule
+  \rowcolor{LightTeal}\req{NFR-CSC-007} & Availability & Scheduled maintenance windows communicated 48 hours in advance & 100\% advance notice \\
+  \midrule
+  \rowcolor{LightBlue}\req{NFR-CSC-008} & Usability & New user can complete membership registration without external help & Task completion rate $\geq$ 90\% in usability test \\
+  \midrule
+  \rowcolor{LightTeal}\req{NFR-CSC-009} & Usability & System UI must be available in Bangla and English & Language toggle on all pages \\
+  \midrule
+  \rowcolor{LightBlue}\req{NFR-CSC-010} & Scalability & System must handle concurrent users during election & $\geq$ 500 concurrent users without degradation \\
+  \midrule
+  \rowcolor{LightTeal}\req{NFR-CSC-011} & Auditability & All financial transactions must be immutable once saved & No delete option; only adjustment entries allowed \\
+  \midrule
+  \rowcolor{LightBlue}\req{NFR-CSC-012} & Reliability & Data backup frequency & Daily automated backup; recovery tested monthly \\
+  \midrule
+  \rowcolor{LightTeal}\req{NFR-CSC-013} & Maintainability & Codebase must include unit tests for core business logic & $\geq$ 80\% code coverage \\
+\end{longtable}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Risks and Open Questions}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Risk Register}
+
+\begin{longtable}{>{\small\centering\arraybackslash\color{DeepNavy}\bfseries}p{2cm}%
+                  >{\small\color{DarkGray}}p{4cm}%
+                  >{\small\centering\arraybackslash\color{DarkGray}}p{2cm}%
+                  >{\small\centering\arraybackslash\color{DarkGray}}p{1.5cm}%
+                  >{\small\color{DarkGray}}p{5cm}}
+  \caption{Risk Register} \label{tab:risk} \\
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries Risk ID & \color{white}\bfseries Description & \color{white}\bfseries Probability & \color{white}\bfseries Impact & \color{white}\bfseries Mitigation \\
+  \endfirsthead
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries Risk ID & \color{white}\bfseries Description & \color{white}\bfseries Probability & \color{white}\bfseries Impact & \color{white}\bfseries Mitigation \\
+  \endhead
+  \midrule\multicolumn{5}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+  \endfoot
+  \bottomrule
+  \endlastfoot
+  \midrule
+  \rowcolor{LightTeal}RISK-CSC-001 & Low student adoption; members prefer manual processes & Medium & High & Onboarding workshops; intuitive UI; support from Moderator \\
+  \midrule
+  \rowcolor{LightBlue}RISK-CSC-002 & University network downtime during election & Low & Critical & Offline voting fallback; cached ballot; retry mechanism \\
+  \midrule
+  \rowcolor{LightTeal}RISK-CSC-003 & Data breach exposing member PII & Low & Critical & Encryption at rest and transit; regular pen testing; RBAC \\
+  \midrule
+  \rowcolor{LightBlue}RISK-CSC-004 & Constitutional ambiguity causing conflicting system rules & Medium & High & Formal review of constitution with Moderator before development \\
+  \midrule
+  \rowcolor{LightTeal}RISK-CSC-005 & Delay in Academic Committee approval for constitution changes & Medium & Medium & Early submission of proposals; parallel informal reviews \\
+  \midrule
+  \rowcolor{LightBlue}RISK-CSC-006 & Incomplete financial records from prior EC terms & High & Medium & Data migration plan; import templates for historical data \\
+  \midrule
+  \rowcolor{LightTeal}RISK-CSC-007 & Scope creep from EC requests for additional features & Medium & Medium & Strict change-control process; feature backlog managed by Moderator \\
+\end{longtable}
+
+\subsection{Open Questions}
+
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{AccentBlue}\color{white}\bfseries\small\centering\arraybackslash}p{0.65cm}%
+                >{\small\color{DarkGray}}p{14.4cm}}
+1 & Will the university provide an official email domain for CSEDUSC members, or will personal email addresses be used for authentication?\\[2pt]
+\rowcolor{LightBlue}2 & What is the authoritative source for ``final result published'' to trigger automatic membership expiry?\\[2pt]
+3 & Should alumni have login access to the system, or is their involvement limited to email/in-person?\\[2pt]
+\rowcolor{LightBlue}4 & Who is responsible for hosting and maintaining the system server -- the department IT team or an external provider?\\[2pt]
+5 & How should the system handle elections when a batch has fewer than five willing candidates?\\[2pt]
+\rowcolor{LightBlue}6 & Is there a budget ceiling per event that the system should enforce, or is Moderator approval sufficient?\\[2pt]
+\end{tabular}
+\vspace{8pt}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\newpage
+\section{Testability and Traceability}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Requirement Traceability}
+
+\begin{longtable}{>{\small\color{DeepNavy}\bfseries\centering\arraybackslash}p{3cm}%
+                  >{\small\color{DarkGray}}p{4cm}%
+                  >{\small\color{DarkGray}}p{3.5cm}}
+  \caption{Requirement Traceability Matrix (partial)} \label{tab:rtm} \\
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries Requirement ID & \color{white}\bfseries Story / Use Case & \color{white}\bfseries Planned Test ID \\
+  \endfirsthead
+  \rowcolor{DeepNavy}
+  \color{white}\bfseries Requirement ID & \color{white}\bfseries Story / Use Case & \color{white}\bfseries Planned Test ID \\
+  \endhead
+  \midrule\multicolumn{3}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+  \endfoot
+  \bottomrule
+  \endlastfoot
+  \midrule
+  \rowcolor{LightTeal}FR-CSC-001 & US-CSC-001 & TC-CSC-001 \\
+  \rowcolor{LightBlue}FR-CSC-002 & US-CSC-001 & TC-CSC-002 \\
+  \rowcolor{LightTeal}FR-CSC-003 & US-CSC-001 & TC-CSC-003 \\
+  \rowcolor{LightBlue}FR-CSC-004 & US-CSC-008 & TC-CSC-004 \\
+  \rowcolor{LightTeal}FR-CSC-005 & US-CSC-013, UC-01 & TC-CSC-005 \\
+  \rowcolor{LightBlue}FR-CSC-006 & US-CSC-013, UC-01 & TC-CSC-006 \\
+  \rowcolor{LightTeal}FR-CSC-007 & US-CSC-013 & TC-CSC-007 \\
+  \rowcolor{LightBlue}FR-CSC-008 & US-CSC-008 & TC-CSC-008 \\
+  \rowcolor{LightTeal}FR-CSC-009 & US-CSC-009 & TC-CSC-009 \\
+  \rowcolor{LightBlue}FR-CSC-011 & US-CSC-004 & TC-CSC-010 \\
+  \rowcolor{LightTeal}FR-CSC-012 & US-CSC-005, UC-02 & TC-CSC-011 \\
+  \rowcolor{LightBlue}FR-CSC-018 & US-CSC-006, UC-03 & TC-CSC-012 \\
+  \rowcolor{LightTeal}FR-CSC-019 & US-CSC-007, UC-03 & TC-CSC-013 \\
+  \rowcolor{LightBlue}FR-CSC-023 & US-CSC-014 & TC-CSC-014 \\
+  \rowcolor{LightTeal}FR-CSC-024 & All user stories & TC-CSC-015 \\
+\end{longtable}
+\newpage
+\subsection{Initial Manual Test Plan}
+
+\begin{center}
+\small
+\begin{longtable}{|c|p{3cm}|p{2.5cm}|p{3.5cm}|p{4cm}|}
+\caption{Manual Test Cases} \label{tab:tc} \\
+
+\hline
+\rowcolor{DeepNavy}
+\color{white}\textbf{Test ID} &
+\color{white}\textbf{Scenario} &
+\color{white}\textbf{Preconditions} &
+\color{white}\textbf{Steps} &
+\color{white}\textbf{Expected Result} \\
+\hline
+\endfirsthead
+
+\hline
+\rowcolor{DeepNavy}
+\color{white}\textbf{Test ID} &
+\color{white}\textbf{Scenario} &
+\color{white}\textbf{Preconditions} &
+\color{white}\textbf{Steps} &
+\color{white}\textbf{Expected Result} \\
+\hline
+\endhead
+
+\hline
+\multicolumn{5}{r}{\small Continued on next page} \\
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+\rowcolor{LightTeal}
+TC-CSC-001 & Successful member registration & Valid CSEDU student ID exists & 1. Open registration page. 2. Fill all fields. 3. Sign checklist. 4. Submit. & Member appears in Active member list; confirmation email received. \\ \hline
+
+\rowcolor{LightBlue}
+TC-CSC-002 & Automatic membership expiry on final result & Member is Active; result published flag set & 1. Trigger result-published event. 2. Wait for batch job. & Member status changes to ``Expired'' within 24 hours. \\ \hline
+
+\rowcolor{LightTeal}
+TC-CSC-003 & Membership cancellation notice generation & Cancellation initiated by Moderator & 1. Moderator initiates cancellation. 2. Chief Patron and President sign. & PDF notice generated with all three signatures; member status is ``Cancelled''. \\ \hline
+
+\rowcolor{LightBlue}
+TC-CSC-004 & EC formation with all 11 posts & Election results recorded & 1. Navigate to EC Management. 2. Assign winners to posts 1--11. & All posts filled; org chart updated; EC members notified. \\ \hline
+
+\rowcolor{LightTeal}
+TC-CSC-005 & Phase 1 election voting & Election activated; voter is a batch member & 1. Log in. 2. Open Phase 1 ballot. 3. Select up to 5 candidates. 4. Submit vote. & Vote recorded; confirmation shown; cannot vote again. \\ \hline
+
+\rowcolor{LightBlue}
+TC-CSC-006 & Phase 2 election with ineligible candidate blocked & Phase 1 complete; candidate has $<$2 years EC experience for President post & 1. Open Phase 2 ballot for President. & Ineligible candidate does not appear; error message displayed if direct access attempted. \\ \hline
+
+\rowcolor{LightTeal}
+TC-CSC-007 & Eligibility check for General Secretary candidate & Candidate has 1 year EC experience & 1. Attempt to add candidate to General Secretary ballot. & System rejects candidacy with message: ``Minimum 2 years EC experience required''. \\ \hline
+
+\rowcolor{LightBlue}
+TC-CSC-008 & Impeachment accepted with $\geq$2/3 vote & EC has 15 members; 10 vote in favour & 1. President initiates impeachment. 2. 10 EC members vote yes. & Impeachment accepted; notice generated; member removed from EC. \\ \hline
+
+\rowcolor{LightTeal}
+TC-CSC-009 & Impeachment rejected with $<$2/3 vote & EC has 15 members; 9 vote in favour & 1. President initiates impeachment. 2. 9 EC members vote yes. & Impeachment not accepted; member remains in EC; result logged. \\ \hline
+
+\rowcolor{LightBlue}
+TC-CSC-010 & Executive meeting scheduled with notification & User is President or General Secretary & 1. Create meeting for next week. 2. Save. & Notification sent to all EC members; meeting appears on calendar. \\ \hline
+
+\rowcolor{LightTeal}
+TC-CSC-011 & Third consecutive absence flagging & EC member absent from 2 previous meetings & 1. Record attendance for third meeting without this member. & Alert sent to President and Moderator; member flagged for potential EC membership cancellation. \\ \hline
+
+\rowcolor{LightBlue}
+TC-CSC-012 & Financial ledger entry by Treasurer & User has Treasurer role & 1. Open ledger. 2. Add income entry of BDT 5000, category ``Donation''. 3. Save. & Entry appears in ledger; running balance updates; entry is immutable after saving. \\ \hline
+
+\rowcolor{LightTeal}
+TC-CSC-013 & Quarterly expenditure report generation & Three months of transactions recorded & 1. Select quarter. 2. Generate report. 3. Treasurer signs. 4. Submit to Moderator. & Report generated correctly; routed to Moderator; archived after Moderator signature. \\ \hline
+
+\rowcolor{LightBlue}
+TC-CSC-014 & Certificate of membership request & User is an EC member & 1. Navigate to Certificate section. 2. Request certificate. & Request appears in Chief Patron's approval queue; PDF generated after approval; downloadable by member. \\ \hline
+
+\rowcolor{LightTeal}
+TC-CSC-015 & RBAC -- General member attempts Treasurer action & User is a General Member & 1. Log in as General Member. 2. Attempt to access Financial Ledger. & Access denied; HTTP 403 response; redirected to member dashboard. \\ \hline
+
+\end{longtable}
+\end{center}
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Lab 2 Submission Checklist}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{Teal}\color{black}\bfseries\small\centering\arraybackslash}p{0.65cm}%
+                >{\small\color{DarkGray}}p{14.4cm}}
+$\boxtimes$ & Problem statement and scope are clear. \emph{(See Sections 2 \& 3)}\\[2pt]
+\rowcolor{RowA}$\boxtimes$ & Minimum 12 user stories with acceptance criteria. \emph{(15 stories --- see Table~\ref{tab:us})}\\[2pt]
+$\boxtimes$ & Functional requirements table is complete. \emph{(25 FRs --- see Table~\ref{tab:fr})}\\[2pt]
+\rowcolor{RowA}$\boxtimes$ & Data model and data dictionary are attached. \emph{(See Section 7; ER diagram in Appendix A)}\\[2pt]
+$\boxtimes$ & Minimum 5 wireframes or flow screens included. \emph{(6 screens listed --- see Section 8.1; mockups in Appendix C`    )}\\[2pt]
+\rowcolor{RowA}$\boxtimes$ & NFR section is completed. \emph{(13 NFRs --- see Table~\ref{tab:nfr})}\\[2pt]
+$\boxtimes$ & Risks and open questions are documented. \emph{(See Section 10)}\\[2pt]
+\rowcolor{RowA}$\boxtimes$ & Initial manual test plan (15 cases) is included. \emph{(See Table~\ref{tab:tc})}\\[2pt]
+\end{tabular}
+\vspace{8pt}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+
+
+
+% In your document (Appendix A section)
+% ══════════════════════════════════════════════════════════════════════════════
+\newpage
+\appendix
+
+\section{Entity-Relationship Diagram}
+\label{appendix:er}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{umldiagram2.png}
+    \caption{Entity-Relationship Diagram for CSEDU Nexus}
+    \label{fig:erdiagram}
+\end{figure}
+
+\vspace{6pt}
+\noindent\textbf{\small\color{DeepNavy}Figure \ref{fig:erdiagram}:}
+Entity-Relationship Diagram for CSEDU Nexus showing 16 entities, their attributes, relationships, and cardinality constraints. Weak entities (Volunteer, MeetingAttendance) depend on their parent entities (Event, Meeting).
+
+\section{UML Diagram}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.1\textwidth]{umldiagram.png}
+    \caption{UML Class Diagram of the System}
+    \label{fig:umldiagram}
+\end{figure}
+\newpage
+\section{Wireframes}
+% ══════════════════════════════════════════════════════════════════════════════
+
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Screenshot 2026-03-07 105347.png}
+    \caption{Wireframe 1 - Member Dashboard}
+    \label{fig:member_dashboard}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Screenshot 2026-03-07 105700.png}
+    \caption{Wireframe 2 – Membership Registration Form}
+    \label{fig:membership_registration}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Screenshot 2026-03-07 105953.png}
+    \caption{Wireframe 3 – Election Portal}
+    \label{fig:election_portal}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Screenshot 2026-03-07 110135.png}
+    \caption{Wireframe 4 – Financial Ledger View}
+    \label{fig:financial_ledger}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Screenshot 2026-03-07 110248.png}
+    \caption{Wireframe 5 – Executive Meeting Scheduler}
+    \label{fig:meeting_scheduler}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Screenshot 2026-03-07 110357.png}
+    \caption{Wireframe 6 – EC Management Panel}
+    \label{fig:ec_panel}
+\end{figure}
+
+\end{document}

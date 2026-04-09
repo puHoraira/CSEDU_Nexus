@@ -1,0 +1,70 @@
+const { ApiResponse } = require("../core/ApiResponse");
+const { asyncHandler } = require("../core/asyncHandler");
+const { EventService } = require("../services/EventService");
+const { ApiError } = require("../core/ApiError");
+
+class EventController {
+  static create = asyncHandler(async (req, res) => {
+    const eventDate = new Date(req.body.eventDate);
+    if (Number.isNaN(eventDate.getTime())) {
+      throw new ApiError(400, "Invalid event date");
+    }
+
+    const payload = { ...req.body, eventDate };
+    const event = await EventService.createEvent(payload, req.auth.userId);
+    return ApiResponse.created(res, event, "Event created");
+  });
+
+  static detail = asyncHandler(async (req, res) => {
+    const event = await EventService.getEventById(req.params.id);
+    return ApiResponse.ok(res, event, "Event");
+  });
+
+  static list = asyncHandler(async (_req, res) => {
+    const events = await EventService.listEvents();
+    return ApiResponse.ok(res, events, "Events");
+  });
+
+  static feed = asyncHandler(async (req, res) => {
+    const feed = await EventService.listEventFeed(req.params.id);
+    return ApiResponse.ok(res, feed, "Event feed");
+  });
+
+  static createPost = asyncHandler(async (req, res) => {
+    const post = await EventService.createEventPost(req.params.id, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.created(res, post, "Event post created");
+  });
+
+  static commentOnPost = asyncHandler(async (req, res) => {
+    const comment = await EventService.addEventComment(
+      req.params.id,
+      req.params.postId,
+      req.body,
+      req.auth.userId,
+      req.requestMeta.requestId
+    );
+    return ApiResponse.created(res, comment, "Event comment added");
+  });
+
+  static applyVolunteer = asyncHandler(async (req, res) => {
+    const volunteer = await EventService.applyAsVolunteer(req.params.id, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.created(res, volunteer, "Volunteer application submitted");
+  });
+
+  static listVolunteers = asyncHandler(async (req, res) => {
+    const volunteers = await EventService.listVolunteers(req.params.id);
+    return ApiResponse.ok(res, volunteers, "Event volunteers");
+  });
+
+  static reviewVolunteer = asyncHandler(async (req, res) => {
+    const volunteer = await EventService.reviewVolunteerApplication(req.params.id, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, volunteer, "Volunteer application reviewed");
+  });
+
+  static volunteer = asyncHandler(async (req, res) => {
+    const volunteer = await EventService.registerVolunteer(req.body);
+    return ApiResponse.created(res, volunteer, "Volunteer registered");
+  });
+}
+
+module.exports = { EventController };

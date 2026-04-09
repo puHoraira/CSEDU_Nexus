@@ -1,0 +1,261 @@
+﻿firstName,lastName,email,password,studentId,batch,currentYear,experience
+Sohan,Nayeem,sohan-2029000001@cs.du.ac.bd,12345678,2029000001,29,2,Hackathon mentor
+Arman,Anwar,arman-2029000002@cs.du.ac.bd,12345678,2029000002,29,4,Organized 2 workshop events
+Zayan,Faruk,zayan-2029000003@cs.du.ac.bd,12345678,2029000003,29,1,Worked in publication team
+Mahi,Hossain,mahi-2029000004@cs.du.ac.bd,12345678,2029000004,29,3,Hackathon mentor
+Rashid,Anwar,rashid-2029000005@cs.du.ac.bd,12345678,2029000005,29,3,Social media campaign support
+Imran,Islam,imran-2029000006@cs.du.ac.bd,12345678,2029000006,29,3,Documentation and reporting support
+Tanvir,Nayeem,tanvir-2029000007@cs.du.ac.bd,12345678,2029000007,29,4,Organized 2 workshop events
+Aarav,Ahmed,aarav-2029000008@cs.du.ac.bd,12345678,2029000008,29,1,Worked in publication team
+Rashid,Sarkar,rashid-2029000009@cs.du.ac.bd,12345678,2029000009,29,1,Social media campaign support
+Imran,Sarkar,imran-2029000010@cs.du.ac.bd,12345678,2029000010,29,1,Volunteer in 3 programming contests
+Sajid,Sami,sajid-2029000011@cs.du.ac.bd,12345678,2029000011,29,3,Graphics contributor for club posters
+Rifat,Faruk,rifat-2029000012@cs.du.ac.bd,12345678,2029000012,29,3,Organized 2 workshop events
+Tanvir,Nayeem,tanvir-2029000013@cs.du.ac.bd,12345678,2029000013,29,3,Sports event operations volunteer
+Rashid,Jaman,rashid-2029000014@cs.du.ac.bd,12345678,2029000014,29,3,Volunteer in 3 programming contests
+Mahin,Kabir,mahin-2029000015@cs.du.ac.bd,12345678,2029000015,29,4,Graphics contributor for club posters
+Nafis,Ahmed,nafis-2029000016@cs.du.ac.bd,12345678,2029000016,29,3,Social media campaign support
+Rakib,Murad,rakib-2029000017@cs.du.ac.bd,12345678,2029000017,29,3,Documentation and reporting support
+Nabil,Karim,nabil-2029000018@cs.du.ac.bd,12345678,2029000018,29,3,Organized 2 workshop events
+Jubayer,Sarkar,jubayer-2029000019@cs.du.ac.bd,12345678,2029000019,29,2,Social media campaign support
+Rashid,Ahmed,rashid-2029000020@cs.du.ac.bd,12345678,2029000020,29,4,Graphics contributor for club posters
+Sohan,Jaman,sohan-2029000021@cs.du.ac.bd,12345678,2029000021,29,2,Volunteer in 3 programming contests
+Sabbir,Ahmed,sabbir-2029000022@cs.du.ac.bd,12345678,2029000022,29,3,Sports event operations volunteer
+Nabil,Hossain,nabil-2029000023@cs.du.ac.bd,12345678,2029000023,29,3,Graphics contributor for club posters
+Rafsan,Sami,rafsan-2029000024@cs.du.ac.bd,12345678,2029000024,29,2,Volunteer in 3 programming contests
+Zayan,Tanin,zayan-2029000025@cs.du.ac.bd,12345678,2029000025,29,2,Sports event operations volunteer
+Fahim,Tanin,fahim-2029000026@cs.du.ac.bd,12345678,2029000026,29,3,Event logistics coordinator
+Rashid,Islam,rashid-2029000027@cs.du.ac.bd,12345678,2029000027,29,3,Sports event operations volunteer
+Fahim,Samad,fahim-2029000028@cs.du.ac.bd,12345678,2029000028,29,1,Worked in publication team
+Arman,Sarkar,arman-2029000029@cs.du.ac.bd,12345678,2029000029,29,2,Sports event operations volunteer
+Sabbir,Sami,sabbir-2029000030@cs.du.ac.bd,12345678,2029000030,29,2,Event logistics coordinator
+Rafi,Nayeem,rafi-2029000031@cs.du.ac.bd,12345678,2029000031,29,2,Volunteer in 3 programming contests
+Tariq,Tanin,tariq-2029000032@cs.du.ac.bd,12345678,2029000032,29,2,Worked in publication team
+Rashid,Jalal,rashid-2029000033@cs.du.ac.bd,12345678,2029000033,29,3,Social media campaign support
+Rashid,Anwar,rashid-2029000034@cs.du.ac.bd,12345678,2029000034,29,4,Sports event operations volunteer
+Sohan,Mahmud,sohan-2029000035@cs.du.ac.bd,12345678,2029000035,29,3,Documentation and reporting support
+Mahin,Rasheed,mahin-2029000036@cs.du.ac.bd,12345678,2029000036,29,3,Event logistics coordinator
+Ishraq,Sarkar,ishraq-2029000037@cs.du.ac.bd,12345678,2029000037,29,4,Documentation and reporting support
+Fahim,Anwar,fahim-2029000038@cs.du.ac.bd,12345678,2029000038,29,4,Documentation and reporting support
+Rafi,Faruk,rafi-2029000039@cs.du.ac.bd,12345678,2029000039,29,3,Event logistics coordinator
+Nabil,Samad,nabil-2029000040@cs.du.ac.bd,12345678,2029000040,29,3,Documentation and reporting support
+Aritra,Ahmed,aritra-2029000041@cs.du.ac.bd,12345678,2029000041,29,3,Seminar support volunteer
+Sajid,Rasheed,sajid-2029000042@cs.du.ac.bd,12345678,2029000042,29,2,Volunteer in 3 programming contests
+Aritra,Nayeem,aritra-2029000043@cs.du.ac.bd,12345678,2029000043,29,2,Hackathon mentor
+Safwan,Rahman,safwan-2029000044@cs.du.ac.bd,12345678,2029000044,29,1,Hackathon mentor
+Imran,Islam,imran-2029000045@cs.du.ac.bd,12345678,2029000045,29,4,Worked in publication team
+Nabil,Tanin,nabil-2029000046@cs.du.ac.bd,12345678,2029000046,29,1,Volunteer in 3 programming contests
+Zayan,Rahman,zayan-2029000047@cs.du.ac.bd,12345678,2029000047,29,2,Event logistics coordinator
+Rafsan,Rahman,rafsan-2029000048@cs.du.ac.bd,12345678,2029000048,29,3,Graphics contributor for club posters
+Rafi,Murad,rafi-2029000049@cs.du.ac.bd,12345678,2029000049,29,2,Documentation and reporting support
+Rafsan,Nayeem,rafsan-2029000050@cs.du.ac.bd,12345678,2029000050,29,4,Worked in publication team
+Rifat,Anwar,rifat-2029000051@cs.du.ac.bd,12345678,2029000051,29,4,Seminar support volunteer
+Mahi,Khan,mahi-2029000052@cs.du.ac.bd,12345678,2029000052,29,2,Graphics contributor for club posters
+Tariq,Hossain,tariq-2029000053@cs.du.ac.bd,12345678,2029000053,29,3,Social media campaign support
+Safwan,Chowdhury,safwan-2029000054@cs.du.ac.bd,12345678,2029000054,29,4,Social media campaign support
+Rafi,Samad,rafi-2029000055@cs.du.ac.bd,12345678,2029000055,29,2,Social media campaign support
+Sohan,Tanin,sohan-2029000056@cs.du.ac.bd,12345678,2029000056,29,1,Worked in publication team
+Rayan,Ahmed,rayan-2029000057@cs.du.ac.bd,12345678,2029000057,29,2,Social media campaign support
+Tariq,Samad,tariq-2029000058@cs.du.ac.bd,12345678,2029000058,29,4,Seminar support volunteer
+Hasan,Rasheed,hasan-2029000059@cs.du.ac.bd,12345678,2029000059,29,1,Organized 2 workshop events
+Rashid,Faruk,rashid-2029000060@cs.du.ac.bd,12345678,2029000060,29,4,Organized 2 workshop events
+Tariq,Kabir,tariq-2029000061@cs.du.ac.bd,12345678,2029000061,29,2,Hackathon mentor
+Fahim,Islam,fahim-2029000062@cs.du.ac.bd,12345678,2029000062,29,1,Seminar support volunteer
+Sohan,Sami,sohan-2029000063@cs.du.ac.bd,12345678,2029000063,29,3,Documentation and reporting support
+Arman,Nayeem,arman-2029000064@cs.du.ac.bd,12345678,2029000064,29,4,Organized 2 workshop events
+Nahid,Rasheed,nahid-2029000065@cs.du.ac.bd,12345678,2029000065,29,2,Event logistics coordinator
+Zayan,Murad,zayan-2030000001@cs.du.ac.bd,12345678,2030000001,30,3,Hackathon mentor
+Jubayer,Sarkar,jubayer-2030000002@cs.du.ac.bd,12345678,2030000002,30,2,Sports event operations volunteer
+Shuvo,Nayeem,shuvo-2030000003@cs.du.ac.bd,12345678,2030000003,30,4,Graphics contributor for club posters
+Tariq,Nayeem,tariq-2030000004@cs.du.ac.bd,12345678,2030000004,30,2,Seminar support volunteer
+Mahin,Jalal,mahin-2030000005@cs.du.ac.bd,12345678,2030000005,30,4,Organized 2 workshop events
+Aritra,Tanin,aritra-2030000006@cs.du.ac.bd,12345678,2030000006,30,4,Organized 2 workshop events
+Nafis,Jalal,nafis-2030000007@cs.du.ac.bd,12345678,2030000007,30,2,Volunteer in 3 programming contests
+Jubayer,Kabir,jubayer-2030000008@cs.du.ac.bd,12345678,2030000008,30,4,Organized 2 workshop events
+Sajid,Tanin,sajid-2030000009@cs.du.ac.bd,12345678,2030000009,30,4,Seminar support volunteer
+Rayan,Rasheed,rayan-2030000010@cs.du.ac.bd,12345678,2030000010,30,1,Seminar support volunteer
+Shayan,Jaman,shayan-2030000011@cs.du.ac.bd,12345678,2030000011,30,2,Sports event operations volunteer
+Mahi,Hossain,mahi-2030000012@cs.du.ac.bd,12345678,2030000012,30,4,Social media campaign support
+Arman,Jalal,arman-2030000013@cs.du.ac.bd,12345678,2030000013,30,2,Organized 2 workshop events
+Nafis,Murad,nafis-2030000014@cs.du.ac.bd,12345678,2030000014,30,1,Organized 2 workshop events
+Nafis,Sami,nafis-2030000015@cs.du.ac.bd,12345678,2030000015,30,4,Seminar support volunteer
+Rashid,Rahman,rashid-2030000016@cs.du.ac.bd,12345678,2030000016,30,1,Documentation and reporting support
+Shayan,Mahmud,shayan-2030000017@cs.du.ac.bd,12345678,2030000017,30,1,Hackathon mentor
+Imran,Islam,imran-2030000018@cs.du.ac.bd,12345678,2030000018,30,4,Hackathon mentor
+Imran,Murad,imran-2030000019@cs.du.ac.bd,12345678,2030000019,30,2,Hackathon mentor
+Nafis,Anwar,nafis-2030000020@cs.du.ac.bd,12345678,2030000020,30,4,Documentation and reporting support
+Rayan,Sami,rayan-2030000021@cs.du.ac.bd,12345678,2030000021,30,3,Event logistics coordinator
+Sajid,Karim,sajid-2030000022@cs.du.ac.bd,12345678,2030000022,30,4,Hackathon mentor
+Safwan,Murad,safwan-2030000023@cs.du.ac.bd,12345678,2030000023,30,2,Organized 2 workshop events
+Arman,Samad,arman-2030000024@cs.du.ac.bd,12345678,2030000024,30,2,Graphics contributor for club posters
+Tariq,Murad,tariq-2030000025@cs.du.ac.bd,12345678,2030000025,30,3,Organized 2 workshop events
+Arman,Samad,arman-2030000026@cs.du.ac.bd,12345678,2030000026,30,2,Volunteer in 3 programming contests
+Rakib,Chowdhury,rakib-2030000027@cs.du.ac.bd,12345678,2030000027,30,1,Worked in publication team
+Shuvo,Sarkar,shuvo-2030000028@cs.du.ac.bd,12345678,2030000028,30,4,Documentation and reporting support
+Fahim,Anwar,fahim-2030000029@cs.du.ac.bd,12345678,2030000029,30,3,Graphics contributor for club posters
+Rifat,Jaman,rifat-2030000030@cs.du.ac.bd,12345678,2030000030,30,4,Worked in publication team
+Tanvir,Murad,tanvir-2030000031@cs.du.ac.bd,12345678,2030000031,30,2,Documentation and reporting support
+Rakib,Rahman,rakib-2030000032@cs.du.ac.bd,12345678,2030000032,30,1,Social media campaign support
+Mahin,Sarkar,mahin-2030000033@cs.du.ac.bd,12345678,2030000033,30,1,Organized 2 workshop events
+Arman,Hossain,arman-2030000034@cs.du.ac.bd,12345678,2030000034,30,2,Volunteer in 3 programming contests
+Rifat,Ahmed,rifat-2030000035@cs.du.ac.bd,12345678,2030000035,30,3,Event logistics coordinator
+Mahin,Jaman,mahin-2030000036@cs.du.ac.bd,12345678,2030000036,30,4,Organized 2 workshop events
+Rakib,Chowdhury,rakib-2030000037@cs.du.ac.bd,12345678,2030000037,30,1,Sports event operations volunteer
+Rayan,Jalal,rayan-2030000038@cs.du.ac.bd,12345678,2030000038,30,1,Seminar support volunteer
+Muntasir,Jalal,muntasir-2030000039@cs.du.ac.bd,12345678,2030000039,30,1,Organized 2 workshop events
+Aritra,Mahmud,aritra-2030000040@cs.du.ac.bd,12345678,2030000040,30,1,Hackathon mentor
+Shuvo,Sarkar,shuvo-2030000041@cs.du.ac.bd,12345678,2030000041,30,4,Worked in publication team
+Ishraq,Nayeem,ishraq-2030000042@cs.du.ac.bd,12345678,2030000042,30,4,Documentation and reporting support
+Jubayer,Islam,jubayer-2030000043@cs.du.ac.bd,12345678,2030000043,30,1,Worked in publication team
+Shuvo,Karim,shuvo-2030000044@cs.du.ac.bd,12345678,2030000044,30,3,Social media campaign support
+Shuvo,Jaman,shuvo-2030000045@cs.du.ac.bd,12345678,2030000045,30,3,Worked in publication team
+Imran,Kabir,imran-2030000046@cs.du.ac.bd,12345678,2030000046,30,3,Graphics contributor for club posters
+Tariq,Karim,tariq-2030000047@cs.du.ac.bd,12345678,2030000047,30,1,Sports event operations volunteer
+Mahin,Sarkar,mahin-2030000048@cs.du.ac.bd,12345678,2030000048,30,4,Organized 2 workshop events
+Sohan,Faruk,sohan-2030000049@cs.du.ac.bd,12345678,2030000049,30,2,Graphics contributor for club posters
+Nafis,Nayeem,nafis-2030000050@cs.du.ac.bd,12345678,2030000050,30,3,Worked in publication team
+Aarav,Rahman,aarav-2030000051@cs.du.ac.bd,12345678,2030000051,30,3,Hackathon mentor
+Fahim,Karim,fahim-2030000052@cs.du.ac.bd,12345678,2030000052,30,1,Event logistics coordinator
+Nabil,Karim,nabil-2030000053@cs.du.ac.bd,12345678,2030000053,30,1,Social media campaign support
+Imran,Rasheed,imran-2030000054@cs.du.ac.bd,12345678,2030000054,30,2,Organized 2 workshop events
+Rafi,Rahman,rafi-2030000055@cs.du.ac.bd,12345678,2030000055,30,4,Organized 2 workshop events
+Rafsan,Kabir,rafsan-2030000056@cs.du.ac.bd,12345678,2030000056,30,3,Volunteer in 3 programming contests
+Rifat,Samad,rifat-2030000057@cs.du.ac.bd,12345678,2030000057,30,2,Event logistics coordinator
+Arman,Islam,arman-2030000058@cs.du.ac.bd,12345678,2030000058,30,1,Documentation and reporting support
+Muntasir,Rasheed,muntasir-2030000059@cs.du.ac.bd,12345678,2030000059,30,2,Worked in publication team
+Fahim,Ahmed,fahim-2030000060@cs.du.ac.bd,12345678,2030000060,30,3,Volunteer in 3 programming contests
+Safwan,Jalal,safwan-2030000061@cs.du.ac.bd,12345678,2030000061,30,2,Documentation and reporting support
+Arman,Tanin,arman-2030000062@cs.du.ac.bd,12345678,2030000062,30,4,Hackathon mentor
+Sohan,Hossain,sohan-2030000063@cs.du.ac.bd,12345678,2030000063,30,2,Organized 2 workshop events
+Shayan,Chowdhury,shayan-2030000064@cs.du.ac.bd,12345678,2030000064,30,2,Volunteer in 3 programming contests
+Hasan,Rahman,hasan-2030000065@cs.du.ac.bd,12345678,2030000065,30,2,Worked in publication team
+Tariq,Rahman,tariq-2031000001@cs.du.ac.bd,12345678,2031000001,31,3,Documentation and reporting support
+Imran,Nayeem,imran-2031000002@cs.du.ac.bd,12345678,2031000002,31,3,Volunteer in 3 programming contests
+Sabbir,Murad,sabbir-2031000003@cs.du.ac.bd,12345678,2031000003,31,3,Worked in publication team
+Nabil,Kabir,nabil-2031000004@cs.du.ac.bd,12345678,2031000004,31,3,Volunteer in 3 programming contests
+Nafis,Khan,nafis-2031000005@cs.du.ac.bd,12345678,2031000005,31,1,Worked in publication team
+Nahid,Nayeem,nahid-2031000006@cs.du.ac.bd,12345678,2031000006,31,4,Sports event operations volunteer
+Rafsan,Rahman,rafsan-2031000007@cs.du.ac.bd,12345678,2031000007,31,2,Hackathon mentor
+Arman,Kabir,arman-2031000008@cs.du.ac.bd,12345678,2031000008,31,4,Sports event operations volunteer
+Rayan,Rahman,rayan-2031000009@cs.du.ac.bd,12345678,2031000009,31,1,Event logistics coordinator
+Fahim,Sami,fahim-2031000010@cs.du.ac.bd,12345678,2031000010,31,1,Social media campaign support
+Tariq,Murad,tariq-2031000011@cs.du.ac.bd,12345678,2031000011,31,3,Hackathon mentor
+Hasan,Tanin,hasan-2031000012@cs.du.ac.bd,12345678,2031000012,31,1,Graphics contributor for club posters
+Safwan,Khan,safwan-2031000013@cs.du.ac.bd,12345678,2031000013,31,3,Graphics contributor for club posters
+Nabil,Anwar,nabil-2031000014@cs.du.ac.bd,12345678,2031000014,31,2,Social media campaign support
+Sajid,Sami,sajid-2031000015@cs.du.ac.bd,12345678,2031000015,31,3,Seminar support volunteer
+Shayan,Kabir,shayan-2031000016@cs.du.ac.bd,12345678,2031000016,31,4,Hackathon mentor
+Noman,Islam,noman-2031000017@cs.du.ac.bd,12345678,2031000017,31,3,Graphics contributor for club posters
+Nahid,Islam,nahid-2031000018@cs.du.ac.bd,12345678,2031000018,31,3,Documentation and reporting support
+Aarav,Faruk,aarav-2031000019@cs.du.ac.bd,12345678,2031000019,31,3,Sports event operations volunteer
+Zayan,Hossain,zayan-2031000020@cs.du.ac.bd,12345678,2031000020,31,1,Documentation and reporting support
+Nabil,Ahmed,nabil-2031000021@cs.du.ac.bd,12345678,2031000021,31,2,Graphics contributor for club posters
+Imran,Chowdhury,imran-2031000022@cs.du.ac.bd,12345678,2031000022,31,2,Social media campaign support
+Nahid,Ahmed,nahid-2031000023@cs.du.ac.bd,12345678,2031000023,31,4,Volunteer in 3 programming contests
+Shayan,Samad,shayan-2031000024@cs.du.ac.bd,12345678,2031000024,31,4,Sports event operations volunteer
+Rifat,Tanin,rifat-2031000025@cs.du.ac.bd,12345678,2031000025,31,1,Event logistics coordinator
+Sajid,Sami,sajid-2031000026@cs.du.ac.bd,12345678,2031000026,31,3,Sports event operations volunteer
+Rayan,Faruk,rayan-2031000027@cs.du.ac.bd,12345678,2031000027,31,4,Worked in publication team
+Hasan,Khan,hasan-2031000028@cs.du.ac.bd,12345678,2031000028,31,1,Volunteer in 3 programming contests
+Sabbir,Kabir,sabbir-2031000029@cs.du.ac.bd,12345678,2031000029,31,3,Volunteer in 3 programming contests
+Jubayer,Islam,jubayer-2031000030@cs.du.ac.bd,12345678,2031000030,31,1,Social media campaign support
+Tanvir,Jalal,tanvir-2031000031@cs.du.ac.bd,12345678,2031000031,31,1,Documentation and reporting support
+Rafsan,Nayeem,rafsan-2031000032@cs.du.ac.bd,12345678,2031000032,31,2,Hackathon mentor
+Sabbir,Anwar,sabbir-2031000033@cs.du.ac.bd,12345678,2031000033,31,4,Graphics contributor for club posters
+Ishraq,Rasheed,ishraq-2031000034@cs.du.ac.bd,12345678,2031000034,31,2,Hackathon mentor
+Safwan,Chowdhury,safwan-2031000035@cs.du.ac.bd,12345678,2031000035,31,1,Hackathon mentor
+Nahid,Jaman,nahid-2031000036@cs.du.ac.bd,12345678,2031000036,31,3,Organized 2 workshop events
+Sabbir,Mahmud,sabbir-2031000037@cs.du.ac.bd,12345678,2031000037,31,2,Social media campaign support
+Nahid,Faruk,nahid-2031000038@cs.du.ac.bd,12345678,2031000038,31,3,Organized 2 workshop events
+Arman,Mahmud,arman-2031000039@cs.du.ac.bd,12345678,2031000039,31,4,Graphics contributor for club posters
+Fahim,Rasheed,fahim-2031000040@cs.du.ac.bd,12345678,2031000040,31,4,Sports event operations volunteer
+Rifat,Sarkar,rifat-2031000041@cs.du.ac.bd,12345678,2031000041,31,1,Worked in publication team
+Mahin,Tanin,mahin-2031000042@cs.du.ac.bd,12345678,2031000042,31,4,Social media campaign support
+Arman,Kabir,arman-2031000043@cs.du.ac.bd,12345678,2031000043,31,3,Sports event operations volunteer
+Shuvo,Khan,shuvo-2031000044@cs.du.ac.bd,12345678,2031000044,31,4,Sports event operations volunteer
+Shayan,Jaman,shayan-2031000045@cs.du.ac.bd,12345678,2031000045,31,1,Sports event operations volunteer
+Ishraq,Chowdhury,ishraq-2031000046@cs.du.ac.bd,12345678,2031000046,31,2,Hackathon mentor
+Nafis,Rahman,nafis-2031000047@cs.du.ac.bd,12345678,2031000047,31,2,Social media campaign support
+Sajid,Murad,sajid-2031000048@cs.du.ac.bd,12345678,2031000048,31,2,Event logistics coordinator
+Rafsan,Khan,rafsan-2031000049@cs.du.ac.bd,12345678,2031000049,31,4,Graphics contributor for club posters
+Zayan,Ahmed,zayan-2031000050@cs.du.ac.bd,12345678,2031000050,31,1,Hackathon mentor
+Rayan,Sarkar,rayan-2031000051@cs.du.ac.bd,12345678,2031000051,31,2,Event logistics coordinator
+Jubayer,Murad,jubayer-2031000052@cs.du.ac.bd,12345678,2031000052,31,2,Seminar support volunteer
+Zayan,Samad,zayan-2031000053@cs.du.ac.bd,12345678,2031000053,31,1,Documentation and reporting support
+Rayan,Ahmed,rayan-2031000054@cs.du.ac.bd,12345678,2031000054,31,1,Seminar support volunteer
+Tanvir,Islam,tanvir-2031000055@cs.du.ac.bd,12345678,2031000055,31,2,Sports event operations volunteer
+Aritra,Kabir,aritra-2031000056@cs.du.ac.bd,12345678,2031000056,31,3,Worked in publication team
+Rafi,Samad,rafi-2031000057@cs.du.ac.bd,12345678,2031000057,31,2,Seminar support volunteer
+Fahim,Jalal,fahim-2031000058@cs.du.ac.bd,12345678,2031000058,31,3,Graphics contributor for club posters
+Hasan,Rahman,hasan-2031000059@cs.du.ac.bd,12345678,2031000059,31,1,Event logistics coordinator
+Sabbir,Sami,sabbir-2031000060@cs.du.ac.bd,12345678,2031000060,31,4,Volunteer in 3 programming contests
+Nabil,Karim,nabil-2031000061@cs.du.ac.bd,12345678,2031000061,31,1,Documentation and reporting support
+Noman,Murad,noman-2031000062@cs.du.ac.bd,12345678,2031000062,31,4,Volunteer in 3 programming contests
+Fahim,Islam,fahim-2031000063@cs.du.ac.bd,12345678,2031000063,31,3,Event logistics coordinator
+Rayan,Sarkar,rayan-2031000064@cs.du.ac.bd,12345678,2031000064,31,2,Hackathon mentor
+Sabbir,Hossain,sabbir-2031000065@cs.du.ac.bd,12345678,2031000065,31,1,Documentation and reporting support
+Ishraq,Rahman,ishraq-2032000001@cs.du.ac.bd,12345678,2032000001,32,1,Hackathon mentor
+Rashid,Murad,rashid-2032000002@cs.du.ac.bd,12345678,2032000002,32,3,Graphics contributor for club posters
+Rafsan,Jaman,rafsan-2032000003@cs.du.ac.bd,12345678,2032000003,32,1,Hackathon mentor
+Safwan,Mahmud,safwan-2032000004@cs.du.ac.bd,12345678,2032000004,32,3,Volunteer in 3 programming contests
+Rayan,Anwar,rayan-2032000005@cs.du.ac.bd,12345678,2032000005,32,4,Volunteer in 3 programming contests
+Rifat,Hossain,rifat-2032000006@cs.du.ac.bd,12345678,2032000006,32,3,Sports event operations volunteer
+Nahid,Kabir,nahid-2032000007@cs.du.ac.bd,12345678,2032000007,32,3,Social media campaign support
+Shuvo,Rahman,shuvo-2032000008@cs.du.ac.bd,12345678,2032000008,32,3,Seminar support volunteer
+Sajid,Islam,sajid-2032000009@cs.du.ac.bd,12345678,2032000009,32,4,Event logistics coordinator
+Rayan,Sarkar,rayan-2032000010@cs.du.ac.bd,12345678,2032000010,32,1,Event logistics coordinator
+Sajid,Karim,sajid-2032000011@cs.du.ac.bd,12345678,2032000011,32,4,Worked in publication team
+Tariq,Chowdhury,tariq-2032000012@cs.du.ac.bd,12345678,2032000012,32,3,Documentation and reporting support
+Fahim,Rahman,fahim-2032000013@cs.du.ac.bd,12345678,2032000013,32,4,Graphics contributor for club posters
+Sabbir,Jaman,sabbir-2032000014@cs.du.ac.bd,12345678,2032000014,32,2,Organized 2 workshop events
+Shuvo,Islam,shuvo-2032000015@cs.du.ac.bd,12345678,2032000015,32,2,Social media campaign support
+Fahim,Jaman,fahim-2032000016@cs.du.ac.bd,12345678,2032000016,32,1,Social media campaign support
+Ishraq,Ahmed,ishraq-2032000017@cs.du.ac.bd,12345678,2032000017,32,1,Graphics contributor for club posters
+Rakib,Islam,rakib-2032000018@cs.du.ac.bd,12345678,2032000018,32,4,Seminar support volunteer
+Arman,Kabir,arman-2032000019@cs.du.ac.bd,12345678,2032000019,32,1,Graphics contributor for club posters
+Safwan,Tanin,safwan-2032000020@cs.du.ac.bd,12345678,2032000020,32,3,Volunteer in 3 programming contests
+Mahin,Karim,mahin-2032000021@cs.du.ac.bd,12345678,2032000021,32,2,Social media campaign support
+Tariq,Rahman,tariq-2032000022@cs.du.ac.bd,12345678,2032000022,32,2,Documentation and reporting support
+Aarav,Kabir,aarav-2032000023@cs.du.ac.bd,12345678,2032000023,32,1,Organized 2 workshop events
+Rayan,Rasheed,rayan-2032000024@cs.du.ac.bd,12345678,2032000024,32,4,Seminar support volunteer
+Jubayer,Jaman,jubayer-2032000025@cs.du.ac.bd,12345678,2032000025,32,4,Volunteer in 3 programming contests
+Imran,Faruk,imran-2032000026@cs.du.ac.bd,12345678,2032000026,32,1,Sports event operations volunteer
+Imran,Sami,imran-2032000027@cs.du.ac.bd,12345678,2032000027,32,4,Sports event operations volunteer
+Arman,Samad,arman-2032000028@cs.du.ac.bd,12345678,2032000028,32,4,Hackathon mentor
+Nafis,Islam,nafis-2032000029@cs.du.ac.bd,12345678,2032000029,32,1,Social media campaign support
+Rashid,Jaman,rashid-2032000030@cs.du.ac.bd,12345678,2032000030,32,4,Hackathon mentor
+Mahi,Nayeem,mahi-2032000031@cs.du.ac.bd,12345678,2032000031,32,1,Organized 2 workshop events
+Jubayer,Ahmed,jubayer-2032000032@cs.du.ac.bd,12345678,2032000032,32,1,Hackathon mentor
+Shayan,Chowdhury,shayan-2032000033@cs.du.ac.bd,12345678,2032000033,32,3,Sports event operations volunteer
+Imran,Ahmed,imran-2032000034@cs.du.ac.bd,12345678,2032000034,32,2,Organized 2 workshop events
+Safwan,Jaman,safwan-2032000035@cs.du.ac.bd,12345678,2032000035,32,4,Volunteer in 3 programming contests
+Noman,Rahman,noman-2032000036@cs.du.ac.bd,12345678,2032000036,32,2,Sports event operations volunteer
+Imran,Sarkar,imran-2032000037@cs.du.ac.bd,12345678,2032000037,32,2,Worked in publication team
+Imran,Jalal,imran-2032000038@cs.du.ac.bd,12345678,2032000038,32,2,Seminar support volunteer
+Sajid,Faruk,sajid-2032000039@cs.du.ac.bd,12345678,2032000039,32,3,Seminar support volunteer
+Rakib,Faruk,rakib-2032000040@cs.du.ac.bd,12345678,2032000040,32,1,Hackathon mentor
+Rafi,Karim,rafi-2032000041@cs.du.ac.bd,12345678,2032000041,32,4,Event logistics coordinator
+Sabbir,Anwar,sabbir-2032000042@cs.du.ac.bd,12345678,2032000042,32,1,Sports event operations volunteer
+Aarav,Islam,aarav-2032000043@cs.du.ac.bd,12345678,2032000043,32,2,Social media campaign support
+Arman,Samad,arman-2032000044@cs.du.ac.bd,12345678,2032000044,32,4,Volunteer in 3 programming contests
+Shuvo,Khan,shuvo-2032000045@cs.du.ac.bd,12345678,2032000045,32,1,Social media campaign support
+Rafsan,Tanin,rafsan-2032000046@cs.du.ac.bd,12345678,2032000046,32,1,Graphics contributor for club posters
+Fahim,Mahmud,fahim-2032000047@cs.du.ac.bd,12345678,2032000047,32,4,Documentation and reporting support
+Sajid,Rasheed,sajid-2032000048@cs.du.ac.bd,12345678,2032000048,32,2,Hackathon mentor
+Zayan,Nayeem,zayan-2032000049@cs.du.ac.bd,12345678,2032000049,32,1,Graphics contributor for club posters
+Mahi,Faruk,mahi-2032000050@cs.du.ac.bd,12345678,2032000050,32,2,Seminar support volunteer
+Imran,Islam,imran-2032000051@cs.du.ac.bd,12345678,2032000051,32,1,Event logistics coordinator
+Rafsan,Anwar,rafsan-2032000052@cs.du.ac.bd,12345678,2032000052,32,3,Event logistics coordinator
+Rifat,Kabir,rifat-2032000053@cs.du.ac.bd,12345678,2032000053,32,1,Organized 2 workshop events
+Shayan,Kabir,shayan-2032000054@cs.du.ac.bd,12345678,2032000054,32,3,Event logistics coordinator
+Nabil,Tanin,nabil-2032000055@cs.du.ac.bd,12345678,2032000055,32,3,Graphics contributor for club posters
+Sohan,Chowdhury,sohan-2032000056@cs.du.ac.bd,12345678,2032000056,32,3,Volunteer in 3 programming contests
+Rafsan,Nayeem,rafsan-2032000057@cs.du.ac.bd,12345678,2032000057,32,4,Sports event operations volunteer
+Rafsan,Rasheed,rafsan-2032000058@cs.du.ac.bd,12345678,2032000058,32,1,Documentation and reporting support
+Fahim,Nayeem,fahim-2032000059@cs.du.ac.bd,12345678,2032000059,32,1,Seminar support volunteer
+Shuvo,Faruk,shuvo-2032000060@cs.du.ac.bd,12345678,2032000060,32,4,Seminar support volunteer
+Tariq,Rasheed,tariq-2032000061@cs.du.ac.bd,12345678,2032000061,32,1,Seminar support volunteer
+Nafis,Rahman,nafis-2032000062@cs.du.ac.bd,12345678,2032000062,32,1,Event logistics coordinator
+Jubayer,Chowdhury,jubayer-2032000063@cs.du.ac.bd,12345678,2032000063,32,1,Organized 2 workshop events
+Rayan,Ahmed,rayan-2032000064@cs.du.ac.bd,12345678,2032000064,32,1,Event logistics coordinator
+Sohan,Rahman,sohan-2032000065@cs.du.ac.bd,12345678,2032000065,32,1,Hackathon mentor
