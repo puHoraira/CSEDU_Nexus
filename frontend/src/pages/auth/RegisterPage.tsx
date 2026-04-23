@@ -70,22 +70,28 @@ export function RegisterPage() {
   return (
     <section className="register-layout">
       <aside className="register-hero">
-        <h2>Join the Academic Legacy.</h2>
+        <h2>Join the club workspace.</h2>
         <p>
-          The Department of Computer Science and Engineering, University of Dhaka welcomes its scholars to the
-          official governance portal.
+          Create your account to access membership tools, event workflows, meeting actions, and role-aware club services.
         </p>
+
+        <div className="stack" style={{ gap: 10 }}>
+          <span className="chip">Member access</span>
+          <span className="chip">Volunteer workflows</span>
+          <span className="chip">Meeting and governance tools</span>
+        </div>
 
         <div className="register-hero__footer">
           <strong>Registration Portal</strong>
-          <span>Academic Year 2024-25</span>
+          <span>Academic workspace access</span>
         </div>
       </aside>
 
       <div className="register-content">
         <header className="register-content__header">
-          <h1>Create your account</h1>
-          <p>Please provide your official university credentials to register for CSEDU Nexus.</p>
+          <p className="eyebrow">Create account</p>
+          <h1>Set up your profile</h1>
+          <p>Use your official university details to register for CSEDU Nexus.</p>
           <div className="button-row" style={{ marginTop: 12 }}>
             <button type="button" className={accountType === "student" ? "primary-button" : "secondary-button"} onClick={() => setAccountType("student")}>Student</button>
             <button type="button" className={accountType === "teacher" ? "primary-button" : "secondary-button"} onClick={() => setAccountType("teacher")}>Teacher (Alumni-equivalent)</button>

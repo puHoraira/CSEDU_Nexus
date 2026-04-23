@@ -11,6 +11,8 @@ const env = {
   ACCESS_TOKEN_TTL: process.env.ACCESS_TOKEN_TTL || "15m",
   REFRESH_TOKEN_TTL: process.env.REFRESH_TOKEN_TTL || "7d",
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || "http://localhost:3000",
+  ZEGO_APP_ID: process.env.ZEGO_APP_ID || "",
+  ZEGO_SERVER_SECRET: process.env.ZEGO_SERVER_SECRET || "",
 };
 
 module.exports = { env };

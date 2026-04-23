@@ -5,10 +5,132 @@ const { Volunteer } = require("../models/Volunteer");
 const { Member } = require("../models/Member");
 const { ApiError } = require("../core/ApiError");
 const { AuditService } = require("./AuditService");
+const { NotificationService } = require("./NotificationService");
 
 class EventService {
+  static normalizeVolunteerEligibility(input = {}) {
+    const years = Array.isArray(input?.allowedYears) ? input.allowedYears : [];
+    const batches = Array.isArray(input?.allowedBatches) ? input.allowedBatches : [];
+
+    const allowedYears = [...new Set(years.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value >= 1 && value <= 5))].sort(
+      (a, b) => a - b
+    );
+    const allowedBatches = [...new Set(batches.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))].sort(
+      (a, b) => a - b
+    );
+
+    return { allowedYears, allowedBatches };
+  }
+
+  static normalizeVolunteerProgram(input = {}) {
+    const positions = Array.isArray(input?.positions)
+      ? input.positions
+          .map((position) => ({
+            name: String(position?.name || "").trim(),
+            slots: Number(position?.slots || 0),
+            description: String(position?.description || "").trim(),
+            requiredYears: Array.isArray(position?.requiredYears)
+              ? [...new Set(position.requiredYears.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value >= 1 && value <= 5))].sort(
+                  (a, b) => a - b
+                )
+              : [],
+            requiredBatches: Array.isArray(position?.requiredBatches)
+              ? [...new Set(position.requiredBatches.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))].sort(
+                  (a, b) => a - b
+                )
+              : [],
+          }))
+          .filter((position) => position.name && position.slots >= 1)
+      : [];
+
+    const deadline = input?.applicationDeadline ? new Date(input.applicationDeadline) : null;
+
+    return {
+      applicationDeadline: deadline && !Number.isNaN(deadline.getTime()) ? deadline : null,
+      notes: String(input?.notes || "").trim(),
+      positions,
+    };
+  }
+
+  static buildVolunteerEligibilityFailure(event, member) {
+    const eligibility = this.normalizeVolunteerEligibility(event?.volunteerEligibility || {});
+
+    if (eligibility.allowedYears.length > 0 && !eligibility.allowedYears.includes(member.currentYear)) {
+      return `This event accepts volunteers from year ${eligibility.allowedYears.join(", ")} only.`;
+    }
+
+    if (eligibility.allowedBatches.length > 0 && !eligibility.allowedBatches.includes(member.batch)) {
+      return `This event accepts volunteers from batch ${eligibility.allowedBatches.join(", ")} only.`;
+    }
+
+    return null;
+  }
+
+  static buildPositionEligibilityFailure(event, member, preferredPositions = []) {
+    const positions = Array.isArray(event?.volunteerProgram?.positions) ? event.volunteerProgram.positions : [];
+    if (preferredPositions.length === 0 || positions.length === 0) {
+      return null;
+    }
+
+    const eligibleNames = positions
+      .filter((position) => {
+        const yearsOk = position.requiredYears.length === 0 || position.requiredYears.includes(member.currentYear);
+        const batchesOk = position.requiredBatches.length === 0 || position.requiredBatches.includes(member.batch);
+        return yearsOk && batchesOk;
+      })
+      .map((position) => position.name);
+
+    const accepted = preferredPositions.some((position) => eligibleNames.includes(position));
+    return accepted ? null : "None of the selected volunteer positions match your profile.";
+  }
+
+  static getPositionByName(event, positionName) {
+    return (event?.volunteerProgram?.positions || []).find((position) => position.name === positionName) || null;
+  }
+
   static async createEvent(payload, userId) {
-    return Event.create({ ...payload, createdBy: userId });
+    return Event.create({
+      ...payload,
+      volunteerEligibility: this.normalizeVolunteerEligibility(payload.volunteerEligibility || {}),
+      volunteerProgram: this.normalizeVolunteerProgram(payload.volunteerProgram || {}),
+      createdBy: userId,
+    });
+  }
+
+  static async updateEvent(eventId, payload, actorId, requestId) {
+    const event = await Event.findById(eventId);
+    if (!event) {
+      throw new ApiError(404, "Event not found");
+    }
+
+    if (payload.title !== undefined) event.title = payload.title;
+    if (payload.description !== undefined) event.description = payload.description;
+    if (payload.eventDate !== undefined) event.eventDate = payload.eventDate;
+    if (payload.venue !== undefined) event.venue = payload.venue;
+    if (payload.budget !== undefined) event.budget = payload.budget;
+    if (payload.status !== undefined) event.status = payload.status;
+    if (payload.volunteerEligibility !== undefined) {
+      event.volunteerEligibility = this.normalizeVolunteerEligibility(payload.volunteerEligibility);
+    }
+    if (payload.volunteerProgram !== undefined) {
+      event.volunteerProgram = this.normalizeVolunteerProgram(payload.volunteerProgram);
+    }
+
+    await event.save();
+
+    await AuditService.log({
+      actorId,
+      action: "EVENT_UPDATED",
+      resource: "Event",
+      resourceId: event._id.toString(),
+      requestId,
+      metadata: {
+        status: event.status,
+        eligibility: event.volunteerEligibility,
+      },
+    });
+
+    return event;
   }
 
   static async getEventById(eventId) {
@@ -118,8 +240,29 @@ class EventService {
       throw new ApiError(404, "Event not found");
     }
 
+    if (["Completed", "Cancelled"].includes(event.status)) {
+      throw new ApiError(409, "Volunteer applications are closed for this event");
+    }
+
+    if (event.volunteerProgram?.applicationDeadline) {
+      const now = new Date();
+      if (now > new Date(event.volunteerProgram.applicationDeadline)) {
+        throw new ApiError(409, "Volunteer application deadline has passed");
+      }
+    }
+
     if (!member || member.status !== "Active") {
       throw new ApiError(400, "Only active members can apply as volunteers");
+    }
+
+    const eligibilityFailure = this.buildVolunteerEligibilityFailure(event, member);
+    if (eligibilityFailure) {
+      throw new ApiError(403, eligibilityFailure);
+    }
+
+    const positionFailure = this.buildPositionEligibilityFailure(event, member, payload.preferredPositions || []);
+    if (positionFailure) {
+      throw new ApiError(403, positionFailure);
     }
 
     const existing = await Volunteer.findOne({ eventId, memberId: member._id });
@@ -131,6 +274,8 @@ class EventService {
       eventId,
       memberId: member._id,
       role: payload.role || "Volunteer",
+      preferredPositions: payload.preferredPositions || [],
+      availability: payload.availability || "",
       message: payload.message || "",
       status: "Pending",
     });
@@ -169,7 +314,34 @@ class EventService {
       throw new ApiError(409, "This application has already been reviewed");
     }
 
-    application.status = payload.decision;
+    const event = await Event.findById(application.eventId._id).select("volunteerProgram");
+
+    if (payload.decision === "Approved") {
+      const assignedPosition = payload.assignedPosition || application.preferredPositions?.[0] || "Volunteer";
+      const position = this.getPositionByName(event, assignedPosition);
+      if (position) {
+        const approvedCount = await Volunteer.countDocuments({
+          eventId: application.eventId._id,
+          status: "Approved",
+          assignedPosition,
+        });
+        if (approvedCount >= position.slots) {
+          throw new ApiError(409, `No remaining slots for ${assignedPosition}`);
+        }
+      }
+      application.assignedPosition = assignedPosition;
+      application.status = "Approved";
+    } else if (payload.decision === "Shortlisted") {
+      application.status = "Shortlisted";
+      application.assignedPosition = payload.assignedPosition || application.preferredPositions?.[0] || "";
+    } else if (payload.decision === "Waitlisted") {
+      application.status = "Waitlisted";
+      application.assignedPosition = "";
+    } else {
+      application.status = "Rejected";
+      application.assignedPosition = "";
+    }
+
     application.reviewNote = payload.reason;
     application.reviewedBy = actorId;
     application.reviewedAt = new Date();
@@ -184,8 +356,22 @@ class EventService {
       metadata: {
         eventId: application.eventId?._id?.toString() || application.eventId?.toString(),
         decision: payload.decision,
+        assignedPosition: application.assignedPosition,
       },
     });
+
+    const applicantMember = await Member.findById(application.memberId).select("userId");
+    if (applicantMember?.userId) {
+      await NotificationService.createForUser(applicantMember.userId, {
+        title: "Volunteer application updated",
+        message: `Your application for ${application.eventId?.title || "the event"} is now ${application.status}.`,
+        category: "Event",
+        actionUrl: `/events/${application.eventId?._id?.toString() || ""}`,
+        entityType: "Volunteer",
+        entityId: application._id.toString(),
+        metadata: { decision: payload.decision, assignedPosition: application.assignedPosition || "" },
+      });
+    }
 
     return application.populate([
       { path: "memberId", select: "studentId batch currentYear status" },

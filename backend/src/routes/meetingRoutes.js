@@ -8,6 +8,7 @@ const { createMeetingSchema, recordAttendanceSchema } = require("../validators/m
 const router = express.Router();
 
 router.get("/", authenticate, authorize("meeting.read"), MeetingController.list);
+router.get("/:id/zego-kit-token", authenticate, authorize("meeting.read"), MeetingController.zegoKitToken);
 router.post("/", authenticate, authorize("meeting.create"), validate(createMeetingSchema), MeetingController.create);
 router.post(
   "/attendance",

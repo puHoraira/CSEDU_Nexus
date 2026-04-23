@@ -9,6 +9,7 @@ const { electionRoutes } = require("./electionRoutes");
 const { moderatorRoutes } = require("./moderatorRoutes");
 const { adminRoutes } = require("./adminRoutes");
 const { certificateRoutes } = require("./certificateRoutes");
+const { notificationRoutes } = require("./notificationRoutes");
 
 const apiRouter = express.Router();
 
@@ -22,5 +23,6 @@ apiRouter.use("/elections", electionRoutes);
 apiRouter.use("/moderator", moderatorRoutes);
 apiRouter.use("/admin", adminRoutes);
 apiRouter.use("/certificates", certificateRoutes);
+apiRouter.use("/notifications", notificationRoutes);
 
 module.exports = { apiRouter };
