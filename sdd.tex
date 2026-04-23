@@ -1,665 +1,956 @@
 \documentclass[12pt,a4paper]{article}
-
+% ── Packages ──────────────────────────────────────────────────────────────────
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[a4paper, top=2.5cm, bottom=2.2cm, left=2.2cm, right=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{mdframed}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable}
+\usepackage{tikz}
+\usetikzlibrary{shapes, arrows.meta, positioning, backgrounds}
 \usepackage{array}
+\usepackage{tabularx}
 \usepackage{booktabs}
 \usepackage{longtable}
-\usepackage{tabularx}
 \usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[activate=false]{microtype}
 \usepackage{hyperref}
-\usepackage{xcolor}
-\usepackage{tikz}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{setspace}
+\usepackage{pdflscape}
+\usepackage{calc}
+\usepackage{float}
+% ── Color Palette ──────────────────────────────────────────────────────────────
+% Predefined colors:
+\rowcolor{red}
+\rowcolor{green}
+\rowcolor{blue}
+\rowcolor{cyan}
+\rowcolor{magenta}
+\rowcolor{yellow}
+\rowcolor{gray}
+\rowcolor{black!20}  % 20% black
+\rowcolor{blue!30}   % 30% blue
+\rowcolor{orange}
+\rowcolor{purple}
+\rowcolor{brown}
+\rowcolor{pink}
 
-\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{6pt}
-\renewcommand{\arraystretch}{1.2}
+
+\definecolor{AccentBlue}{HTML}{2F5597}   % left column
+\definecolor{SoftBlue}{HTML}{E8F1FB}     % alternating row
+\definecolor{SoftGray}{HTML}{F7F9FC}     % alternate row
+\definecolor{DarkGray}{HTML}{333333}     % tex
+% Custom color definition
+\definecolor{LightBlue}{RGB}{173,216,230} % you can adjust RGB
+\definecolor{LightGreen}{RGB}{144,238,144}
+\definecolor{LightYellow}{RGB}{255,255,224}
+\definecolor{LightGray}{RGB}{211,211,211}
 
 \definecolor{DeepNavy}{HTML}{1A2B4A}
+\definecolor{Gold}{HTML}{C8960C}
 \definecolor{Teal}{HTML}{0D6E6E}
+\definecolor{DarkTeal}{HTML}{0A5555}
 \definecolor{LightTeal}{HTML}{E8F4F4}
+\definecolor{LightGold}{HTML}{FDF6E3}
+\definecolor{LightBlue}{HTML}{E8EEF6}
+\definecolor{DarkGray}{HTML}{333333}
+\definecolor{MidGray}{HTML}{666666}
+\definecolor{LightGray}{HTML}{F5F5F5}
+\definecolor{Purple}{HTML}{3D1A5E}
+\definecolor{DarkBlue}{HTML}{0A3D5E}
+\definecolor{AccentBlue}{HTML}{2E5299}
+\definecolor{RowA}{HTML}{E8F4F4}
+\definecolor{RowB}{HTML}{F5FBFB}
 
-\title{Software Design Document (SDD)\\\large Lab 4: MVP Implementation}
-\author{Team Ravenclaw: CSEDU Nexus}
-\date{April 2026}
+% ── Hyperref Setup ─────────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true, linkcolor=Teal, urlcolor=Teal, citecolor=Teal,
+  pdftitle={SDD -- CSEDUSC Club Management System},
+  pdfauthor={Tawyabul Islam Tamim}
+}
 
+% ── tcolorbox Styles ──────────────────────────────────────────────────────────
+\tcbset{
+  significancestyle/.style={
+    enhanced, breakable,
+    colback=LightGold, colframe=Gold,
+    leftrule=5pt, rightrule=0.5pt, toprule=0.5pt, bottomrule=0.5pt,
+    title={\small\bfseries\color{Gold}$\diamond$~~NOTE},
+    coltitle=Gold,
+    fontupper=\small\color{DarkGray},
+    left=8pt, right=8pt, top=4pt, bottom=8pt
+  },
+  summarybox/.style={
+    enhanced, breakable,
+    colback=LightBlue, colframe=DeepNavy,
+    leftrule=0.5pt, rightrule=0.5pt, toprule=3pt, bottomrule=3pt,
+    title={\small\bfseries\color{DeepNavy}SECTION SUMMARY},
+    coltitle=DeepNavy,
+    fontupper=\small\color{DarkGray},
+    left=10pt, right=10pt, top=6pt, bottom=8pt
+  }
+}
+
+% ── Section Banner ─────────────────────────────────────────────────────────────
+\newcommand{\sectionbanner}[3][DeepNavy]{%
+  \vspace{4pt}%
+  \begin{tikzpicture}
+    \fill[#1] (0,0) rectangle (\linewidth,1.35cm);
+    \node[anchor=west, inner sep=0] at (0.5cm,0.67cm) {%
+      {\fontsize{20}{20}\selectfont\bfseries\color{Gold}#2}%
+      {\fontsize{13}{13}\selectfont\normalfont\color{white}\quad---\quad#3}%
+    };
+  \end{tikzpicture}\par\vspace{2pt}%
+}
+
+% ── Info table row shortcut ────────────────────────────────────────────────────
+\newcommand{\infoentry}[3][AccentBlue]{%
+  \noindent\begin{tabular}{>{\columncolor{#1}\color{white}\bfseries\small\centering\arraybackslash}p{3cm}%
+                            >{\small\color{DarkGray}}p{12.5cm}}%
+    \rule{0pt}{14pt}#2 & #3\\%
+  \end{tabular}\par\vspace{2pt}%
+}
+
+% ── Section Styling ────────────────────────────────────────────────────────────
+\titleformat{\section}{\Large\bfseries\color{DeepNavy}}{}{0em}{\thesection\quad}
+  [\vspace{-4pt}\textcolor{DeepNavy}{\rule{\linewidth}{1.5pt}}]
+\titleformat{\subsection}{\large\bfseries\color{Teal}}{}{0em}{\thesubsection\quad}
+  [\vspace{-4pt}\textcolor{Teal}{\rule{\linewidth}{0.8pt}}]
+\titleformat{\subsubsection}{\normalsize\bfseries\color{AccentBlue}}{}{0em}{}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+\titlespacing*{\subsection}{0pt}{12pt}{6pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{4pt}
+
+% ── Header / Footer ────────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead[L]{%
+  \begin{tikzpicture}[baseline=(current bounding box.south)]
+    \fill[DeepNavy] (0,-0.15) rectangle (\textwidth+1.5cm, 0.52);
+    \node[anchor=west, inner sep=4pt] at (0.1cm,0.185cm)
+      {\fontsize{7.5}{7.5}\selectfont\bfseries\color{Gold} SOFTWARE DESIGN DOCUMENT};
+    \node[anchor=east, inner sep=4pt] at (\textwidth+1.3cm,0.185cm)
+      {\fontsize{7.5}{7.5}\selectfont\color{white}University of Dhaka, CSE};
+  \end{tikzpicture}%
+}
+\fancyfoot[C]{\small\color{MidGray}CSEDU Nexus\enspace\enspace\thepage}
+\setlength{\headheight}{22pt}
+
+% ── List Style ─────────────────────────────────────────────────────────────────
+\setlist[itemize]{leftmargin=1.4em, itemsep=2pt, parsep=0pt, topsep=4pt}
+\renewcommand{\labelitemi}{\textcolor{Teal}{$\bullet$}}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+
+% ── Custom column types ────────────────────────────────────────────────────────
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% ── Helpers ───────────────────────────────────────────────────────────────────
+\newcommand{\req}[1]{\texttt{#1}}
+\newcommand{\priority}[1]{\textbf{#1}}
+
+% ══════════════════════════════════════════════════════════════════════════════
 \begin{document}
-\maketitle
+% ══════════════════════════════════════════════════════════════════════════════
+
+% ── COVER PAGE ─────────────────────────────────────────────────────────────────
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[DeepNavy] (current page.north west) rectangle (current page.south east);
+  \fill[DarkBlue, opacity=0.55] ([yshift=-10cm]current page.north west)
+    rectangle (current page.south east);
+\end{tikzpicture}
+\vspace*{1cm}
+\begin{center}
+  \includegraphics[width=0.20\textwidth]{du_logo.png}\par\vspace{1cm}
+  \vspace{0.5em}
+  {\fontsize{16pt}{18pt}\selectfont\bfseries\color{Gold}University of Dhaka\par}
+  \vspace{0.1em}
+  {\fontsize{18pt}{20pt}\selectfont\bfseries\color{Gold}Department of Computer Science and Engineering\par}
+  \vspace{1em}
+  {\fontsize{11}{13}\selectfont\bfseries\color{Gold}\MakeUppercase{Software Design Document}}\\[10pt]
+  \vspace{1em}
+  {\fontsize{32}{36}\selectfont\bfseries\color{white}CSEDU Nexus}\\[4pt]
+  \textcolor{Gold!40}{\rule{8cm}{0.6pt}}\\[14pt]
+  {\fontsize{11}{14}\selectfont\itshape\color{white!70}%
+    CSEDU Students' Club (CSEDUSC)\\[3pt]
+    A Centralized Digital Platform for Club Administration}\\
+    \vspace{2.5em}
+  {\Large\color{Gold}CSE 4113-
+Internet Programming Lab\par}
+\vspace{1em}
+  \vfill
+  \textbf{\large\color{Gold}Submitted By}\par
+  \vspace{0.5em}
+  {\color{white}
+Tawyabul Islam Tamim — Roll: 04\par
+Md. Abu Horaira — Roll: 26\par
+Mst. Irin Sultana - Roll: 41\par
+Md. Adib Ahsan — Roll: 60\par
+  }
+  \vspace{1em}
+  \textbf{\large\color{Gold}Submitted To}\par
+  \vspace{0.5em}
+  {\color{white}Dr. Md. Mamun-Or-Rashid
+, Professor,
+CSE, University of Dhaka\par}
+  {\color{white}Md. Fahim Arefin, Lecturer,
+CSE, University of Dhaka\par}
+  {\color{white}Md. Ahasanul Alams, Lecturer,
+CSE, University of Dhaka\par}
+  \vspace{0.5em}
+  {\color{white!70}\small March 2026\par}
+  \vfill
+\end{center}
+\end{titlepage}
+\newpage
+
+% % ── Document Info Table ────────────────────────────────────────────────────────
+% \thispagestyle{empty}
+% \vspace*{1cm}
+% \begin{center}
+% \begin{tabular}{>{\columncolor{DeepNavy}\color{white}\bfseries\small\centering\arraybackslash}p{4cm}%
+%                 >{\small\color{DarkGray}}p{9cm}}
+% \rule{0pt}{14pt}Document Type & Software Requirements Specification \\[2pt]
+% \rowcolor{LightBlue}Version & 0.1 (Draft) \\[2pt]
+% Status & Draft \\[2pt]
+% \rowcolor{LightBlue}Date & March 2026 \\[2pt]
+% \end{tabular}
+% \end{center}
+% \vspace{2em}
+% \newpage
 
 \tableofcontents
 \newpage
 
+% ══════════════════════════════════════════════════════════════════════════════
 \section{Team and Project Information}
+% ══════════════════════════════════════════════════════════════════════════════
 
-\begin{tabular}{|l|l|}
-\hline
-\textbf{Team Name} & Ravenclaw \\
-\hline and Problem Context}
+\subsection{Project Metadata}
 
-\subsection{Problem Statement}
-Per SRS Section 2: CSEDUSC lacks a \emph{centralised digital platform} to manage members, events, elections, finances, and committee structures. Key pain points addressed:
-\begin{itemize}[leftmargin=1.5em]
-  \item \textbf{FR-CSC-001} requirement: Manual paper-based membership registration
-  \item \textbf{FR-CSC-007} gap: No systematic eligibility validation for elections
-  \item \textbf{FR-CSC-020} missing: No transparent financial ledger
-  \item \textbf{FR-CSC-012} gap: Difficulty tracking EC attendance and meeting minutes
-  \item \textbf{FR-CSC-023} missing: No certificate request workflow
-\end{itemize}
+\vspace{4pt}
+\noindent
+\begin{tabular}{>{\columncolor{AccentBlue}\color{white}\bfseries\small\centering\arraybackslash}p{3.8cm}%
+                >{\small\color{DarkGray}}p{11.7cm}}
+\rule{0pt}{14pt}Team & Ravenclaw \\[2pt]
+Project Name & \cellcolor{LightBlue}CSEDU Nexus \\[2pt]
+Repository URL & \url{https://github.com/puHoraira/CSEDU_Nexus} \\[2pt]
+Commit/Tag & \cellcolor{LightBlue}\texttt{main} (current baseline commit: \texttt{c5ec426}) \\[2pt]
+Date & April 2026 \\[2pt]
+Related SRS Version & \cellcolor{LightBlue}v0.1 Draft (March 2026, to be aligned with implemented features) \\[2pt]
+\end{tabular}
+\vspace{8pt}
 
-\subsection{Target Users (from SRS Section 2.2)}
-\begin{itemize}[leftmargin=1.5em]
-  \item \textbf{General Members:} Register, view events, sign-up as volunteers (US-CSC-001, 002, 003)
-  \item \textbf{EC Members:} Manage events, budgets, meetings, committees (US-CSC-004 to 009)
-  \item \textbf{Moderator:} Oversight, approval workflows, financial audit (US-CSC-010, 011)
-  \item \textbf{Chief Patron:} Final approval, overrule decisions (US-CSC-012)
-  \item \textbf{Election Commission:} Conduct and manage two-phase election (US-CSC-013)
-  \item \textbf{Alumni:} View events, serve as election commissioners
-\end{itemize}
+\subsection{Reference Documents}
 
-\subsection{Lab 4 MVP Scope}
-Per SRS Section 3.2, Labs 4--5 form the MVP. Lab 4 focuses on \emph{three vertical slices}:
-
-\textbf{Vertical Slice 1: Authentication \& Membership (FRs 1--4, 24--25)}
 \begin{itemize}[noitemsep]
-  \item \textbf{FR-CSC-001, US-CSC-001:} Member registration form with digital sign-off
-  \item \textbf{FR-CSC-024:} RBAC foundation preventing unauthorized access
-  \item \textbf{FR-CSC-025:} Notification system (email setup)
+  \item SRS: CSEDU Nexus Software Requirements Specification (v0.1 Draft).
+  \item Backend design notes: \texttt{backend/BACKEND\_DETAILED\_DESIGN.md}.
+  \item Implementation repository: \url{https://github.com/puHoraira/CSEDU_Nexus}.
 \end{itemize}
 
-\textbf{Vertical Slice 2: Event Management (FRs 15--17)}
+% ══════════════════════════════════════════════════════════════════════════════
+\section{System Overview}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Problem Summary}
+
+The CSEDU Students' Club requires a centralized digital platform to manage membership,
+governance, meetings, elections, events, certificates, and finance with transparent,
+role-controlled workflows. Previously fragmented and manual processes increased
+administrative overhead and made constitutional compliance difficult to enforce.
+
+\subsection{Target Users}
+
 \begin{itemize}[noitemsep]
-  \item \textbf{FR-CSC-015, US-CSC-002:} Public event listing, EC event creation
-  \item \textbf{FR-CSC-017, US-CSC-003:} Volunteer registration and tracking
-\end{itemize}
-
-\textbf{Vertical Slice 3: Financial Ledger (FRs 18--20)}
-\begin{itemize}[noitemsep]
-  \item \textbf{FR-CSC-020, US-CSC-006:} Append-only transaction ledger with running balance
-  \item \textbf{FR-CSC-018:} Budget submission foundation
-\end{itemize}
-
-\textbf{Future Labs:} Elections (FRs 5--10), Meetings (FRs 11--14), Certificates (FR-23), Constitution changes (FR-21), AGM (FR-22).
-\textbf{Target users:}
-\begin{itemize}[leftmargin=1.5em]
   \item General Members (current CSEDU students)
-  \item Executive Committee (EC) members
-  \item Moderator(s) (student advisors)
+  \item Executive Committee (EC) members (posts and executive members)
+  \item Moderator(s) (department student advisor role)
   \item Chief Patron (department chairman)
   \item Election Commissioners
-  \item Alumni (limited scope)
+  \item Alumni (limited dashboard access)
+  \item System Admin (technical/role administration)
 \end{itemize}
 
-\textbf{Project goals:}
-\begin{itemize}[leftmargin=1.5em]
-  \item Digitize membership lifecycle and constitutional compliance.
-  \item Implement two-phase election and candidacy eligibility validation.
-  \item Provide transparent financial ledger, budget, and quarterly reporting.
-  \item Manage meetings, attendance, and governance notices.
-  \item Support certificate request and approval workflow.
+\subsection{Project Goals}
+
+\begin{itemize}[noitemsep]
+  \item Provide role-based secure access to all club operations.
+  \item Digitize member lifecycle management, including cancellations and approvals.
+  \item Implement governance and constitution workflows with approval tracking.
+  \item Support election lifecycle: creation, candidacy, validation, voting, and results.
+  \item Manage events and volunteer workflows with review and status updates.
+  \item Enable meetings with attendance, absence alerts, and online/offline mode support.
+  \item Implement certificate request, moderator/chairman review, and controlled download.
+  \item Maintain financial transactions and ledger visibility for authorized roles.
 \end{itemize}
 
-\textbf{Out of scope:}
-\begin{itemize}[leftmargin=1.5em]
-  \item Native mobile apps in v1.
-  \item University ERP integration.
-  \item Full payment gateway automation in v1.
+\subsection{Out of Scope (Current Version)}
+
+\begin{itemize}[noitemsep]
+  \item Native mobile applications (Android/iOS) in this release.
+  \item Direct university ERP/academic system integration.
+  \item Full payment gateway integration for transactions/events.
+  \item Automatic production-grade video token backend for all meeting providers.
 \end{itemize}
 
+\begin{tcolorbox}[significancestyle]
+This SDD version reflects the implemented web-based architecture (React + Express + MongoDB)
+and should be used as the baseline for detailed component, data, and flow design in later sections.
+\end{tcolorbox}
+
+% ══════════════════════════════════════════════════════════════════════════════
 \section{Architecture Design}
+% ══════════════════════════════════════════════════════════════════════════════
 
 \subsection{High-Level Architecture}
 
-The system adopts a \textbf{modular monolith} with clean layered boundaries to balance Lab 4 rapid delivery while maintaining extensibility for future modules (elections, meetings, etc.).
+\subsubsection{Main Components / Services}
 
-\textbf{Tech Stack:}
-\begin{itemize}[leftmargin=1.5em]
-  \item \textbf{Frontend:} Next.js 14 + React + TypeScript + Tailwind CSS + shadcn/ui + TanStack Query (React Query)
-  \item \textbf{Backend:} NestJS + TypeScript + Passport.js (JWT) + Prisma ORM
-  \item \textbf{Database:} PostgreSQL 14+ (docker-compose for dev)
-  \item \textbf{Notifications:} Email (SMTP); in-app logging
-  \item \textbf{DevOps:} GitHub Actions CI/CD, Docker, Docker Compose
-\end{itemize}
-
-\subsection{Backend: Clean Layered Architecture}
-
-NestJS backend uses \textbf{four-tier layering} to enforce constitutional constraint encoding:
-
-\begin{enumerate}
-  \item \textbf{Presentation Layer (Controllers)} --- HTTP endpoints, input validation, response mapping
-  \item \textbf{Application Layer (Services)} --- Use-case orchestration, workflow state machines
-  \item \textbf{Domain Layer (Policies + Entities)} --- Business rule enforcement, constitutional validation
-  \item \textbf{Infrastructure Layer (Repositories, DB, Email)} --- Data access, external service integration
-\end{enumerate}
-
-\textbf{Policy-Driven Design (Strategy Pattern):} Constitutional rules encoded separately:
 \begin{itemize}[noitemsep]
-  \item \texttt{MembershipPolicy} --- Validates registration eligibility per Articles VI--VII
-  \item \texttt{EligibilityPolicy} --- Enforces candidacy constraints (year, EC experience) per Articles XIV--XV
-  \item \texttt{AuthorityPolicy} --- Enforces Chief Patron override, EC abolition power
-  \item \texttt{FinancialPolicy} --- Validates transaction categories, co-signature rules, immutability
-  \item \texttt{AttendancePolicy} --- Auto-flags 3rd consecutive absence per Article XVI
+  \item \textbf{Presentation Layer (Frontend - React + Vite)}
+  \begin{itemize}[noitemsep]
+    \item Public shell: home, constitution, notices, events, about, contact.
+    \item Dashboard shell: protected role-based pages for membership, governance, meetings, elections, events, finance, certificates, admin.
+    \item API client with token refresh and centralized error normalization.
+  \end{itemize}
+
+  \item \textbf{Application Layer (Backend - Express)}
+  \begin{itemize}[noitemsep]
+    \item Route modules grouped by domain: auth, governance, membership, meetings, elections, events, finance, moderator, admin, certificates.
+    \item Controller layer for HTTP request/response orchestration.
+    \item Service layer for business rules and workflow transitions.
+  \end{itemize}
+
+  \item \textbf{Cross-Cutting Middleware}
+  \begin{itemize}[noitemsep]
+    \item Authentication middleware (JWT access token verification).
+    \item Authorization middleware (permission-key based guard).
+    \item Request validation middleware (Zod schemas).
+    \item Request audit metadata middleware.
+    \item Centralized error handling and not-found handling.
+  \end{itemize}
+
+  \item \textbf{Persistence Layer (MongoDB + Mongoose)}
+  \begin{itemize}[noitemsep]
+    \item Domain collections: User, Member, Role, Permission, UserRole, RolePermission.
+    \item Governance/election collections: EcTerm, EcPost, EcAppointment, Election, ElectionCandidate, Vote, ConstitutionDocument, GovernanceProposal.
+    \item Operations collections: Event, EventPost, EventComment, Volunteer, Meeting, MeetingAttendance, Transaction, MembershipCancellation, CertificateRequest, AuditLog.
+  \end{itemize}
 \end{itemize}
 
-\subsection{Request Lifecycle Example}
+\subsubsection{Data Flow Summary}
 
-\textbf{Scenario:} Member registration (FR-CSC-001, US-CSC-001)
-
-\begin{enumerate}[leftmargin=1.5em]
-  \item User submits registration form: [email, password, firstName, lastName, studentID, batch]
-  \item \texttt{POST /auth/register} routed to \texttt{AuthController}
-  \item Controller validates schema (Joi/Zod input validation)
-  \item Service calls \texttt{MembershipPolicy.canRegister(studentID, batch)}
-  \item Policy checks: active CSEDU student, not duplicate member, batch valid
-  \item If valid: create User + Member records via Prisma; hash password (Argon2)
-  \item Send confirmation email (async, logged to audit trail)
-  \item Return 201 with JWT token + member profile
-  \item Frontend updates state; user redirected to dashboard
+\begin{enumerate}[noitemsep]
+  \item Client requests protected data or action from dashboard pages.
+  \item Frontend API client adds bearer token and calls backend endpoint under \texttt{/api/v1/*}.
+  \item Backend applies middleware chain: authenticate \rightarrow authorize \rightarrow validate.
+  \item Controller delegates business rules to service class.
+  \item Service performs Mongoose operations, state transitions, and audit logging.
+  \item Controller returns standardized JSON payload (success/data/message).
+  \item Frontend updates query cache and re-renders page state.
 \end{enumerate}
 
-\subsection{Module Responsibilities (Lab 4 + Future)}
+\subsubsection{External Integrations (If Any)}
 
-\begin{longtable}{>{\raggedright\arraybackslash}p{2cm} >{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}p{3.5cm} >{\raggedright\arraybackslash}p{2.7cm}}
-\toprule
-\textbf{Module} & \textbf{Responsibility} & \textbf{Key Inputs} & \textbf{Outputs} & \textbf{Related FRs} \\
-\midrule
+\begin{itemize}[noitemsep]
+  \item \textbf{MongoDB:} Primary persistent datastore for all domain entities.
+  \item \textbf{ZegoCloud UI Kit (Web):} Integrated in meeting live page for online rooms.
+  \item \textbf{Current Status:} Zego integration is client-side for room rendering; production-grade backend token service is a pending hardening item.
+\end{itemize}
+
+\subsection{Component Breakdown}
+
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+
+\begin{longtable}{>{\small\color{DeepNavy}\bfseries\centering\arraybackslash}p{2.8cm}%
+                  >{\small\color{DarkGray}}p{4.2cm}%
+                  >{\small\color{DarkGray}}p{3.3cm}%
+                  >{\small\color{DarkGray}}p{3.4cm}%
+                  >{\small\color{DarkGray}}p{2.9cm}}
+\caption{Component Breakdown} \label{tab:component-breakdown} \\
+
+\rowcolor{DeepNavy}
+\color{white}\bfseries Component &
+\color{white}\bfseries Responsibility &
+\color{white}\bfseries Inputs &
+\color{white}\bfseries Outputs &
+\color{white}\bfseries Notes \\
+
 \endfirsthead
-\toprule
-\textbf{Module} & \textbf{Responsibility} & \textbf{Key Inputs} & \textbf{Outputs} & \textbf{Related FRs} \\
-\midrule
+\rowcolor{DeepNavy}
+\color{white}\bfseries Component &
+\color{white}\bfseries Responsibility &
+\color{white}\bfseries Inputs &
+\color{white}\bfseries Outputs &
+\color{white}\bfseries Notes \\
 \endhead
+
+\midrule
+\multicolumn{5}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+\endfoot
 \bottomrule
 \endlastfoot
 
-\textbf{Auth} & Login, JWT token mgmt & Credentials, refresh token & JWT, user context, 200/401 & FR-CSC-024 \\
+\rowcolor{LightTeal}Frontend Router & Route composition for public and protected screens & URL path, auth state, role set & Rendered page component & Uses protected route wrapper \\
 
-\textbf{Membership} & Register, cancel, status tracking & Member form, admin action & Member profile, notice & FR-CSC-001, 002, 003 \\
+\rowcolor{LightBlue}Auth Context & Client-side auth/session state management & Login response, refresh event & User object, token, roles & Broadcasts token refresh event \\
 
-\textbf{RBAC} & Role/permission enforcement & User, endpoint, role claim & 200 or 403 Forbidden & FR-CSC-024, NFR-CSC-005 \\
+\rowcolor{LightTeal}API Client & HTTP abstraction with retry/refresh flow & API path, token, payload & Parsed data / typed errors & Refreshes token on 401 \\
 
-\textbf{EC Mgmt} & EC posts, terms, vacancies & Election results, resignation & EC roster, vacancy notices & FR-CSC-004, 008, 009, 010 \\
+\rowcolor{LightBlue}Express App & Middleware wiring and API mounting & HTTP requests & Routed request handling & Health endpoint + error handlers \\
 
-\textbf{Election} & Phase 1/2, candidacy, voting & Candidates, voters, ballots & Results, audit logs & FR-CSC-005, 006, 007, 013 \\
+\rowcolor{LightTeal}Route Modules & Domain endpoint grouping & HTTP method + path & Controller method invocation & \texttt{/auth}, \texttt{/meetings}, etc. \\
 
-\textbf{Meetings} & Schedule, attendance, absence & Create/update, sign-off & Attendance sheet, alerts & FR-CSC-011, 012, 013, 014 \\
+\rowcolor{LightBlue}Controllers & Request orchestration and response shaping & Validated request, auth context & API response payload & Thin layer; business logic in services \\
 
-\textbf{Events} & Create, list, FC volunteers & Event form, volunteer signup & Event record, volunteer list & FR-CSC-015, 016, 017 \\
+\rowcolor{LightTeal}Services & Core domain rules and transitions & Controller DTOs, actor context & Persisted domain state & Central business layer \\
 
-\textbf{Finance} & Budget (Lab 5), ledger (Lab 4) & Tx entry, category, docs & Ledger view, balance, reports & FR-CSC-018, 019, 020 \\
+\rowcolor{LightBlue}Validators (Zod) & Input schema validation & Request body/query/params & Validated DTO / 4xx errors & Applied per-route via middleware \\
 
-\textbf{Certificate} & Request/approve, PDF gen & Request, Chief Patron approval & Cert PDF, status & FR-CSC-023 \\
+\rowcolor{LightTeal}Auth Middleware & Access token verification & Authorization header/cookies & \texttt{req.auth} claims & JWT-based authentication \\
 
-\textbf{Constitution} & Amendment workflow & Proposal, EC votes & Proposal state, approvals & FR-CSC-021 \\
+\rowcolor{LightBlue}Authorize Middleware & Permission-key gatekeeping & \texttt{req.auth.roles}, permission key & Allow/deny request & Permission model from DB \\
 
-\textbf{Notification} & Email/in-app alerts & Event, user, message text & Sent status, delivery log & FR-CSC-025 \\
+\rowcolor{LightTeal}Audit Middleware/Service & Request metadata + audit event persistence & Request metadata, service actions & AuditLog records & Supports traceability \\
 
-\textbf{Audit} & Immutable action log & All critical operations & Audit entries with actor/time & NFR-CSC-011, traceability \\
+\rowcolor{LightBlue}Mongoose Models & Schema, indexes, relationships & Service CRUD operations & MongoDB documents & Unique/index constraints enforced \\
+
+\rowcolor{LightTeal}Meeting Live Integration & Online room UI rendering & Meeting mode, room ID, user info & Embedded video room UI & Zego UI Kit script-based integration \\
+
 \end{longtable}
 
 \subsection{Key Design Decisions}
 
-\begin{longtable}{>{\raggedright\arraybackslash}p{2.5cm} >{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}p{4.5cm}}
-\toprule
-\textbf{Decision} & \textbf{Alternatives} & \textbf{Chosen} & \textbf{Rationale} \\
-\midrule
-\endfirsthead
-\toprule
-\textbf{Decision} & \textbf{Alternatives} & \textbf{Chosen} & \textbf{Rationale} \\
-\midrule
-\endhead
-\bottomrule
-\endlastfoot
+\begin{longtable}{>{\small\color{DeepNavy}\bfseries\centering\arraybackslash}p{3cm}%
+                  >{\small\color{DarkGray}}p{3.9cm}%
+                  >{\small\color{DarkGray}}p{3.1cm}%
+                  >{\small\color{DarkGray}}p{5.1cm}}
+\caption{Key Design Decisions} \label{tab:key-design-decisions} \\
 
-Arch Pattern & Microservices, layered monolith & Modular monolith & Lab 4 speed; easier constitutional enforcement; scales later \\
-
-Rule Encoding & Hard-coded, DB constraints, Policies & Policy layer + DB constraints & Testable; reusable across workflows; maintainable \\
-
-Data Access & Raw SQL, ORM & Prisma ORM & Type-safe; migrations; relationships; audit support \\
-
-Financial Data & Mutable ledger, Append-only & Append-only (per FR-CSC-020) & Constitutional transparency, auditability, trust \\
-
-Auth Model & Session, JWT & JWT + refresh tokens & Stateless; mobile-ready; RBAC claims in token \\
-
-Frontend State & Context API, Redux, TanStack Query & TanStack Query + Context & Automatic cache invalidation; Lab 4 speed \\
-\end{longtable}
-
-\section{Data Design (Lab 4 MVP)}
-
-\subsection{Core Tables}
-
-Lab 4 implements core identity/event/finance tables plus extensible governance tables. EC posts are stored as data (not hard-coded columns), so new posts can be added without schema redesign.
-
-\begin{center}
-\small
-\begin{longtable}{>{\columncolor{DeepNavy}\color{white}\bfseries}p{2cm} >{\small}p{3cm} >{\small}p{3.5cm} >{\small}p{4cm}}
-\caption{Lab 4 Core Tables} \\
 \rowcolor{DeepNavy}
-\color{white}\textbf{Table} & \color{white}\textbf{Key Fields} & \color{white}\textbf{Constraints} & \color{white}\textbf{Related FRs} \\
+\color{white}\bfseries Decision &
+\color{white}\bfseries Options Considered &
+\color{white}\bfseries Chosen Option &
+\color{white}\bfseries Reason \\
+
 \endfirsthead
 \rowcolor{DeepNavy}
-\color{white}\textbf{Table} & \color{white}\textbf{Key Fields} & \color{white}\textbf{Constraints} & \color{white}\textbf{Related FRs} \\
+\color{white}\bfseries Decision &
+\color{white}\bfseries Options Considered &
+\color{white}\bfseries Chosen Option &
+\color{white}\bfseries Reason \\
 \endhead
+
+\midrule
+\multicolumn{4}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+\endfoot
 \bottomrule
 \endlastfoot
 
-\rowcolor{LightTeal}
-\textbf{users} & id (PK), email, password, firstName, lastName & UNIQUE(email), bcrypt/argon2(password) & FR-CSC-024, NFR-CSC-003 \\
+\rowcolor{LightTeal}Backend style & Monolith, microservices, modular monolith & Modular monolith (Express modules) & Faster delivery, clear boundaries per domain, lower operational overhead \\
 
-\textbf{members} & id (PK), userId (FK), studentID, batch, status, joinDate & UNIQUE(studentID), status $\in$ \{Active, Cancelled, Expired\} & FR-CSC-001, 002 \\
+\rowcolor{LightBlue}Business logic placement & Fat controllers, service layer, model hooks & Service layer & Improves testability and keeps controllers thin \\
 
-\rowcolor{LightTeal}
-\textbf{roles} & id (PK), name, scope & name UNIQUE, scope $\in$ \{system, governance\} & FR-CSC-024 \\
+\rowcolor{LightTeal}Access control model & Role-only checks, permission keys, ACL files & Permission-key + role mapping & Fine-grained control with future extensibility \\
 
-\textbf{user\_roles} & userId (FK), roleId (FK), startsAt, endsAt & UNIQUE(userId, roleId, startsAt), no overlap policy & FR-CSC-024 \\
+\rowcolor{LightBlue}Validation strategy & Frontend-only, backend custom checks, Zod schemas & Zod validation middleware & Consistent and centralized contract enforcement \\
 
-\rowcolor{LightTeal}
-\textbf{permissions} & id (PK), roleId (FK), resource, action & Enforces matrix per SRS 4.2 & FR-CSC-024, NFR-CSC-005 \\
+\rowcolor{LightTeal}Persistence model & SQL relational DB, MongoDB document DB & MongoDB + Mongoose & Flexible schema for evolving workflows and nested approval structures \\
 
-\textbf{ec\_terms} & id (PK), name, startsOn, endsOn, status & non-overlapping date ranges, one active term & FR-CSC-004 \\
+\rowcolor{LightBlue}Auth session strategy & Cookie-only, local token only, hybrid refresh flow & JWT access + refresh endpoint + cookie support & Balance between UX and secure renewal behavior \\
 
-\rowcolor{LightTeal}
-\textbf{ec\_posts} & id (PK), code, title, minYear, minEcYears, displayOrder, isActive & code UNIQUE; post rules configurable & FR-CSC-004, 007 \\
+\rowcolor{LightTeal}Meeting mode design & Single meeting type, separate online/offline modules & Unified meeting with \texttt{meetingMode} + optional \texttt{roomId} & One consistent flow while supporting online and offline operations \\
 
-\textbf{ec\_appointments} & id (PK), termId (FK), postId (FK), memberId (FK), startsOn, endsOn, source & UNIQUE(termId, postId) for active rows & FR-CSC-004, 010 \\
+\rowcolor{LightBlue}Live class integration & Build full RTC SDK flow, use prebuilt UI kit first & Zego UI Kit first & Rapid implementation with later path for token hardening/customization \\
 
-\rowcolor{LightTeal}
-\textbf{events} & id (PK), title, date, venue, budget, organizerId (FK) & FK to members, status $\in$ \{Planned, Ongoing, Completed\} & FR-CSC-015, 016 \\
+\rowcolor{LightTeal}Certificate workflow & Direct issue, single approver, multi-step approval & Multi-step moderator/chairman review chain & Matches governance needs and adds traceable approvals \\
 
-\textbf{volunteers} & id (PK), memberId (FK), eventId (FK), role, status & status $\in$ \{Registered, Assigned, Completed\} & FR-CSC-017 \\
+\rowcolor{LightBlue}Frontend data fetching & Manual fetch in components, Redux, query library & TanStack Query + centralized API helper & Better cache invalidation, retry control, and async state management \\
 
-\rowcolor{LightTeal}
-\textbf{transactions} & id (PK), type, amount, date, category, reference, createdBy & amount $>$ 0, type $\in$ \{Income, Exp\}, immutable & FR-CSC-020, NFR-CSC-011 \\
-
-\textbf{audit\_logs} & id (PK), actor, action, resource, timestamp, details & Immutable, auto-timestamp & NFR-CSC-011 \\
 \end{longtable}
-\end{center}
 
-\subsection{Extensible EC Committee Design (No Schema Change for New Posts)}
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Data Design}
+% ══════════════════════════════════════════════════════════════════════════════
 
-To avoid redesign when a new EC post is introduced, treat EC posts as configuration data:
+\subsection{Core Entities}
 
-\begin{itemize}[leftmargin=1.5em]
-  \item Keep \textbf{system roles} (General Member, Moderator, Chief Patron) in \texttt{roles}
-  \item Keep \textbf{EC post catalog} in \texttt{ec\_posts} (President, VP, Treasurer, or any future post)
-  \item Assign members to posts per term through \texttt{ec\_appointments}
-  \item Validate candidacy from \texttt{ec\_posts.minYear} and \texttt{ec\_posts.minEcYears}
-  \item Use \texttt{permissions} by role; use post-specific policies from \texttt{ec\_posts}
-\end{itemize}
+\begin{longtable}{>{\small\color{DeepNavy}\bfseries\centering\arraybackslash}p{3cm}%
+                  >{\small\color{DarkGray}}p{5.4cm}%
+                  >{\small\color{DarkGray}}p{6.8cm}}
+\caption{Core Entities in Current Implementation} \label{tab:data-core-entities} \\
 
-Adding a new post next year is only:
-\begin{enumerate}
-  \item Insert one row in \texttt{ec\_posts} with title and eligibility rules
-  \item Map permissions/policies (if needed)
-  \item No migration to add new columns, no controller rewrite
-\end{enumerate}
+\rowcolor{DeepNavy}
+\color{white}\bfseries Entity &
+\color{white}\bfseries Purpose &
+\color{white}\bfseries Key Attributes \\
 
-\subsection{Schema Constraints and Rationale}
-
-\begin{itemize}[leftmargin=1.5em]
-  \item \textbf{Uniqueness:} \texttt{UNIQUE(email)}, \texttt{UNIQUE(studentID)} prevent duplicates
-  \item \textbf{Term Safety:} \texttt{ec\_terms} cannot overlap; one active term at a time
-  \item \textbf{Post Safety:} \texttt{UNIQUE(termId, postId)} ensures one active holder per post per term
-  \item \textbf{Status Enums:} Member states (Active $\to$ Cancelled/Expired) prevent invalid transitions (immutable per FR-CSC-002)
-  \item \textbf{Append-Only Ledger:} Transactions table has no UPDATE/DELETE permissions; new entries only (per FR-CSC-020, NFR-CSC-011)
-  \item \textbf{Financial Constraints:} \texttt{CHECK (amount > 0)} enforced at schema + service layer
-  \item \textbf{Audit Trail:} \texttt{createdBy}, \texttt{createdAt}, \texttt{updatedAt} timestamp all tables
-  \item \textbf{Foreign Key Integrity:} All user/role references validated; orphaned data prevented
-\end{itemize}
-
-\subsection{Entity Relationships (SRS Section 7.2 Mapping)}
-
-Key relationships per SRS:
-\begin{itemize}[leftmargin=1.5em]
-  \item \textbf{users 1:1 members} --- User has one member profile (FR-CSC-001)
-  \item \textbf{users N:N roles} via \texttt{user\_roles} --- Supports multiple concurrent permissions (FR-CSC-024)
-  \item \textbf{ec\_terms 1:N ec\_appointments} --- Each term has multiple post assignments (FR-CSC-004)
-  \item \textbf{ec\_posts 1:N ec\_appointments} --- Same post reused across terms without schema change (FR-CSC-004)
-  \item \textbf{members 1:N events} --- Member organizes multiple events (FR-CSC-015)
-  \item \textbf{members 1:N volunteers} --- Member registers as volunteer for events (FR-CSC-017)
-  \item \textbf{members 1:N transactions} --- Treasurer creates append-only entries (FR-CSC-020)
-  \item \textbf{roles 1:N permissions} --- Role grants endpoint permissions (FR-CSC-024)
-\end{itemize}
-
-\subsection{Migration Strategy}
-
-\begin{enumerate}
-  \item \texttt{prisma/schema.prisma} generated from above design
-  \item \texttt{prisma migrate dev --name init} creates migrations/
-  \item \texttt{prisma db seed} loads test data (5 members, 2 roles, 3 events, 10 transactions)
-  \item No archival tables in v1; defer to Lab 5+ per SRS 7.3
-\end{enumerate}
-
-\section{Critical Flows (Lab 4)}
-
-\subsection{Flow 1: Member Registration to Dashboard (FR-CSC-001, US-CSC-001)}
-
-\textbf{Actors:} General member, system
-
-\textbf{Preconditions:}
-\begin{itemize}[noitemsep]
-  \item User is a current CSEDU student (verified against batch/studentID format)
-  \item No existing member account for this studentID
-\end{itemize}
-
-\textbf{Flow Steps:}
-\begin{enumerate}[leftmargin=1.5em]
-  \item User navigates to \texttt{/auth/register}
-  \item Frontend displays form: [email, password (confirmation), firstName, lastName, studentID, batch]
-  \item User fills form, ticks agreement checkbox, submits
-  \item Post \texttt{/auth/register} with credentials
-  \item Backend validates schema (Joi/Zod) — returns 400 if missing/invalid
-  \item Backend calls \texttt{MembershipPolicy.canRegister(studentID, batch)}
-  \item Policy checks: batch $\in$ [2021, 2022, ...], studentID format valid, no duplicate
-  \item If valid: create User (hash password Argon2), create Member (status=Active)
-  \item Log action to audit\_logs (actor=system, action=MEMBER\_REGISTERED)
-  \item Send confirmation email (async, timeout 5sec)
-  \item Return 201 \{token: JWT, user: \{id, email, roles: ["General Member"]\}\}
-  \item Frontend stores JWT in httpOnly cookie, redirects to \texttt{/dashboard}
-  \item Dashboard loads member profile (GET \texttt{/members/me}), displays greeting + upcoming events
-\end{enumerate}
-
-\textbf{Success Criteria:}
-\begin{itemize}[noitemsep]
-  \item Member appears in Active members list
-  \item Confirmation email received within 2 minutes
-  \item User can log in with credentials
-  \item Dashboard shows correct member status and batch
-\end{itemize}
-
-\textbf{Failure Cases:}
-\begin{itemize}[noitemsep]
-  \item Duplicate studentID: 409 Conflict, message: "Student ID already registered"
-  \item Invalid batch: 400 Bad Request, message: "Batch must be valid CSEDU year"
-  \item Email already exists: 409 Conflict, message: "Email already in use"
-  \item Network failure on confirmation email: logged; user still registered; retry notify later
-\end{itemize}
-
-\subsection{Flow 2: Financial Transaction Entry to Ledger View (FR-CSC-020, US-CSC-006)}
-
-\textbf{Actors:} Treasurer, Moderator, system
-
-\textbf{Preconditions:}
-\begin{itemize}[noitemsep]
-  \item User has Treasurer permission via \texttt{user\_roles} (or active Treasurer post in \texttt{ec\_appointments})
-  \item Valid transaction category exists: [Donation, RegFee, Expenditure, Dept]
-  \item Supporting document reference provided (e.g., receipt ID, check no.)
-\end{itemize}
-
-\textbf{Flow Steps:}
-\begin{enumerate}[leftmargin=1.5em]
-  \item Treasurer logs in, navigates to \texttt{/ec/finance}
-  \item Frontend displays ledger table + "Add Transaction" button
-  \item Treasurer clicks "Add Transaction", opens modal: [type (Income/Exp), amount, category, reference]
-  \item Treasurer enters: type=Income, amount=5000, category=Donation, reference=DonorName-001
-  \item Post \texttt{/finance/transactions} with transaction object
-  \item Backend validates schema: amount > 0, type $\in$ \{Income, Exp\}, category valid
-  \item Backend calls \texttt{FinancialPolicy.validateTransaction(tx, treasurerID)}
-  \item Policy confirms: amount valid, category valid, required fields present
-  \item Backend creates Transaction record with createdBy=treasurerID, immutable flag set
-  \item Log action to audit\_logs: \{actor: treasurerID, action: TRANSACTION\_CREATED, resource: transaction.id\}
-  \item Return 201 \{transaction: \{id, type, amount, date, category, balance\}\}
-  \item Frontend updates ledger table with new entry; shows running balance
-  \item Moderator (separate session) loads ledger via GET \texttt{/finance/ledger}
-  \item Backend queries all transactions, calculates balance (sum income — sum expenditure)
-  \item Moderator sees same entry with balance reflected
-  \item (Future Lab 5) No DELETE operation available on transactions
-\end{enumerate}
-
-\textbf{Success Criteria:}
-\begin{itemize}[noitemsep]
-  \item Transaction appears in ledger with correct amount and category
-  \item Running balance updates correctly (previous balance ± new amount)
-  \item Audit log shows transaction creation with timestamp and actor
-  \item Moderator can view and verify ledger
-  \item Transaction is immutable (no edit/delete UI or API route)
-\end{itemize}
-
-\textbf{Failure Cases:}
-\begin{itemize}[noitemsep]
-  \item Negative amount: 400 Bad Request, message: "Amount must be greater than 0"
-  \item Invalid category: 400 Bad Request, message: "Category must be one of: [Donation, RegFee, ...]"
-  \item Non-Treasurer tries to create: 403 Forbidden, message: "Only Treasurer role can create transactions"
-  \item Missing reference: 400 Bad Request, message: "Reference document ID required"
-\end{itemize}
-
-\section{Security and Access Control}
-
-\subsection{Authentication (FR-CSC-024)}
-
-\begin{itemize}[leftmargin=1.5em]
-  \item \textbf{Password Hashing:} Argon2id via bcryptjs library (per NFR-CSC-003)
-  \item \textbf{JWT Tokens:} 15-minute expiry on access token; 7-day refresh token in httpOnly cookie
-  \item \textbf{Token Claims:} Payload includes user.id, user.roles[], user.email, activeTermId
-  \item \textbf{Refresh Flow:} POST \texttt{/auth/refresh} exchanges refresh token for new access token (no user interaction)
-  \item \textbf{Logout:} Clear refresh cookie; client removes JWT from memory
-\end{itemize}
-
-\subsection{Authorization: RBAC Enforcement (FR-CSC-024, NFR-CSC-005)}
-
-Every endpoint enforces role checks:
-
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Endpoint} & \textbf{Required Role} & \textbf{Enforced At} \\
-\hline
-POST /auth/register & (none) & Schema validation only \\
-\hline
-GET /members/me & General Member+ & Auth middleware (JWT required) \\
-\hline
-GET /events & General Member+ & Auth middleware \\
-\hline
-POST /events & EC Member (organizer) & Controller guard, returns 403 if General Member \\
-\hline
-POST /finance/transactions & Treasurer & Controller guard, \texttt{FinancialPolicy.hasPermission()} \\
-\hline
-POST /finance/transactions & Moderator (view only) & GET \texttt{/finance/ledger} permitted; POST forbidden \\
-\hline
-\end{tabular}
-
-\textbf{Defense-in-Depth:}
-\begin{itemize}[noitemsep]
-  \item Frontend route guards prevent navigation to protected pages
-  \item Backend middleware verifies JWT before reaching controller
-  \item Backend controller re-checks role (never trust frontend)
-  \item 403 error logged to audit trail with denied user ID
-\end{itemize}
-
-\subsection{Data Protection}
-
-\begin{itemize}[leftmargin=1.5em]
-  \item \textbf{HTTPS/TLS 1.2+:} Enforced in production; dev uses localhost (per NFR-CSC-004)
-  \item \textbf{Immutable Ledger:} Transaction DELETE never exists; UPDATE blocked via ORM + DB policy
-  \item \textbf{Input Validation:} All POST/PUT endpoints use Joi/Zod schema validation (prevents SQL injection, XSS)
-  \item \textbf{Audit Logging:} Critical actions (login, register, transaction, role change) logged with timestamp, actor, resource ID
-  \item \textbf{Query Parameterization:} Prisma ORM uses parameterized queries automatically
-\end{itemize}
-
-\subsection{Future Security Considerations (Labs 5+)}
-
-\begin{itemize}[noitemsep]
-  \item Two-factor authentication for Moderator/Chief Patron roles
-  \item Digital signature workflows for multi-party approvals (certificates, constitution changes)
-  \item Rate limiting on login/API endpoints
-\end{itemize}
-
-\section{Frontend Design (Lab 4 Pages)}
-
-\subsection{Technology Stack}
-Next.js 14 (React 18, TypeScript, App Router) + Tailwind CSS + shadcn/ui + TanStack Query
-
-\subsection{Lab 4 Pages and Routes}
-
-\textbf{Public Pages (unauthenticated):}
-\begin{itemize}[noitemsep]
-  \item \texttt{/} --- Homepage with join/login CTAs (FR-CSC-001 entry point, US-CSC-001)
-  \item \texttt{/events} --- Public event listing, filter by status (FR-CSC-015, US-CSC-002)
-  \item \texttt{/auth/login} --- Email/password login with error handling
-  \item \texttt{/auth/register} --- 4-step form: email, password, name, studentID, batch (FR-CSC-001)
-\end{itemize}
-
-\textbf{Protected Pages (authenticated, role-based):}
-\begin{itemize}[noitemsep]
-  \item \texttt{/dashboard} --- Member profile, status, upcoming events (US-CSC-001)
-  \item \texttt{/events/\{id\}} --- Event detail, volunteer sign-up CTA (FR-CSC-017, US-CSC-003)
-  \item \texttt{/ec/events} --- EC-only: event creation form (FR-CSC-015)
-  \item \texttt{/ec/finance} --- Treasurer-only: ledger table + transaction form (FR-CSC-020, US-CSC-006)
-\end{itemize}
-
-\subsection{State Management}
-
-\textbf{TanStack Query patterns:}
-\begin{itemize}[noitemsep]
-  \item \texttt{useQuery('member', getMember)} --- Caches profile; refetch on window focus
-  \item \texttt{useQuery('events', listEvents)} --- Paginated events list
-  \item \texttt{useMutation(createEvent)} --- POST event; invalidates event cache
-  \item \texttt{useMutation(createTransaction)} --- POST transaction; auto-refetch ledger
-\end{itemize}
-
-\textbf{Error Handling:}
-\begin{itemize}[noitemsep]
-  \item Network errors: Retry with exponential backoff (3 attempts)
-  \item API errors (400, 403, 500): Toast alert with message
-  \item 403 Forbidden: Redirect to dashboard; log to analytics
-\end{itemize}
-
-\subsection{RBAC Frontend Guards}
-
-Each protected route uses \texttt{<ProtectedRoute>} wrapper:
-\begin{itemize}[noitemsep]
-  \item Checks JWT role claim from Context
-  \item Redirects unauthorized users to \texttt{/dashboard}
-  \item Backend API also enforces (defense-in-depth)
-\end{itemize}
-
-\section{Backend API Contract (Key Lab 4 Endpoints)}
-
-\begin{longtable}{>{\small\bfseries}p{2.2cm} >{\small}p{2.2cm} >{\small}p{4.2cm} >{\small}p{3.5cm}}
-\toprule
-\textbf{Endpoint} & \textbf{Method} & \textbf{Request Payload} & \textbf{Response (2xx)} \\
-\midrule
 \endfirsthead
-\toprule
-\textbf{Endpoint} & \textbf{Method} & \textbf{Request Payload} & \textbf{Response (2xx)} \\
-\midrule
+\rowcolor{DeepNavy}
+\color{white}\bfseries Entity &
+\color{white}\bfseries Purpose &
+\color{white}\bfseries Key Attributes \\
 \endhead
+
+\midrule
+\multicolumn{3}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+\endfoot
 \bottomrule
 \endlastfoot
 
-\texttt{/auth/register} & POST & \{email, password, firstName, lastName, studentID, batch\} & 201 \{id, email, role, token\} \\
+\rowcolor{LightTeal}User & System identity and profile root entity & email, passwordHash, firstName, lastName, isActive, profile fields \\
 
-\texttt{/auth/login} & POST & \{email, password\} & 200 \{token, user.id, user.roles[]\} \\
+\rowcolor{LightBlue}Member & Club membership profile linked to user & userId, studentId, batch, currentYear, status \\
 
-\texttt{/auth/refresh} & POST & (refresh token in cookie) & 200 \{accessToken\} \\
+\rowcolor{LightTeal}Role / Permission & Authorization vocabulary & role name/scope; permission key/resource/action \\
 
-\texttt{/members/me} & GET & (JWT header) & 200 \{Member\} \\
+\rowcolor{LightBlue}UserRole / RolePermission & Many-to-many access mapping & userId-roleId, roleId-permissionId, startsAt/endsAt \\
 
-\texttt{/events} & GET & (optional: ?status=Planned) & 200 [\{Event objects\}] \\
+\rowcolor{LightTeal}ConstitutionDocument & Versioned constitution content & title, preamble, content, articles[], version, status, updatedBy \\
 
-\texttt{/events} & POST & (EC) \{title, date, venue, budget\} & 201 \{Event\} \\
+\rowcolor{LightBlue}GovernanceProposal & Governance and constitution-change workflow items & type, title, description, proposedBy, status, approvals[] \\
 
-\texttt{/events/\{id\}} & GET & & 200 \{Event\} \\
+\rowcolor{LightTeal}EcTerm / EcPost / EcAppointment & Election committee term/post/assignment structure & term dates/status, post constraints, appointment source and dates \\
 
-\texttt{/events/\{id\}} & PUT & (organizer) \{title, date, venue, budget\} & 200 \{Event\} \\
+\rowcolor{LightBlue}Election & Election lifecycle per term and phase & termId, phase, startsOn, endsOn, status, resultsPublishedAt/by \\
 
-\texttt{/volunteers} & POST & \{memberId, eventId\} & 201 \{Volunteer\} \\
+\rowcolor{LightTeal}ElectionCandidate & Candidate registration and validation state & electionId, memberId, postId, status, rejectionReason \\
 
-\texttt{/finance/transactions} & POST & (Treasurer) \{type, amount, category, reference\} & 201 \{Transaction\} \\
+\rowcolor{LightBlue}Vote & Immutable vote records & electionId, voterMemberId, candidateId, timestamps \\
 
-\texttt{/finance/ledger} & GET & (Treasurer/Moderator) & 200 [\{Transactions\}, sum, balance] \\
+\rowcolor{LightTeal}Event / EventPost / EventComment & Event publishing and feed model & event metadata, feed posts, post comments, authorship links \\
+
+\rowcolor{LightBlue}Volunteer & Event volunteer application/review workflow & eventId, memberId, role, message, status, reviewedBy/At \\
+
+\rowcolor{LightTeal}Meeting & Meeting planning and room context & title, meetingDate, venue, meetingMode, roomId, calledBy, status, minutes \\
+
+\rowcolor{LightBlue}MeetingAttendance & Attendance records per meeting/member & meetingId, memberId, present, signedAt \\
+
+\rowcolor{LightTeal}MembershipCancellation & Multi-step membership cancellation process & memberId, requestedBy, reason, status, approvals[], executedAt \\
+
+\rowcolor{LightBlue}Transaction & Financial ledger entries & type, amount, category, reference, occurredOn, createdBy, cheque fields \\
+
+\rowcolor{LightTeal}CertificateRequest & Certificate request and approval chain & requesterUserId, requesterMemberId, purpose, status, moderator/chairman review, certificateNo \\
+
+\rowcolor{LightBlue}AuditLog & Cross-domain audit trail & actorId, action, resource, resourceId, requestId, metadata \\
+
 \end{longtable}
 
-\section{Implementation Plan: Lab 4 (4 Weeks)}
+\subsection{Key Relationships}
 
-\subsection{Week 1: Backend Foundation}
+\begin{longtable}{>{\small\color{DeepNavy}\bfseries\centering\arraybackslash}p{4.3cm}%
+                  >{\small\color{DarkGray}\centering\arraybackslash}p{2.2cm}%
+                  >{\small\color{DarkGray}}p{8.7cm}}
+\caption{Key Data Relationships} \label{tab:data-relationships} \\
+
+\rowcolor{DeepNavy}
+\color{white}\bfseries Relationship &
+\color{white}\bfseries Cardinality &
+\color{white}\bfseries Implementation Notes \\
+
+\endfirsthead
+\rowcolor{DeepNavy}
+\color{white}\bfseries Relationship &
+\color{white}\bfseries Cardinality &
+\color{white}\bfseries Implementation Notes \\
+\endhead
+
+\midrule
+\multicolumn{3}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+
+\rowcolor{LightTeal}User $\leftrightarrow$ Member & 1:1 & \texttt{Member.userId} is unique and required; member profile extends user identity \\
+
+\rowcolor{LightBlue}User $\leftrightarrow$ Role & M:N & Through \texttt{UserRole}; supports historical role windows via \texttt{startsAt}/\texttt{endsAt} \\
+
+\rowcolor{LightTeal}Role $\leftrightarrow$ Permission & M:N & Through \texttt{RolePermission}; unique composite prevents duplicates \\
+
+\rowcolor{LightBlue}EcTerm $\rightarrow$ Election & 1:N & A term can contain multiple election instances/phases \\
+
+\rowcolor{LightTeal}Election $\rightarrow$ ElectionCandidate & 1:N & Candidate list is scoped by election; composite unique index on election/member/post \\
+
+\rowcolor{LightBlue}ElectionCandidate $\rightarrow$ Vote & 1:N & Votes reference candidate records, enabling tally by candidate/post \\
+
+\rowcolor{LightTeal}Member $\rightarrow$ Vote & 1:N & Vote tracks voterMemberId for election-level uniqueness and auditability \\
+
+\rowcolor{LightBlue}Event $\rightarrow$ EventPost $\rightarrow$ EventComment & 1:N:N & Feed model supports event updates and threaded comments by users \\
+
+\rowcolor{LightTeal}Event $\leftrightarrow$ Member (Volunteer) & M:N & Implemented through \texttt{Volunteer} with status/review metadata \\
+
+\rowcolor{LightBlue}Meeting $\leftrightarrow$ Member (Attendance) & M:N & Implemented through \texttt{MeetingAttendance}; unique per meeting/member \\
+
+\rowcolor{LightTeal}Member $\rightarrow$ MembershipCancellation & 1:N & A member may have cancellation requests over time; workflow status controls state \\
+
+\rowcolor{LightBlue}User/Member $\rightarrow$ CertificateRequest & 1:N & Request anchors to both \texttt{requesterUserId} and \texttt{requesterMemberId} \\
+
+\rowcolor{LightTeal}User $\rightarrow$ Transaction & 1:N & Transaction creator and cheque signer are both user references \\
+
+\rowcolor{LightBlue}User $\rightarrow$ AuditLog & 1:N & Optional actor linkage supports accountability across domain actions \\
+
+\end{longtable}
+
+\subsection{Constraints (Unique, Nullability, Validation)}
+
+\subsubsection{Uniqueness Constraints}
 \begin{itemize}[noitemsep]
-  \item NestJS project scaffold, Prisma setup with seed
-  \item Auth module: registration, login, JWT, refresh flow (FR-CSC-024)
-  \item Users/Members tables + migration
-  \item RBAC middleware and guards
+  \item \texttt{User.email} unique.
+  \item \texttt{Member.userId} unique; \texttt{Member.studentId} unique.
+  \item \texttt{Role.name} unique; \texttt{Permission.key} unique.
+  \item \texttt{UserRole(userId, roleId, startsAt)} composite unique.
+  \item \texttt{RolePermission(roleId, permissionId)} composite unique.
+  \item \texttt{ElectionCandidate(electionId, memberId, postId)} composite unique.
+  \item \texttt{Vote(electionId, voterMemberId, candidateId)} composite unique.
+  \item \texttt{Volunteer(eventId, memberId)} composite unique.
+  \item \texttt{MeetingAttendance(meetingId, memberId)} composite unique.
+  \item \texttt{Meeting.roomId} unique with sparse index (only for online meetings).
+  \item \texttt{CertificateRequest.certificateNo} unique sparse.
 \end{itemize}
 
-\subsection{Week 2: Frontend + Core APIs}
+\subsubsection{Nullability and Required Fields}
 \begin{itemize}[noitemsep]
-  \item Next.js setup, TanStack Query configuration
-  \item Auth pages (login, register),  homepage, navigation
-  \item Membership service + API integration
-  \item Dashboard page skeleton
+  \item Required identity fields: email, passwordHash, firstName, lastName.
+  \item Required membership fields: userId, studentId, batch, currentYear.
+  \item Optional workflow actor fields (e.g., review actor IDs) remain null until action completion.
+  \item \texttt{Meeting.roomId} is nullable for offline meetings and required in practice for online flows.
+  \item \texttt{Transaction.chequeSignedBy} and \texttt{chequeSignedAt} are nullable until cheque signing.
 \end{itemize}
 
-\subsection{Week 3: Vertical Slices}
+\subsubsection{Validation Rules}
 \begin{itemize}[noitemsep]
-  \item Events module: create, list, fetch (FR-CSC-015, 016, 17)
-  \item Finance module: transaction creation, ledger view (FR-CSC-020)
-  \item Volunteer signup basic flow (FR-CSC-017)
-  \item Event detail page, ledger page UIs (shadcn components)
+  \item Enum-based state control is used extensively (meetingMode, election status, candidate status, certificate status, cancellation status, etc.).
+  \item API-level request validation is enforced via Zod schemas in route middleware.
+  \item Date fields are validated and normalized before persistence in service/controller flow.
+  \item Business validations (eligibility, approval sequencing, role capability checks) are centralized in service classes.
 \end{itemize}
 
-\subsection{Week 4: Testing, Docs, Deployment}
+\subsection{Data Lifecycle Notes}
+
+\begin{longtable}{>{\small\color{DeepNavy}\bfseries\centering\arraybackslash}p{3.1cm}%
+                  >{\small\color{DarkGray}}p{11.9cm}}
+\caption{Data Lifecycle Overview} \label{tab:data-lifecycle} \\
+
+\rowcolor{DeepNavy}
+\color{white}\bfseries Domain Object &
+\color{white}\bfseries Lifecycle Notes \\
+
+\endfirsthead
+\rowcolor{DeepNavy}
+\color{white}\bfseries Domain Object &
+\color{white}\bfseries Lifecycle Notes \\
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+
+\rowcolor{LightTeal}User/Member & Created during registration, enriched with membership profile, role assignments evolve over time via \texttt{UserRole}. \\
+
+\rowcolor{LightBlue}Governance Proposal & Drafted/created by authorized actor, routed through approval states (Moderator/Chief Patron), then archived by status and timestamps. \\
+
+\rowcolor{LightTeal}Election + Candidate + Vote & Election created per term/phase, candidates added and validated/rejected, votes recorded immutably, results published with publishing metadata. \\
+
+\rowcolor{LightBlue}Event + Volunteer & Event progresses Planned/Ongoing/Completed/Cancelled; volunteers move through Pending/Approved/Rejected with review notes. \\
+
+\rowcolor{LightTeal}Meeting + Attendance & Meeting created as Online/Offline; online meetings may receive auto-generated roomId; attendance records captured and updated per member. \\
+
+\rowcolor{LightBlue}Membership Cancellation & Request created with reason and approval steps, transitions via review to Approved/Rejected, then Executed when final action occurs. \\
+
+\rowcolor{LightTeal}Transaction & Created as immutable ledger entry; cheque-related fields updated only in designated signing flow. \\
+
+\rowcolor{LightBlue}Certificate Request & Submitted by member, reviewed by moderator then chairman, approved requests get certificate number and controlled download tracking. \\
+
+\rowcolor{LightTeal}Audit Log & Appended for critical actions with request metadata and actor linkage; retained as operational traceability source. \\
+
+\end{longtable}
+
+\begin{tcolorbox}[significancestyle]
+The data design in this section reflects the implemented Mongoose schemas in the current backend baseline.
+If schema updates occur in later sprints (e.g., production token tables, payment integration), this section must be versioned accordingly.
+\end{tcolorbox}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Core Flow Design}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Critical Flow 1: Meeting Creation and Participation (Online/Offline)}
+
+\begin{longtable}{>{\small\color{DeepNavy}\bfseries\centering\arraybackslash}p{1.2cm}%
+                  >{\small\color{DarkGray}}p{3.1cm}%
+                  >{\small\color{DarkGray}}p{5.4cm}%
+                  >{\small\color{DarkGray}}p{5.1cm}}
+\caption{Flow 1 --- Meeting Creation and Participation} \label{tab:flow-meeting} \\
+
+\rowcolor{DeepNavy}
+\color{white}\bfseries Step &
+\color{white}\bfseries Actor &
+\color{white}\bfseries Action &
+\color{white}\bfseries System Behavior / Outcome \\
+
+\endfirsthead
+\rowcolor{DeepNavy}
+\color{white}\bfseries Step &
+\color{white}\bfseries Actor &
+\color{white}\bfseries Action &
+\color{white}\bfseries System Behavior / Outcome \\
+\endhead
+
+\midrule
+\multicolumn{4}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+
+\rowcolor{LightTeal}1 & EC/Moderator & Opens meeting creation form with agenda, date, venue, and mode & Frontend validates required fields; submits to protected API endpoint \\
+
+\rowcolor{LightBlue}2 & Backend Auth Layer & Receives request with bearer token & Middleware chain authenticates actor and checks meeting-management permission \\
+
+\rowcolor{LightTeal}3 & Meeting Service & Processes payload and meeting mode & For \texttt{Online} mode, room context is generated/validated; for \texttt{Offline}, roomId remains null \\
+
+\rowcolor{LightBlue}4 & Persistence Layer & Saves meeting document & Meeting created with status and mode-specific fields; audit event is recorded \\
+
+\rowcolor{LightTeal}5 & Member/EC User & Opens meeting details and chooses Join/Open Room action & UI conditionally shows room actions only for online meetings \\
+
+\rowcolor{LightBlue}6 & Live Meeting Module & Loads room context in live page & Zego UI Kit renders room for authorized participant; failure paths show user-safe errors \\
+
+\rowcolor{LightTeal}7 & Member/EC User & Marks attendance / organizer updates minutes & Attendance and meeting minutes are stored; follow-up notifications can be triggered \\
+
+\end{longtable}
+
+\subsection{Critical Flow 2: Certificate Request and Multi-Step Approval}
+
+\begin{longtable}{>{\small\color{DeepNavy}\bfseries\centering\arraybackslash}p{1.2cm}%
+                  >{\small\color{DarkGray}}p{3.1cm}%
+                  >{\small\color{DarkGray}}p{5.4cm}%
+                  >{\small\color{DarkGray}}p{5.1cm}}
+\caption{Flow 2 --- Certificate Request and Approval} \label{tab:flow-certificate} \\
+
+\rowcolor{DeepNavy}
+\color{white}\bfseries Step &
+\color{white}\bfseries Actor &
+\color{white}\bfseries Action &
+\color{white}\bfseries System Behavior / Outcome \\
+
+\endfirsthead
+\rowcolor{DeepNavy}
+\color{white}\bfseries Step &
+\color{white}\bfseries Actor &
+\color{white}\bfseries Action &
+\color{white}\bfseries System Behavior / Outcome \\
+\endhead
+
+\midrule
+\multicolumn{4}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+
+\rowcolor{LightTeal}1 & Member & Submits certificate request with purpose and supporting details & Request persisted with initial \texttt{Pending} state and requester linkage \\
+
+\rowcolor{LightBlue}2 & Backend Auth Layer & Validates identity and route-level contract & JWT + permission checks + Zod validation guard the request entry point \\
+
+\rowcolor{LightTeal}3 & Moderator & Reviews request and approves/rejects with remarks & State moves to moderator-approved or rejected; decision metadata is recorded \\
+
+\rowcolor{LightBlue}4 & Chairman/Chief Patron & Performs final review for approved requests & Final decision updates status and issuance eligibility \\
+
+\rowcolor{LightTeal}5 & Certificate Service & Finalizes approved request & Assigns unique certificate number and generates downloadable artifact metadata \\
+
+\rowcolor{LightBlue}6 & Member & Downloads issued certificate from dashboard & Access is allowed only for owner/authorized roles; audit log captures download action \\
+
+\end{longtable}
+
+\begin{tcolorbox}[summarybox]
+Two implementation-critical workflows are now documented with actor, control, and data transition boundaries. Both flows are directly aligned with current backend service and frontend route behavior.
+\end{tcolorbox}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Security and Access Design}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Authentication Approach}
+
 \begin{itemize}[noitemsep]
-  \item Unit tests: Auth, RBAC, Finance policies (Jest) — $\geq$ 80\% coverage on domain
-  \item Integration tests: Supertest for core workflows (registration, event creation, transaction)
-  \item E2E tests: Playwright for user flows (registration→dashboard, event creation→view)
-  \item Docker Compose dev environment, GitHub Actions CI/CD
-  \item README, deployment guide, clean up git history
-  \item Tag \texttt{lab4-sdd-v1} and push to GitHub
+  \item Authentication is based on JWT access tokens issued after successful login.
+  \item Refresh endpoint support is used to renew session state without repeated credential prompts.
+  \item Protected API calls pass bearer tokens and are rejected when token verification fails.
+  \item Passwords are stored as secure one-way hashes, never in plaintext.
 \end{itemize}
 
-\subsection{Risks and Mitigations}
+\subsection{Authorization Model (Roles/Permissions)}
 
-\begin{tabular}{|l|p{3.5cm}|p{4cm}|}
-\hline
-\textbf{Risk} & \textbf{Probability / Impact} & \textbf{Mitigation} \\
-\hline
-Auth complexity delays dev & Med/High & Start Auth early; use Passport.js templates \\
-\hline
-RBAC matrix incomplete & Med/High & Map every FR/NFR to endpoint; peer review \\
-\hline
-Network issues during testing & Low/Med & Mock API responses; test offline graceful degradation \\
-\hline
-Database migration breaks on new FRs (Labs 5+) & Med/High & Use Prisma migrations; test schema evolution \\
-\hline
-\end{tabular}
-
-\section{Testing Strategy}
-
-\subsection{Unit Tests (Jest)}
 \begin{itemize}[noitemsep]
-  \item \texttt{MembershipPolicy.canRegister()} --- Valid batch/studentID, duplicates
-  \item \texttt{RBACService.hasPermission(role, endpoint)} --- Role matrix enforcement
-  \item \texttt{FinancialPolicy.validateTransaction()} --- Positive amounts, category validation
-  \item Target: $\geq$ 80\% coverage on policies and services
+  \item Authorization uses a role-to-permission mapping model instead of static role checks only.
+  \item \texttt{UserRole} and \texttt{RolePermission} collections resolve effective access for each request.
+  \item Endpoint guards enforce permission keys at route level via authorize middleware.
+  \item Domain workflows (e.g., moderator review, chairman approval, admin-only actions) are additionally enforced in services.
 \end{itemize}
 
-\subsection{Integration Tests (Jest + Supertest)}
+\subsection{Sensitive Data Handling}
+
 \begin{itemize}[noitemsep]
-  \item POST \texttt{/auth/register} $\to$ member created, JWT issued (TC-CSC-001)
-  \item GET \texttt{/members/me} $\to$ returns authenticated member (TC-CSC-002)
-  \item POST \texttt{/events} with non-EC role $\to$ 403 (TC-CSC-003)
-  \item POST \texttt{/finance/transactions} $\to$ immutable record created (TC-CSC-004)
-  \item Target: $\geq$ 60\% coverage on controllers
+  \item User credentials: password hashes only; no raw password persistence.
+  \item Personally identifiable data (student ID, contact/profile attributes) is exposed based on least-privilege route design.
+  \item Security-critical fields (role assignments, approval states, financial records) are changed only through authenticated and authorized endpoints.
+  \item Validation and normalization are enforced at API boundaries to reduce malformed or unsafe payload persistence.
 \end{itemize}
 
-\subsection{E2E Tests (Playwright)}
+\subsection{Audit/Logging Plan}
+
 \begin{itemize}[noitemsep]
-  \item \textbf{E2E-001:} Registration flow: /auth/register $\to$ form fill $\to$ /dashboard (FR-CSC-001, US-CSC-001)
-  \item \textbf{E2E-002:} Event discovery: /events $\to$ list populated, click event, view details (FR-CSC-015, US-CSC-002)
-  \item \textbf{E2E-003:} Ledger entry: /ec/finance $\to$ add transaction $\to$ appears in ledger (FR-CSC-020, US-CSC-006)
-  \item Target: All critical user paths covered
+  \item Request-level metadata is collected by audit middleware for traceability.
+  \item Domain services emit audit events for critical actions: approval/rejection, role updates, financial writes, vote-sensitive operations, and certificate issuance/download.
+  \item \texttt{AuditLog} stores actor, action, resource, resource ID, request correlation ID, and metadata snapshot.
+  \item Error handling returns sanitized client responses while preserving actionable server logs for diagnostics.
 \end{itemize}
 
+\begin{tcolorbox}[significancestyle]
+The security model follows a defense-in-depth path: token verification, permission gates, schema validation, service-level rule enforcement, and audit persistence.
+\end{tcolorbox}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Implementation Plan}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Sprint 1 Completed Features}
+
+\begin{itemize}[noitemsep]
+  \item Core platform foundation: frontend routing shell, backend API bootstrap, standardized response/error handling.
+  \item Authentication and access-control baseline with role/permission guard chain.
+  \item Membership and governance modules including cancellation workflow and constitution/proposal handling.
+  \item Election module: term/post/candidate management, validation states, voting and result publication path.
+  \item Events and volunteering workflow with review/approval lifecycle.
+  \item Meeting workflow with online/offline mode support and live room integration path.
+  \item Certificate request workflow with moderator/chairman approval chain and controlled issuance.
+  \item Finance and audit foundations with transaction records and action trace logging.
+\end{itemize}
+
+\subsection{Pending Features for Sprint 2}
+
+\begin{itemize}[noitemsep]
+  \item Production-hardened meeting token generation service (server-side provider token strategy).
+  \item Full notification channel improvements (meeting reminders, approval transitions, absence alerts).
+  \item Enhanced reporting dashboards for elections, participation, and finance analytics.
+  \item UX and accessibility hardening across long workflows (mobile responsiveness and edge-state handling).
+  \item Optional integration work: payment gateway pilot and external institutional system hooks.
+\end{itemize}
+
+\subsection{Technical Risks}
+
+\begin{itemize}[noitemsep]
+  \item Permission drift risk as roles and workflow states evolve quickly.
+  \item Third-party real-time meeting dependency risk (token/session reliability).
+  \item Data consistency risk in multi-step approvals if partial failures occur.
+  \item Performance risk for large audit/event datasets without index tuning and query shaping.
+\end{itemize}
+
+\subsection{Mitigation Plan}
+
+\begin{itemize}[noitemsep]
+  \item Maintain permission matrix review at each sprint boundary and add regression checks for guarded routes.
+  \item Move live meeting credentials/tokens to backend-managed secure issuance with expiration controls.
+  \item Introduce stricter transaction boundaries and idempotency checks for approval transitions.
+  \item Monitor slow queries, add targeted MongoDB indexes, and paginate high-volume feeds/log views.
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Testing Plan (Design Level)}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Unit Testing Targets}
+
+\begin{itemize}[noitemsep]
+  \item Service-layer business rules: eligibility checks, status transitions, approval sequencing.
+  \item Permission utility and middleware logic for allow/deny outcomes.
+  \item Validation schemas and DTO normalization rules.
+  \item Pure utility functions for date handling, formatting, and response shaping.
+\end{itemize}
+
+\subsection{Integration Testing Targets}
+
+\begin{itemize}[noitemsep]
+  \item Auth flow: login, token-protected API access, refresh path, unauthorized edge cases.
+  \item Meeting flow: create online/offline, room access constraints, attendance recording.
+  \item Certificate flow: submit request, moderator review, chairman review, issuance state change.
+  \item Election flow: candidate registration, validation, vote casting, result publication.
+  \item Membership cancellation flow: request-to-final-execution transitions.
+\end{itemize}
+
+\subsection{E2E Testing Targets}
+
+\begin{itemize}[noitemsep]
+  \item Member journey from authentication to dashboard actions with role-appropriate visibility.
+  \item EC/Moderator governance journey for approvals and constitution-related actions.
+  \item Event + volunteer journey from publish to application review outcome.
+  \item Certificate lifecycle from request submission to final user download.
+\end{itemize}
+
+\subsection{Known Hard-to-Test Areas}
+
+\begin{itemize}[noitemsep]
+  \item Real-time meeting provider behavior under unstable network conditions.
+  \item Time-dependent and concurrency-sensitive transitions in elections and approvals.
+  \item Cross-role race conditions when multiple reviewers act on the same record.
+  \item Long-lived session behavior across refresh/re-login boundary scenarios.
+\end{itemize}
+
+\begin{tcolorbox}[summarybox]
+Testing depth will prioritize service and integration levels first, then stabilize E2E suites for critical business journeys.
+\end{tcolorbox}
+
+% ══════════════════════════════════════════════════════════════════════════════
 \section{Exit Checklist}
+% ══════════════════════════════════════════════════════════════════════════════
 
-\begin{itemize}[leftmargin=1.5em]
-  \item[$\boxtimes$] All Lab 4 FRs (001, 015, 017, 020, 024, 025) implemented and tested
-  \item[$\boxtimes$] SRS traceability complete: every FR/US/NFR mapped to component/endpoint/test
-  \item[$\boxtimes$] Database migrations created and tested
-  \item[$\boxtimes$] Unit test coverage $\geq$ 80\% on domain layer; integration $\geq$ 60\% on controllers
-  \item[$\boxtimes$] Security: RBAC enforced, passwords hashed, audit logging active
-  \item[$\boxtimes$] GitHub repository public, tag \texttt{lab4-sdd-v1}, CI/CD pipeline passing
-  \item[$\boxtimes$] Documentation: README.md, API.md, deployment guide, team roles documented
-  \item[$\boxtimes$] Frontend builds without errors; docker-compose up works end-to-end
-  \item[$\boxtimes$] Peer review feedback incorporated
-\end{itemize}
+\begin{longtable}{>{\small\color{DeepNavy}\bfseries}p{11.8cm}%
+                  >{\small\color{DarkGray}\centering\arraybackslash}p{3.2cm}}
+\caption{SDD Completion Checklist} \label{tab:exit-checklist} \\
+
+\rowcolor{DeepNavy}
+\color{white}\bfseries Checklist Item &
+\color{white}\bfseries Status \\
+
+\endfirsthead
+\rowcolor{DeepNavy}
+\color{white}\bfseries Checklist Item &
+\color{white}\bfseries Status \\
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\small\color{MidGray}\textit{Continued on next page\ldots}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+
+\rowcolor{LightTeal}System overview is complete. & Completed \\
+\rowcolor{LightBlue}Architecture and components are documented. & Completed \\
+\rowcolor{LightTeal}Data model and constraints are documented. & Completed \\
+\rowcolor{LightBlue}At least two critical flows are documented. & Completed \\
+\rowcolor{LightTeal}Security and access model is defined. & Completed \\
+\rowcolor{LightBlue}Sprint implementation and risk plan is included. & Completed \\
+
+\end{longtable}
+
+\begin{tcolorbox}[significancestyle]
+This SDD baseline is now complete through architecture, data, flow, security, implementation, and testing design sections, with an explicit exit checklist for review sign-off.
+\end{tcolorbox}
+
 
 \end{document}

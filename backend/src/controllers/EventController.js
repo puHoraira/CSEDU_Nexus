@@ -15,6 +15,21 @@ class EventController {
     return ApiResponse.created(res, event, "Event created");
   });
 
+  static update = asyncHandler(async (req, res) => {
+    const payload = { ...req.body };
+
+    if (payload.eventDate) {
+      const eventDate = new Date(payload.eventDate);
+      if (Number.isNaN(eventDate.getTime())) {
+        throw new ApiError(400, "Invalid event date");
+      }
+      payload.eventDate = eventDate;
+    }
+
+    const event = await EventService.updateEvent(req.params.id, payload, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, event, "Event updated");
+  });
+
   static detail = asyncHandler(async (req, res) => {
     const event = await EventService.getEventById(req.params.id);
     return ApiResponse.ok(res, event, "Event");

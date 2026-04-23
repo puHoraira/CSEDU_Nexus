@@ -13,6 +13,10 @@ type EventRow = {
   venue: string;
   status: string;
   budget?: number;
+  volunteerEligibility?: {
+    allowedYears?: number[];
+    allowedBatches?: number[];
+  };
 };
 
 export function EventsPage() {
@@ -37,6 +41,22 @@ export function EventsPage() {
   const plannedCount = rows.filter((item) => item.status === "Planned").length;
   const ongoingCount = rows.filter((item) => item.status === "Ongoing").length;
   const completedCount = rows.filter((item) => item.status === "Completed").length;
+
+  function getEligibilityLabel(event: EventRow) {
+    const years = event.volunteerEligibility?.allowedYears || [];
+    const batches = event.volunteerEligibility?.allowedBatches || [];
+    if (years.length === 0 && batches.length === 0) {
+      return "Volunteer eligibility: All active members";
+    }
+    const parts: string[] = [];
+    if (years.length > 0) {
+      parts.push(`Year ${years.join(", ")}`);
+    }
+    if (batches.length > 0) {
+      parts.push(`Batch ${batches.join(", ")}`);
+    }
+    return `Volunteer eligibility: ${parts.join(" | ")}`;
+  }
 
   return (
     <PageScreen title="Events" subtitle="Event command center for discovery, scheduling, and volunteer workflows.">
@@ -82,10 +102,14 @@ export function EventsPage() {
               </div>
               <p className="event-card__meta">{new Date(event.eventDate).toLocaleString()} at {event.venue}</p>
               <p className="event-card__description">{event.description || "No description provided."}</p>
+              <p className="event-card__description" style={{ marginTop: 8 }}>{getEligibilityLabel(event)}</p>
               <div className="event-card__footer">
                 <p><strong>Budget:</strong> ৳{event.budget ?? 0}</p>
                 <div className="button-row">
                   <Link className="secondary-button" to={`/events/${event._id}`}>View</Link>
+                  {canCreate ? (
+                    <Link className="secondary-button" to={`/dashboard/events/${event._id}/edit`}>Edit</Link>
+                  ) : null}
                   {canManageVolunteers ? (
                     <Link className="secondary-button" to={`/dashboard/events/${event._id}/volunteers`}>Volunteers</Link>
                   ) : null}

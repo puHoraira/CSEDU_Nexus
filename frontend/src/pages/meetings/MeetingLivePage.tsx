@@ -20,11 +20,21 @@ type ZegoUIKitBridge = {
   joinRoom: (config: { container: HTMLElement | null; sharedLinks?: Array<{ name: string; url: string }> }) => void;
 };
 
+type ZegoUIKitFactory = {
+  create: (appToken: string) => ZegoUIKitBridge;
+};
+
+type ZegoKitTokenPayload = {
+  appToken: string;
+  roomId: string;
+  userId: string;
+  userName: string;
+};
+
 declare global {
   interface Window {
-    ZegoPrebuiltUIKit?: {
-      create: (appToken: string) => ZegoUIKitBridge;
-    };
+    ZegoUIKitPrebuilt?: ZegoUIKitFactory;
+    ZegoPrebuiltUIKit?: ZegoUIKitFactory;
   }
 }
 
@@ -32,6 +42,10 @@ const UIKIT_SCRIPT_SRC = "https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-
 
 function codeBlock(text: string) {
   return text.trim();
+}
+
+function getZegoFactory() {
+  return window.ZegoUIKitPrebuilt || window.ZegoPrebuiltUIKit || null;
 }
 
 async function loadScript(src: string) {
@@ -61,6 +75,7 @@ export function MeetingLivePage() {
   const [error, setError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const roomContainerRef = useRef<HTMLDivElement | null>(null);
+  const autoJoinedRef = useRef(false);
 
   const { data: meetings = [] } = useQuery({
     queryKey: ["meetings-live", token],
@@ -68,10 +83,17 @@ export function MeetingLivePage() {
     enabled: Boolean(token),
     retry: false,
   });
-
   const meeting = useMemo(() => meetings.find((item) => item._id === id), [meetings, id]);
   const isOnlineMeeting = (meeting?.meetingMode || (meeting?.roomId ? "Online" : "Offline")) === "Online";
   const roomID = isOnlineMeeting ? meeting?.roomId || (id ? `csedu-meeting-${id}` : "") : "";
+  const meetingTime = meeting?.meetingDate ? new Date(meeting.meetingDate).toLocaleString() : "Not scheduled yet";
+
+  const { data: zegoData, isFetching: isTokenLoading } = useQuery({
+    queryKey: ["meeting-zego-kit-token", id, token],
+    queryFn: () => apiRequest<ZegoKitTokenPayload>(`/meetings/${id}/zego-kit-token`, { token }),
+    enabled: Boolean(token && id && isOnlineMeeting),
+    retry: false,
+  });
 
   useEffect(() => {
     if (user) {
@@ -80,9 +102,21 @@ export function MeetingLivePage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (zegoData?.appToken) {
+      setAppToken(zegoData.appToken);
+    }
+    if (zegoData?.userId) {
+      setUserID(zegoData.userId);
+    }
+    if (zegoData?.userName) {
+      setUserName(zegoData.userName);
+    }
+  }, [zegoData]);
+
   const uiKitCode = codeBlock(`
 const yourAppToken = '';
-const zp = ZegoPrebuiltUIKit.create(yourAppToken);
+const zp = ZegoUIKitPrebuilt.create(yourAppToken);
 zp.joinRoom({
   container: document.querySelector("#root"),
 });
@@ -96,9 +130,7 @@ const remoteStream = await zg.startPlayingStream(streamID);
 zg.logoutRoom(roomID);
 `);
 
-  async function startUIKitRoom(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function joinUIKitRoom() {
     if (!isOnlineMeeting) {
       setError("This meeting is offline. Change it to Online to create and open a room.");
       return;
@@ -114,11 +146,12 @@ zg.logoutRoom(roomID);
       setError(null);
       await loadScript(UIKIT_SCRIPT_SRC);
 
-      if (!window.ZegoPrebuiltUIKit) {
-        throw new Error("ZegoPrebuiltUIKit is not available after script load");
+      const factory = getZegoFactory();
+      if (!factory) {
+        throw new Error("Zego UI Kit global is not available after script load");
       }
 
-      const zego = window.ZegoPrebuiltUIKit.create(appToken.trim());
+      const zego = factory.create(appToken.trim());
       zego.joinRoom({
         container: roomContainerRef.current,
         sharedLinks: [
@@ -132,11 +165,36 @@ zg.logoutRoom(roomID);
     }
   }
 
+  async function startUIKitRoom(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await joinUIKitRoom();
+  }
+
+  async function copyRoomLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setError(null);
+    } catch {
+      setError("Could not copy room link. Please copy it from your browser address bar.");
+    }
+  }
+
+  useEffect(() => {
+    if (autoJoinedRef.current) return;
+    if (mode !== "uikit") return;
+    if (!isOnlineMeeting) return;
+    if (!appToken.trim()) return;
+    if (!roomContainerRef.current) return;
+
+    autoJoinedRef.current = true;
+    joinUIKitRoom();
+  }, [appToken, isOnlineMeeting, mode]);
+
   return (
     <PageScreen title="Meeting Live Room" subtitle="Two ways to get started with ZegoCloud: UIKits and SDKs.">
       <section className="page-section">
         <div className="meeting-live-hero">
-          <div>
+          <div className="meeting-live-hero__main">
             <p className="eyebrow">ZegoCloud Meeting Integration</p>
             <h2 className="page-section__title">{meeting?.title || "Live meeting"}</h2>
             <p>{meeting?.agenda || "Launch your voice and video room from here."}</p>
@@ -145,12 +203,30 @@ zg.logoutRoom(roomID);
               <Link className="secondary-button" to={`/dashboard/meetings/${id}`}>Back to details</Link>
               <button className={mode === "uikit" ? "primary-button" : "secondary-button"} type="button" onClick={() => setMode("uikit")}>UIKits</button>
               <button className={mode === "sdk" ? "primary-button" : "secondary-button"} type="button" onClick={() => setMode("sdk")}>SDKs</button>
+              <button className="secondary-button" type="button" onClick={copyRoomLink}>Copy room link</button>
             </div>
           </div>
-          <div className="meeting-live-meta">
-            <span className="chip">Room: {roomID || "-"}</span>
-            <span className="chip">Mode: {mode === "uikit" ? "UIKits" : "SDKs"}</span>
-            <span className="chip">User: {userName || "-"}</span>
+          <div className="meeting-live-hero__panel">
+            <div className="meeting-live-meta">
+              <span className="chip">Room: {roomID || "-"}</span>
+              <span className="chip">Meeting: {isOnlineMeeting ? "Online" : "Offline"}</span>
+              <span className="chip">Mode: {mode === "uikit" ? "UIKits" : "SDKs"}</span>
+              <span className="chip">User: {userName || "-"}</span>
+            </div>
+            <div className="meeting-live-stats">
+              <div className="meeting-live-stat">
+                <span>Scheduled</span>
+                <strong>{meetingTime}</strong>
+              </div>
+              <div className="meeting-live-stat">
+                <span>Venue</span>
+                <strong>{meeting?.venue || "N/A"}</strong>
+              </div>
+              <div className="meeting-live-stat">
+                <span>Status</span>
+                <strong>{meeting?.status || "Unknown"}</strong>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -161,10 +237,15 @@ zg.logoutRoom(roomID);
             <h3 className="page-section__title">UIKits</h3>
             <p>Embed interactive scenarios with less than 10 lines of code. Best for MVPs, quick testing, and fast launch.</p>
             <pre className="code-block">{uiKitCode}</pre>
+            <div className="info">Token status: {isTokenLoading ? "Loading secure app token from server..." : appToken ? "Ready" : "Missing"}</div>
             <form className="form-grid" onSubmit={startUIKitRoom}>
               <label className="field">
                 <span>App Token</span>
-                <input value={appToken} onChange={(e) => setAppToken(e.target.value)} placeholder="Paste your Zego app token" />
+                <input
+                  value={appToken}
+                  onChange={(e) => setAppToken(e.target.value)}
+                  placeholder={isTokenLoading ? "Loading token..." : "Token is auto-generated by server"}
+                />
               </label>
               <label className="field">
                 <span>Room ID</span>
@@ -182,6 +263,14 @@ zg.logoutRoom(roomID);
                 <button className="primary-button" type="submit" disabled={isJoining || !isOnlineMeeting}>{isJoining ? "Joining..." : "Start with UIKits"}</button>
               </div>
             </form>
+            <div className="meeting-live-checklist">
+              <h4>Quick checklist</h4>
+              <ul>
+                <li>Confirm this meeting is online.</li>
+                <li>Verify the app token is loaded.</li>
+                <li>Set your display name before joining.</li>
+              </ul>
+            </div>
             {error ? <div className="alert">{error}</div> : null}
           </article>
 
@@ -200,6 +289,14 @@ zg.logoutRoom(roomID);
             <pre className="code-block">{sdkCode}</pre>
             <div className="empty-state">
               SDK mode is prepared for your custom voice/video implementation. Use your Zego SDK setup and room token flow here.
+            </div>
+            <div className="meeting-live-checklist">
+              <h4>Suggested implementation order</h4>
+              <ul>
+                <li>Login to room using room token and identity.</li>
+                <li>Create and publish local stream.</li>
+                <li>Subscribe to remote streams and handle cleanup.</li>
+              </ul>
             </div>
           </article>
 

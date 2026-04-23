@@ -13,7 +13,30 @@ type EventRow = {
   venue: string;
   status: string;
   budget?: number;
+  volunteerEligibility?: {
+    allowedYears?: number[];
+    allowedBatches?: number[];
+  };
+  volunteerProgram?: {
+    applicationDeadline?: string | null;
+    notes?: string;
+    positions?: Array<{
+      name: string;
+      slots: number;
+      description?: string;
+      requiredYears?: number[];
+      requiredBatches?: number[];
+    }>;
+  };
   createdBy?: { firstName?: string; lastName?: string; email?: string };
+};
+
+type AuthProfile = {
+  membership: {
+    batch: number;
+    currentYear: number;
+    status: "Active" | "Cancelled" | "Expired";
+  } | null;
 };
 
 type FeedAuthor = {
@@ -47,6 +70,8 @@ export function EventDetailsPage() {
   const queryClient = useQueryClient();
   const [role, setRole] = useState("Volunteer");
   const [applicationMessage, setApplicationMessage] = useState("");
+  const [availability, setAvailability] = useState("");
+  const [preferredPositions, setPreferredPositions] = useState<string[]>([]);
   const [volunteerMessage, setVolunteerMessage] = useState<string | null>(null);
   const [postMessage, setPostMessage] = useState<string | null>(null);
   const [commentMessage, setCommentMessage] = useState<string | null>(null);
@@ -71,7 +96,35 @@ export function EventDetailsPage() {
   const canApply = Boolean(user?.roles.some((item) => GENERAL_APPLICANT_ROLES.includes(item)));
   const canManage = Boolean(user?.roles.some((item) => EVENT_MANAGER_ROLES.includes(item)));
   const hasAccount = Boolean(user);
-  const isParticipationLocked = hasAccount && !canApply;
+  const { data: authProfile } = useQuery({
+    queryKey: ["auth-me", token],
+    queryFn: () => apiRequest<AuthProfile>("/auth/me", { token }),
+    enabled: Boolean(token),
+    retry: false,
+  });
+
+  const years = event?.volunteerEligibility?.allowedYears || [];
+  const batches = event?.volunteerEligibility?.allowedBatches || [];
+  const positions = event?.volunteerProgram?.positions || [];
+  const membership = authProfile?.membership || null;
+  const isEventClosed = event ? ["Completed", "Cancelled"].includes(event.status) : false;
+
+  let eligibilityBlockReason: string | null = null;
+  if (hasAccount && canApply) {
+    if (!membership) {
+      eligibilityBlockReason = "Membership profile is required for volunteering.";
+    } else if (membership.status !== "Active") {
+      eligibilityBlockReason = "Only active members can volunteer for this event.";
+    } else if (years.length > 0 && !years.includes(membership.currentYear)) {
+      eligibilityBlockReason = `This event accepts year ${years.join(", ")} only.`;
+    } else if (batches.length > 0 && !batches.includes(membership.batch)) {
+      eligibilityBlockReason = `This event accepts batch ${batches.join(", ")} only.`;
+    } else if (isEventClosed) {
+      eligibilityBlockReason = "Volunteer applications are closed for this event status.";
+    }
+  }
+
+  const isParticipationLocked = hasAccount && (!canApply || Boolean(eligibilityBlockReason));
   const userRoles = user?.roles || [];
   const roleLabel = userRoles.length > 0 ? userRoles.join(", ") : "Guest";
   const heroStats = useMemo(
@@ -88,7 +141,12 @@ export function EventDetailsPage() {
       apiRequest(`/events/${id}/volunteer-applications`, {
         method: "POST",
         token,
-        body: JSON.stringify({ role, message: applicationMessage.trim() }),
+        body: JSON.stringify({
+          role,
+          message: applicationMessage.trim(),
+          availability: availability.trim(),
+          preferredPositions,
+        }),
       }),
     onSuccess: async () => {
       setVolunteerMessage("Your volunteer application has been submitted.");
@@ -304,6 +362,48 @@ export function EventDetailsPage() {
                 <span className="chip">Event: {event.status}</span>
               </div>
 
+              <div className="card" style={{ marginBottom: 12 }}>
+                <p><strong>Volunteer eligibility</strong></p>
+                <p>
+                  {years.length === 0 && batches.length === 0
+                    ? "All active members can apply."
+                    : `Allowed ${years.length > 0 ? `year: ${years.join(", ")}` : "year: all"}${
+                        years.length > 0 && batches.length > 0 ? " | " : ""
+                      }${batches.length > 0 ? `batch: ${batches.join(", ")}` : "batch: all"}`}
+                </p>
+                {event.volunteerProgram?.applicationDeadline ? (
+                  <p><strong>Application deadline:</strong> {new Date(event.volunteerProgram.applicationDeadline).toLocaleString()}</p>
+                ) : null}
+                {event.volunteerProgram?.notes ? <p>{event.volunteerProgram.notes}</p> : null}
+              </div>
+
+              {positions.length > 0 ? (
+                <div className="card" style={{ marginBottom: 12 }}>
+                  <p><strong>Volunteer positions</strong></p>
+                  <div className="stack">
+                    {positions.map((position) => (
+                      <label key={position.name} className="field">
+                        <span>
+                          <input
+                            type="checkbox"
+                            checked={preferredPositions.includes(position.name)}
+                            onChange={(e) => {
+                              setPreferredPositions((current) =>
+                                e.target.checked
+                                  ? [...current, position.name]
+                                  : current.filter((item) => item !== position.name)
+                              );
+                            }}
+                          />{" "}
+                          {position.name} ({position.slots} slots)
+                        </span>
+                        <small>{position.description || "No description"}</small>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               {!hasAccount ? (
                 <div className="button-stack">
                   <p>Sign in with a General or Executive Member account to volunteer.</p>
@@ -328,8 +428,21 @@ export function EventDetailsPage() {
                       placeholder="Share a short motivation for this event team."
                     />
                   </label>
+                  <label className="field">
+                    <span>Availability / time constraints</span>
+                    <textarea
+                      rows={3}
+                      value={availability}
+                      onChange={(e) => setAvailability(e.target.value)}
+                      placeholder="Mention your free slots, classes, or preferred duty windows."
+                    />
+                  </label>
                   <div className="form-actions">
-                    <button className="primary-button primary-button--wide" type="submit" disabled={applyMutation.isPending}>
+                    <button
+                      className="primary-button primary-button--wide"
+                      type="submit"
+                      disabled={applyMutation.isPending || Boolean(eligibilityBlockReason)}
+                    >
                       {applyMutation.isPending ? "Submitting..." : "Apply as Volunteer"}
                     </button>
                   </div>
@@ -338,7 +451,7 @@ export function EventDetailsPage() {
 
               {isParticipationLocked ? (
                 <div className="event-participation-hub__locked">
-                  Your role does not allow volunteer application from this page.
+                  {eligibilityBlockReason || "Your role does not allow volunteer application from this page."}
                 </div>
               ) : null}
 

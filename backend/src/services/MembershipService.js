@@ -4,6 +4,7 @@ const { MembershipCancellation } = require("../models/MembershipCancellation");
 const { Role } = require("../models/Role");
 const { UserRole } = require("../models/UserRole");
 const { AuditService } = require("./AuditService");
+const { NotificationService } = require("./NotificationService");
 
 class MembershipService {
   static async listMembers() {
@@ -35,6 +36,18 @@ class MembershipService {
       resourceId: request._id.toString(),
       requestId,
     });
+
+    await NotificationService.createForRoleNames(
+      ["President", "Moderator", "Chief Patron"],
+      {
+        title: "Membership cancellation request submitted",
+        message: `A cancellation request has been submitted for member ${member.studentId}.`,
+        category: "Membership",
+        actionUrl: "/dashboard/membership/cancellations",
+        entityType: "MembershipCancellation",
+        entityId: request._id.toString(),
+      }
+    );
 
     return request;
   }
@@ -73,6 +86,30 @@ class MembershipService {
       metadata: { roleName, action },
     });
 
+    await NotificationService.createForUser(request.requestedBy, {
+      title: "Membership cancellation status updated",
+      message: `Your cancellation request is now ${request.status}.`,
+      category: "Membership",
+      actionUrl: "/dashboard/membership/cancellations",
+      entityType: "MembershipCancellation",
+      entityId: request._id.toString(),
+      metadata: { roleName, action },
+    });
+
+    if (action === "Approved" && request.status === "InReview") {
+      const nextStep = request.approvals.find((item) => item.action === "Pending");
+      if (nextStep?.role) {
+        await NotificationService.createForRoleNames([nextStep.role], {
+          title: "Membership cancellation requires your review",
+          message: `A cancellation request is awaiting ${nextStep.role} approval.`,
+          category: "Membership",
+          actionUrl: "/dashboard/membership/cancellations",
+          entityType: "MembershipCancellation",
+          entityId: request._id.toString(),
+        });
+      }
+    }
+
     return request;
   }
 
@@ -81,7 +118,7 @@ class MembershipService {
     if (!request) throw new ApiError(404, "Cancellation request not found");
     if (request.status !== "Approved") throw new ApiError(400, "Request must be fully approved before execution");
 
-    await Member.findByIdAndUpdate(request.memberId, { status: "Cancelled" });
+    const member = await Member.findByIdAndUpdate(request.memberId, { status: "Cancelled" }, { new: true });
     request.status = "Executed";
     request.executedAt = new Date();
     await request.save();
@@ -93,6 +130,26 @@ class MembershipService {
       resourceId: request.memberId.toString(),
       requestId,
       metadata: { requestId: request._id.toString() },
+    });
+
+    if (member?.userId) {
+      await NotificationService.createForUser(member.userId, {
+        title: "Membership cancelled",
+        message: "Your membership status has been marked as cancelled.",
+        category: "Membership",
+        actionUrl: "/dashboard/profile",
+        entityType: "Member",
+        entityId: member._id.toString(),
+      });
+    }
+
+    await NotificationService.createForUser(request.requestedBy, {
+      title: "Membership cancellation executed",
+      message: "An approved cancellation request has been executed.",
+      category: "Membership",
+      actionUrl: "/dashboard/membership/cancellations",
+      entityType: "MembershipCancellation",
+      entityId: request._id.toString(),
     });
 
     return request;

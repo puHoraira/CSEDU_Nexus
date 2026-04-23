@@ -67,7 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     function handleTokenRefreshed(event: Event) {
       const custom = event as CustomEvent<{ token: string | null }>;
-      setToken(custom.detail?.token || null);
+      const nextToken = custom.detail?.token || null;
+      setToken(nextToken);
+      if (!nextToken) {
+        setUser(null);
+      }
     }
 
     const eventName = getAuthTokenEventName();

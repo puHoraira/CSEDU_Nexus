@@ -29,6 +29,11 @@ class MeetingController {
     const alerts = await MeetingService.getAbsenceAlerts(memberIds, req.body.threshold || 3);
     return ApiResponse.ok(res, alerts, "Absence alerts");
   });
+
+  static zegoKitToken = asyncHandler(async (req, res) => {
+    const data = await MeetingService.generateZegoKitToken(req.params.id, req.auth.userId);
+    return ApiResponse.ok(res, data, "Zego kit token");
+  });
 }
 
 module.exports = { MeetingController };

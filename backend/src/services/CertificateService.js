@@ -3,6 +3,7 @@ const { CertificateRequest } = require("../models/CertificateRequest");
 const { Member } = require("../models/Member");
 const { User } = require("../models/User");
 const { AuditService } = require("./AuditService");
+const { NotificationService } = require("./NotificationService");
 
 const MODERATOR_ROLE = "Moderator";
 const CHAIRMAN_ROLES = ["Chief Patron", "Chairman"];
@@ -42,6 +43,15 @@ class CertificateService {
       resourceId: request._id.toString(),
       requestId,
       metadata: { certificateType: request.certificateType },
+    });
+
+    await NotificationService.createForRoleNames(["Moderator"], {
+      title: "New certificate request",
+      message: `A ${request.certificateType} certificate request is awaiting moderator review.`,
+      category: "Certificate",
+      actionUrl: "/dashboard/certificates",
+      entityType: "CertificateRequest",
+      entityId: request._id.toString(),
     });
 
     return request;
@@ -106,6 +116,29 @@ class CertificateService {
       metadata: { action: payload.action },
     });
 
+    await NotificationService.createForUser(request.requesterUserId, {
+      title: "Certificate request updated",
+      message:
+        payload.action === "Approved"
+          ? "Your certificate request passed moderator review and is pending chairman approval."
+          : "Your certificate request was rejected by moderator review.",
+      category: "Certificate",
+      actionUrl: "/dashboard/certificates",
+      entityType: "CertificateRequest",
+      entityId: request._id.toString(),
+    });
+
+    if (payload.action === "Approved") {
+      await NotificationService.createForRoleNames(["Chief Patron"], {
+        title: "Certificate request pending chairman review",
+        message: "A certificate request is ready for final chairman review.",
+        category: "Certificate",
+        actionUrl: "/dashboard/chief-patron",
+        entityType: "CertificateRequest",
+        entityId: request._id.toString(),
+      });
+    }
+
     return request;
   }
 
@@ -150,6 +183,18 @@ class CertificateService {
       resourceId: request._id.toString(),
       requestId,
       metadata: { action: payload.action },
+    });
+
+    await NotificationService.createForUser(request.requesterUserId, {
+      title: "Certificate request final decision",
+      message:
+        payload.action === "Approved"
+          ? "Your certificate request has been approved and is ready to download."
+          : "Your certificate request was rejected by chairman review.",
+      category: "Certificate",
+      actionUrl: "/dashboard/certificates",
+      entityType: "CertificateRequest",
+      entityId: request._id.toString(),
     });
 
     return request;

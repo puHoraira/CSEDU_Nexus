@@ -7,6 +7,7 @@ const { GovernanceProposal } = require("../models/GovernanceProposal");
 const { ConstitutionDocument } = require("../models/ConstitutionDocument");
 const { policyRegistry } = require("../policies");
 const { AuditService } = require("./AuditService");
+const { NotificationService } = require("./NotificationService");
 
 class GovernanceService {
   static assembleConstitutionContent(preamble, articles) {
@@ -245,6 +246,16 @@ class GovernanceService {
       metadata: { type: proposal.type },
     });
 
+    await NotificationService.createForRoleNames(["Moderator"], {
+      title: "New governance proposal submitted",
+      message: `${proposal.title} is awaiting moderator review.`,
+      category: "Governance",
+      actionUrl: "/dashboard/governance/notices",
+      entityType: "GovernanceProposal",
+      entityId: proposal._id.toString(),
+      metadata: { type: proposal.type },
+    });
+
     return proposal;
   }
 
@@ -286,6 +297,27 @@ class GovernanceService {
       requestId,
       metadata: { roleName, action, type: proposal.type },
     });
+
+    await NotificationService.createForUser(proposal.proposedBy, {
+      title: "Governance proposal updated",
+      message: `${proposal.title} is now ${proposal.status}.`,
+      category: "Governance",
+      actionUrl: "/dashboard/governance/notices",
+      entityType: "GovernanceProposal",
+      entityId: proposal._id.toString(),
+      metadata: { roleName, action, status: proposal.status },
+    });
+
+    if (proposal.status === "PendingChiefPatron") {
+      await NotificationService.createForRoleNames(["Chief Patron"], {
+        title: "Governance proposal needs chief patron review",
+        message: `${proposal.title} was approved by moderator and now awaits chief patron review.`,
+        category: "Governance",
+        actionUrl: "/dashboard/chief-patron",
+        entityType: "GovernanceProposal",
+        entityId: proposal._id.toString(),
+      });
+    }
 
     return proposal;
   }

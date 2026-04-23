@@ -5,11 +5,62 @@ import { useAuth } from "../../auth/AuthContext";
 import { apiRequest, normalizeApiError } from "../../lib/api";
 import { PageScreen } from "../../components/ui/PageScreen";
 
+const SUPPORTED_YEARS = [1, 2, 3, 4, 5];
+
+type VolunteerPositionDraft = {
+  name: string;
+  slots: number;
+  description: string;
+  requiredYears: number[];
+  requiredBatches: number[];
+};
+
+type EventForm = {
+  title: string;
+  description: string;
+  eventDate: string;
+  venue: string;
+  budget: number;
+  volunteerEligibility: {
+    allowedYears: number[];
+    allowedBatches: number[];
+  };
+  volunteerProgram: {
+    applicationDeadline: string;
+    notes: string;
+    positions: VolunteerPositionDraft[];
+  };
+};
+
 export function EventCreatePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { token } = useAuth();
-  const [form, setForm] = useState({ title: "", description: "", eventDate: "", venue: "", budget: 0 });
+  const [form, setForm] = useState<EventForm>({
+    title: "",
+    description: "",
+    eventDate: "",
+    venue: "",
+    budget: 0,
+    volunteerEligibility: {
+      allowedYears: [],
+      allowedBatches: [],
+    },
+    volunteerProgram: {
+      applicationDeadline: "",
+      notes: "",
+      positions: [],
+    },
+  });
+  const [batchInput, setBatchInput] = useState("");
+  const [positionDraft, setPositionDraft] = useState<VolunteerPositionDraft>({
+    name: "",
+    slots: 1,
+    description: "",
+    requiredYears: [],
+    requiredBatches: [],
+  });
+  const [positionBatchInput, setPositionBatchInput] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function formatValidationMessage(err: unknown) {
@@ -32,6 +83,12 @@ export function EventCreatePage() {
         body: JSON.stringify({
           ...form,
           eventDate: new Date(form.eventDate).toISOString(),
+          volunteerProgram: {
+            ...form.volunteerProgram,
+            applicationDeadline: form.volunteerProgram.applicationDeadline
+              ? new Date(form.volunteerProgram.applicationDeadline).toISOString()
+              : null,
+          },
         }),
       }),
     onSuccess: async () => {
@@ -46,18 +103,321 @@ export function EventCreatePage() {
     mutation.mutate();
   }
 
+  function toggleYear(year: number) {
+    setForm((current) => {
+      const exists = current.volunteerEligibility.allowedYears.includes(year);
+      return {
+        ...current,
+        volunteerEligibility: {
+          ...current.volunteerEligibility,
+          allowedYears: exists
+            ? current.volunteerEligibility.allowedYears.filter((item) => item !== year)
+            : [...current.volunteerEligibility.allowedYears, year].sort((a, b) => a - b),
+        },
+      };
+    });
+  }
+
+  function addBatch() {
+    const value = Number(batchInput);
+    if (!Number.isInteger(value) || value <= 0) {
+      setError("Batch must be a positive number.");
+      return;
+    }
+
+    setError(null);
+    setForm((current) => {
+      if (current.volunteerEligibility.allowedBatches.includes(value)) {
+        return current;
+      }
+      return {
+        ...current,
+        volunteerEligibility: {
+          ...current.volunteerEligibility,
+          allowedBatches: [...current.volunteerEligibility.allowedBatches, value].sort((a, b) => a - b),
+        },
+      };
+    });
+    setBatchInput("");
+  }
+
+  function removeBatch(batch: number) {
+    setForm((current) => ({
+      ...current,
+      volunteerEligibility: {
+        ...current.volunteerEligibility,
+        allowedBatches: current.volunteerEligibility.allowedBatches.filter((item) => item !== batch),
+      },
+    }));
+  }
+
+  function togglePositionYear(year: number) {
+    setPositionDraft((current) => {
+      const exists = current.requiredYears.includes(year);
+      return {
+        ...current,
+        requiredYears: exists ? current.requiredYears.filter((item) => item !== year) : [...current.requiredYears, year].sort((a, b) => a - b),
+      };
+    });
+  }
+
+  function addPositionBatch() {
+    const value = Number(positionBatchInput);
+    if (!Number.isInteger(value) || value <= 0) {
+      setError("Position batch must be a positive number.");
+      return;
+    }
+
+    setPositionDraft((current) => {
+      if (current.requiredBatches.includes(value)) {
+        return current;
+      }
+      return { ...current, requiredBatches: [...current.requiredBatches, value].sort((a, b) => a - b) };
+    });
+    setPositionBatchInput("");
+    setError(null);
+  }
+
+  function addPosition() {
+    const name = positionDraft.name.trim();
+    if (!name) {
+      setError("Volunteer position name is required.");
+      return;
+    }
+    if (positionDraft.slots < 1) {
+      setError("Volunteer position slots must be at least 1.");
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      volunteerProgram: {
+        ...current.volunteerProgram,
+        positions: [
+          ...current.volunteerProgram.positions,
+          {
+            ...positionDraft,
+            name,
+            description: positionDraft.description.trim(),
+            requiredYears: [...positionDraft.requiredYears],
+            requiredBatches: [...positionDraft.requiredBatches],
+          },
+        ],
+      },
+    }));
+
+    setPositionDraft({ name: "", slots: 1, description: "", requiredYears: [], requiredBatches: [] });
+    setError(null);
+  }
+
+  function removePosition(index: number) {
+    setForm((current) => ({
+      ...current,
+      volunteerProgram: {
+        ...current.volunteerProgram,
+        positions: current.volunteerProgram.positions.filter((_, itemIndex) => itemIndex !== index),
+      },
+    }));
+  }
+
   return (
-    <PageScreen title="Create Event" subtitle="Create a club event and define its budget and venue.">
-      <section className="page-section">
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <label className="field"><span>Title</span><input value={form.title} onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))} required /></label>
-          <label className="field"><span>Description</span><textarea value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} /></label>
-          <label className="field"><span>Date</span><input type="datetime-local" value={form.eventDate} onChange={(e) => setForm((current) => ({ ...current, eventDate: e.target.value }))} required /></label>
-          <label className="field"><span>Venue</span><input value={form.venue} onChange={(e) => setForm((current) => ({ ...current, venue: e.target.value }))} required /></label>
-          <label className="field"><span>Budget</span><input type="number" min={0} value={form.budget} onChange={(e) => setForm((current) => ({ ...current, budget: Number(e.target.value) }))} /></label>
-          <div className="form-actions"><button className="primary-button" type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Creating..." : "Create event"}</button></div>
+    <PageScreen title="Create Event" subtitle="Create the event, set volunteer rules, and define position-based staffing.">
+      <section className="page-section event-create-layout">
+        <form className="event-create-form" onSubmit={handleSubmit}>
+          <div className="event-create-grid">
+            <label className="field"><span>Title</span><input value={form.title} onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))} required placeholder="Freshers' orientation, seminar, or celebration" /></label>
+            <label className="field"><span>Description</span><textarea value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} placeholder="What is this event for, and what should participants expect?" /></label>
+            <label className="field"><span>Date</span><input type="datetime-local" value={form.eventDate} onChange={(e) => setForm((current) => ({ ...current, eventDate: e.target.value }))} required /></label>
+            <label className="field"><span>Venue</span><input value={form.venue} onChange={(e) => setForm((current) => ({ ...current, venue: e.target.value }))} required placeholder="Auditorium, seminar room, or outdoor venue" /></label>
+            <label className="field"><span>Budget</span><input type="number" min={0} value={form.budget} onChange={(e) => setForm((current) => ({ ...current, budget: Number(e.target.value) }))} /></label>
+          </div>
+
+          <section className="event-create-section card">
+            <div className="section-head">
+              <div>
+                <p className="eyebrow">Volunteer access</p>
+                <h3>Who can apply?</h3>
+              </div>
+              <span className="chip">Optional rule set</span>
+            </div>
+            <p className="muted-inline">Leave both filters empty to allow all active members. Use either one or both for stricter entry control.</p>
+
+            <div className="event-create-chip-grid">
+              {SUPPORTED_YEARS.map((year) => {
+                const selected = form.volunteerEligibility.allowedYears.includes(year);
+                return (
+                  <button
+                    key={year}
+                    type="button"
+                    className={selected ? "primary-button" : "secondary-button"}
+                    onClick={() => toggleYear(year)}
+                  >
+                    Year {year}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="event-inline-input-row">
+              <input
+                type="number"
+                min={1}
+                placeholder="Add batch e.g. 29"
+                value={batchInput}
+                onChange={(e) => setBatchInput(e.target.value)}
+              />
+              <button type="button" className="secondary-button" onClick={addBatch}>Add batch</button>
+            </div>
+
+            {form.volunteerEligibility.allowedBatches.length > 0 ? (
+              <div className="chip-cloud">
+                {form.volunteerEligibility.allowedBatches.map((batch) => (
+                  <button key={batch} type="button" className="chip chip--interactive" onClick={() => removeBatch(batch)}>
+                    Batch {batch} ×
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="muted-inline">No batch restriction added yet.</p>
+            )}
+
+            <div className="event-create-note-grid">
+              <label className="field">
+                <span>Application deadline</span>
+                <input
+                  type="datetime-local"
+                  value={form.volunteerProgram.applicationDeadline}
+                  onChange={(e) => setForm((current) => ({
+                    ...current,
+                    volunteerProgram: { ...current.volunteerProgram, applicationDeadline: e.target.value },
+                  }))}
+                />
+              </label>
+              <label className="field">
+                <span>Volunteer notes</span>
+                <textarea
+                  value={form.volunteerProgram.notes}
+                  onChange={(e) => setForm((current) => ({
+                    ...current,
+                    volunteerProgram: { ...current.volunteerProgram, notes: e.target.value },
+                  }))}
+                  placeholder="Example: bring a bottle of water, arrive 30 minutes early, and sign attendance on entry."
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="event-create-section card">
+            <div className="section-head">
+              <div>
+                <p className="eyebrow">Staffing plan</p>
+                <h3>Volunteer positions</h3>
+              </div>
+              <span className="chip">Limited slots per position</span>
+            </div>
+
+            <div className="event-position-builder">
+              <label className="field"><span>Position name</span><input value={positionDraft.name} onChange={(e) => setPositionDraft((current) => ({ ...current, name: e.target.value }))} placeholder="Registration desk" /></label>
+              <label className="field"><span>Slots</span><input type="number" min={1} value={positionDraft.slots} onChange={(e) => setPositionDraft((current) => ({ ...current, slots: Number(e.target.value) }))} /></label>
+              <label className="field field--full"><span>Description</span><textarea value={positionDraft.description} onChange={(e) => setPositionDraft((current) => ({ ...current, description: e.target.value }))} placeholder="Short duty summary" /></label>
+              <label className="field field--full">
+                <span>Required years</span>
+                <div className="event-create-chip-grid">
+                  {SUPPORTED_YEARS.map((year) => {
+                    const selected = positionDraft.requiredYears.includes(year);
+                    return (
+                      <button key={year} type="button" className={selected ? "primary-button" : "secondary-button"} onClick={() => togglePositionYear(year)}>
+                        Year {year}
+                      </button>
+                    );
+                  })}
+                </div>
+              </label>
+              <label className="field field--full">
+                <span>Required batches</span>
+                <div className="event-inline-input-row">
+                  <input type="number" min={1} placeholder="Add batch e.g. 29" value={positionBatchInput} onChange={(e) => setPositionBatchInput(e.target.value)} />
+                  <button type="button" className="secondary-button" onClick={addPositionBatch}>Add batch</button>
+                </div>
+              </label>
+              {positionDraft.requiredBatches.length > 0 ? (
+                <div className="chip-cloud field--full">
+                  {positionDraft.requiredBatches.map((batch) => (
+                    <span key={batch} className="chip">Batch {batch}</span>
+                  ))}
+                </div>
+              ) : null}
+              <div className="form-actions field--full">
+                <button type="button" className="secondary-button" onClick={addPosition}>Add position</button>
+              </div>
+            </div>
+
+            {form.volunteerProgram.positions.length > 0 ? (
+              <div className="stack">
+                {form.volunteerProgram.positions.map((position, index) => (
+                  <article className="event-position-card" key={`${position.name}-${index}`}>
+                    <div className="event-card__head">
+                      <div>
+                        <h4>{position.name}</h4>
+                        <p>{position.description || "No description provided."}</p>
+                      </div>
+                      <button type="button" className="secondary-button" onClick={() => removePosition(index)}>Remove</button>
+                    </div>
+                    <div className="button-row">
+                      <span className="chip">Slots: {position.slots}</span>
+                      <span className="chip">Years: {position.requiredYears.length > 0 ? position.requiredYears.join(", ") : "All"}</span>
+                      <span className="chip">Batches: {position.requiredBatches.length > 0 ? position.requiredBatches.join(", ") : "All"}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">No volunteer positions added yet.</div>
+            )}
+          </section>
+
+          <div className="form-actions event-create-actions">
+            <button className="primary-button" type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Creating..." : "Create event"}</button>
+          </div>
+          {error ? <div className="alert">{error}</div> : null}
         </form>
-        {error ? <div className="alert">{error}</div> : null}
+
+        <aside className="event-create-aside">
+          <div className="event-summary-card card">
+            <p className="eyebrow">Live summary</p>
+            <h3>{form.title || "Untitled event"}</h3>
+            <p>{form.description || "Event description will appear here."}</p>
+            <div className="stack" style={{ gap: 10 }}>
+              <span className="chip">When: {form.eventDate ? new Date(form.eventDate).toLocaleString() : "Not set"}</span>
+              <span className="chip">Where: {form.venue || "Not set"}</span>
+              <span className="chip">Budget: ৳{form.budget || 0}</span>
+            </div>
+          </div>
+
+          <div className="card">
+            <p className="eyebrow">Volunteer rule preview</p>
+            <p className="muted-inline">
+              {form.volunteerEligibility.allowedYears.length === 0 && form.volunteerEligibility.allowedBatches.length === 0
+                ? "Open to all active members."
+                : [
+                    form.volunteerEligibility.allowedYears.length > 0 ? `Years ${form.volunteerEligibility.allowedYears.join(", ")}` : null,
+                    form.volunteerEligibility.allowedBatches.length > 0 ? `Batches ${form.volunteerEligibility.allowedBatches.join(", ")}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" | ")}
+            </p>
+          </div>
+
+          <div className="card">
+            <p className="eyebrow">Checklist</p>
+            <div className="stack" style={{ gap: 10 }}>
+              <span className="chip">Event basics</span>
+              <span className="chip">Volunteer eligibility</span>
+              <span className="chip">Application deadline</span>
+              <span className="chip">Position-based staffing</span>
+            </div>
+          </div>
+        </aside>
       </section>
     </PageScreen>
   );
