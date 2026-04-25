@@ -10,6 +10,11 @@ const { moderatorRoutes } = require("./moderatorRoutes");
 const { adminRoutes } = require("./adminRoutes");
 const { certificateRoutes } = require("./certificateRoutes");
 const { notificationRoutes } = require("./notificationRoutes");
+const homepageMessageRoutes = require("./homepageMessageRoutes");
+const enhancedElectionRoutes = require("./enhancedElectionRoutes");
+const { uploadRoutes } = require("./uploadRoutes");
+const eventRegistrationRoutes = require("./eventRegistrationRoutes");
+const { workshopRoutes } = require("./workshopRoutes");
 
 const apiRouter = express.Router();
 
@@ -20,9 +25,14 @@ apiRouter.use("/finance", financeRoutes);
 apiRouter.use("/membership", membershipRoutes);
 apiRouter.use("/meetings", meetingRoutes);
 apiRouter.use("/elections", electionRoutes);
+apiRouter.use("/enhanced-elections", enhancedElectionRoutes);
 apiRouter.use("/moderator", moderatorRoutes);
 apiRouter.use("/admin", adminRoutes);
 apiRouter.use("/certificates", certificateRoutes);
 apiRouter.use("/notifications", notificationRoutes);
+apiRouter.use("/homepage-messages", homepageMessageRoutes);
+apiRouter.use("/upload", uploadRoutes);
+apiRouter.use("/workshops", workshopRoutes);
+apiRouter.use("/", eventRegistrationRoutes);
 
 module.exports = { apiRouter };

@@ -18,8 +18,19 @@ router.get("/:id", EventController.detail);
 router.get("/:id/feed", EventController.feed);
 router.post("/", authenticate, authorize("event.create"), validate(createEventSchema), EventController.create);
 router.patch("/:id", authenticate, authorize("event.create"), validate(updateEventSchema), EventController.update);
+
+// Follow/Unfollow events
+router.post("/:id/follow", authenticate, EventController.followEvent);
+router.delete("/:id/follow", authenticate, EventController.unfollowEvent);
+
+// Volunteer eligibility check
+router.get("/:id/volunteer-eligibility", authenticate, EventController.checkVolunteerEligibility);
+
+// Posts and comments
 router.post("/:id/posts", authenticate, validate(createEventPostSchema), EventController.createPost);
 router.post("/:id/posts/:postId/comments", authenticate, validate(createEventCommentSchema), EventController.commentOnPost);
+
+// Volunteers
 router.get(
   "/:id/volunteers",
   authenticate,

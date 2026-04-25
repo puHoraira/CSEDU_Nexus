@@ -80,6 +80,21 @@ class EventController {
     const volunteer = await EventService.registerVolunteer(req.body);
     return ApiResponse.created(res, volunteer, "Volunteer registered");
   });
+
+  static followEvent = asyncHandler(async (req, res) => {
+    const result = await EventService.followEvent(req.params.id, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, result, "Event followed");
+  });
+
+  static unfollowEvent = asyncHandler(async (req, res) => {
+    const result = await EventService.unfollowEvent(req.params.id, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, result, "Event unfollowed");
+  });
+
+  static checkVolunteerEligibility = asyncHandler(async (req, res) => {
+    const eligibility = await EventService.checkVolunteerEligibility(req.params.id, req.auth.userId);
+    return ApiResponse.ok(res, eligibility, "Volunteer eligibility");
+  });
 }
 
 module.exports = { EventController };

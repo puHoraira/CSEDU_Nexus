@@ -174,7 +174,7 @@ class EventService {
   }
 
   static async createEventPost(eventId, payload, authorId, requestId) {
-    const event = await Event.findById(eventId).select("_id");
+    const event = await Event.findById(eventId).select("_id title followers");
     if (!event) {
       throw new ApiError(404, "Event not found");
     }
@@ -183,7 +183,12 @@ class EventService {
       eventId,
       authorId,
       content: payload.content,
+      images: payload.images || [],
+      isAnnouncement: payload.isAnnouncement || false,
     });
+
+    // Update event stats
+    await Event.findByIdAndUpdate(eventId, { $inc: { "stats.totalPosts": 1 } });
 
     await AuditService.log({
       actorId: authorId,
@@ -191,8 +196,25 @@ class EventService {
       resource: "EventPost",
       resourceId: post._id.toString(),
       requestId,
-      metadata: { eventId },
+      metadata: { eventId, isAnnouncement: post.isAnnouncement },
     });
+
+    // Send notifications to all followers if it's an announcement
+    if (post.isAnnouncement && event.followers && event.followers.length > 0) {
+      const notificationPromises = event.followers.map(followerId =>
+        NotificationService.createForUser(followerId, {
+          title: `New announcement: ${event.title}`,
+          message: payload.content.substring(0, 100) + (payload.content.length > 100 ? '...' : ''),
+          category: "Event",
+          actionUrl: `/dashboard/events/${eventId}`,
+          entityType: "EventPost",
+          entityId: post._id.toString(),
+          metadata: { eventId: eventId.toString(), isAnnouncement: true },
+        })
+      );
+      
+      await Promise.allSettled(notificationPromises);
+    }
 
     return post.populate("authorId", "firstName lastName email avatarUrl");
   }
@@ -217,6 +239,12 @@ class EventService {
       authorId,
       content: payload.content,
     });
+
+    // Update stats
+    await Promise.all([
+      Event.findByIdAndUpdate(eventId, { $inc: { "stats.totalComments": 1 } }),
+      EventPost.findByIdAndUpdate(postId, { $inc: { "stats.totalComments": 1 } })
+    ]);
 
     await AuditService.log({
       actorId: authorId,
@@ -385,6 +413,172 @@ class EventService {
       throw new ApiError(400, "Only active members can register as volunteers");
     }
     return Volunteer.create(payload);
+  }
+
+  static async followEvent(eventId, userId, requestId) {
+    const event = await Event.findById(eventId);
+    if (!event) {
+      throw new ApiError(404, "Event not found");
+    }
+
+    // Check if already following
+    if (event.followers.includes(userId)) {
+      throw new ApiError(409, "You are already following this event");
+    }
+
+    event.followers.push(userId);
+    event.stats.totalFollowers = event.followers.length;
+    await event.save();
+
+    await AuditService.log({
+      actorId: userId,
+      action: "EVENT_FOLLOWED",
+      resource: "Event",
+      resourceId: event._id.toString(),
+      requestId,
+      metadata: { eventId: event._id.toString() },
+    });
+
+    return { message: "Event followed successfully", totalFollowers: event.stats.totalFollowers };
+  }
+
+  static async unfollowEvent(eventId, userId, requestId) {
+    const event = await Event.findById(eventId);
+    if (!event) {
+      throw new ApiError(404, "Event not found");
+    }
+
+    // Check if following
+    const index = event.followers.indexOf(userId);
+    if (index === -1) {
+      throw new ApiError(409, "You are not following this event");
+    }
+
+    event.followers.splice(index, 1);
+    event.stats.totalFollowers = event.followers.length;
+    await event.save();
+
+    await AuditService.log({
+      actorId: userId,
+      action: "EVENT_UNFOLLOWED",
+      resource: "Event",
+      resourceId: event._id.toString(),
+      requestId,
+      metadata: { eventId: event._id.toString() },
+    });
+
+    return { message: "Event unfollowed successfully", totalFollowers: event.stats.totalFollowers };
+  }
+
+  static async checkVolunteerEligibility(eventId, userId) {
+    const [event, member] = await Promise.all([
+      Event.findById(eventId),
+      Member.findOne({ userId }),
+    ]);
+
+    if (!event) {
+      throw new ApiError(404, "Event not found");
+    }
+
+    if (!member) {
+      return {
+        isEligible: false,
+        reasons: ["You must be a registered member to volunteer"],
+        memberInfo: null,
+      };
+    }
+
+    if (member.membershipStatus.status !== "Active") {
+      return {
+        isEligible: false,
+        reasons: ["Only active members can volunteer"],
+        memberInfo: {
+          studentId: member.studentId,
+          batch: member.batch,
+          currentYear: member.currentYear,
+          status: member.membershipStatus.status,
+        },
+      };
+    }
+
+    // Check if already applied
+    const existing = await Volunteer.findOne({ eventId, memberId: member._id });
+    if (existing) {
+      return {
+        isEligible: false,
+        reasons: [`You have already applied (Status: ${existing.status})`],
+        memberInfo: {
+          studentId: member.studentId,
+          batch: member.batch,
+          currentYear: member.currentYear,
+          status: member.membershipStatus.status,
+        },
+        existingApplication: {
+          status: existing.status,
+          appliedAt: existing.createdAt,
+          assignedPosition: existing.assignedPosition,
+        },
+      };
+    }
+
+    // Check event status
+    if (["Completed", "Cancelled"].includes(event.status)) {
+      return {
+        isEligible: false,
+        reasons: ["Volunteer applications are closed for this event"],
+        memberInfo: {
+          studentId: member.studentId,
+          batch: member.batch,
+          currentYear: member.currentYear,
+          status: member.membershipStatus.status,
+        },
+      };
+    }
+
+    // Check deadline
+    if (event.volunteerProgram?.applicationDeadline) {
+      const now = new Date();
+      if (now > new Date(event.volunteerProgram.applicationDeadline)) {
+        return {
+          isEligible: false,
+          reasons: ["Volunteer application deadline has passed"],
+          memberInfo: {
+            studentId: member.studentId,
+            batch: member.batch,
+            currentYear: member.currentYear,
+            status: member.membershipStatus.status,
+          },
+        };
+      }
+    }
+
+    // Check eligibility criteria
+    const eligibilityFailure = this.buildVolunteerEligibilityFailure(event, member);
+    if (eligibilityFailure) {
+      return {
+        isEligible: false,
+        reasons: [eligibilityFailure],
+        memberInfo: {
+          studentId: member.studentId,
+          batch: member.batch,
+          currentYear: member.currentYear,
+          status: member.membershipStatus.status,
+        },
+      };
+    }
+
+    // All checks passed
+    return {
+      isEligible: true,
+      reasons: [],
+      memberInfo: {
+        studentId: member.studentId,
+        batch: member.batch,
+        currentYear: member.currentYear,
+        status: member.membershipStatus.status,
+      },
+      availablePositions: event.volunteerProgram?.positions || [],
+    };
   }
 }
 
