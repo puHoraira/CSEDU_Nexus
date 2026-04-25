@@ -7,7 +7,7 @@ import { PageScreen } from "../../components/ui/PageScreen";
 type PostRow = { _id: string; code: string; title: string; minYear: number; minEcYears: number; displayOrder: number; isActive: boolean };
 
 export function EcPostsPage() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ code: "", title: "", minYear: 2, minEcYears: 0, displayOrder: 1, isActive: true });
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export function EcPostsPage() {
   const { data = [] } = useQuery({
     queryKey: ["ec-posts", token],
     queryFn: () => apiRequest<PostRow[]>("/governance/ec-posts", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const mutation = useMutation({

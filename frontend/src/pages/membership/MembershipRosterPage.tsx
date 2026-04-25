@@ -6,11 +6,11 @@ import { PageScreen } from "../../components/ui/PageScreen";
 type MemberRow = { _id: string; studentId: string; batch: number; currentYear: number; status: string };
 
 export function MembershipRosterPage() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const { data = [], isLoading } = useQuery({
     queryKey: ["members", token],
     queryFn: () => apiRequest<MemberRow[]>("/membership/members", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   return (

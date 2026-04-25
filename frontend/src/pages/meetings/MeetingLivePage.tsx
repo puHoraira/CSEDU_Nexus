@@ -67,7 +67,7 @@ async function loadScript(src: string) {
 
 export function MeetingLivePage() {
   const { id } = useParams();
-  const { user, token } = useAuth();
+  const { user, token, loading } = useAuth();
   const [mode, setMode] = useState<"uikit" | "sdk">("uikit");
   const [appToken, setAppToken] = useState("");
   const [userID, setUserID] = useState("");
@@ -80,7 +80,7 @@ export function MeetingLivePage() {
   const { data: meetings = [] } = useQuery({
     queryKey: ["meetings-live", token],
     queryFn: () => apiRequest<MeetingRow[]>("/meetings", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
     retry: false,
   });
   const meeting = useMemo(() => meetings.find((item) => item._id === id), [meetings, id]);
@@ -91,7 +91,7 @@ export function MeetingLivePage() {
   const { data: zegoData, isFetching: isTokenLoading } = useQuery({
     queryKey: ["meeting-zego-kit-token", id, token],
     queryFn: () => apiRequest<ZegoKitTokenPayload>(`/meetings/${id}/zego-kit-token`, { token }),
-    enabled: Boolean(token && id && isOnlineMeeting),
+    enabled: Boolean(token && id && isOnlineMeeting) && !loading,
     retry: false,
   });
 

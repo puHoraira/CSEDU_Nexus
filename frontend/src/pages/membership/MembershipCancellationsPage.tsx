@@ -22,7 +22,7 @@ type MemberRow = {
 };
 
 export function MembershipCancellationsPage() {
-  const { token, user } = useAuth();
+  const { token, user, loading } = useAuth();
   const queryClient = useQueryClient();
   const [memberId, setMemberId] = useState("");
   const [reason, setReason] = useState("");
@@ -42,14 +42,14 @@ export function MembershipCancellationsPage() {
   const { data = [], isLoading } = useQuery({
     queryKey: ["cancellations", token],
     queryFn: () => apiRequest<CancellationRow[]>("/membership/cancellations", { token }),
-    enabled: Boolean(token) && canReview,
+    enabled: Boolean(token) && canReview && !loading,
     retry: false,
   });
 
   const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ["members-for-cancellation", token],
     queryFn: () => apiRequest<MemberRow[]>("/membership/members", { token }),
-    enabled: Boolean(token) && canRequest,
+    enabled: Boolean(token) && canRequest && !loading,
     retry: false,
   });
 

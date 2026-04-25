@@ -6,6 +6,7 @@ type RegisterInput = {
   password: string;
   firstName: string;
   lastName: string;
+  phone: string;
   studentId: string;
   batch: number;
   currentYear: number;

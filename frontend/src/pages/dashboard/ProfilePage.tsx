@@ -19,7 +19,7 @@ type ProfileForm = {
 };
 
 export function ProfilePage() {
-  const { token, setUserProfile } = useAuth();
+  const { token, setUserProfile, loading } = useAuth();
   const [form, setForm] = useState<ProfileForm>({
     firstName: "",
     lastName: "",
@@ -32,7 +32,7 @@ export function ProfilePage() {
   const profileQuery = useQuery({
     queryKey: ["my-profile", token],
     queryFn: () => apiRequest<ProfilePayload>("/auth/me", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   useEffect(() => {

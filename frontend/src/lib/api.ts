@@ -32,6 +32,7 @@ export class ApiRequestError extends Error {
 
 type ApiOptions = RequestInit & {
   token?: string | null;
+  isFormData?: boolean;
 };
 
 const TOKEN_REFRESHED_EVENT = "csedu:token-refreshed";
@@ -85,23 +86,33 @@ async function tryRefreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
-function buildHeaders(token: string | null, headers?: HeadersInit) {
+function buildHeaders(token: string | null, headers?: HeadersInit, isFormData?: boolean) {
+  const baseHeaders: Record<string, string> = {};
+  
+  // Don't set Content-Type for FormData - browser will set it with boundary
+  if (!isFormData) {
+    baseHeaders["Content-Type"] = "application/json";
+  }
+  
+  if (token) {
+    baseHeaders["Authorization"] = `Bearer ${token}`;
+  }
+  
   return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...baseHeaders,
     ...(headers || {}),
   };
 }
 
 export async function apiRequest<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const { token, headers, ...rest } = options;
+  const { token, headers, isFormData, ...rest } = options;
   const requestToken = token ?? inMemoryAccessToken;
 
   let response = await fetch(`${env.apiBaseUrl}${path}`, {
     ...rest,
     cache: "no-store",
     credentials: "include",
-    headers: buildHeaders(requestToken, headers),
+    headers: buildHeaders(requestToken, headers, isFormData),
   });
 
   if (response.status === 401) {
@@ -111,7 +122,7 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
         ...rest,
         cache: "no-store",
         credentials: "include",
-        headers: buildHeaders(refreshedToken, headers),
+        headers: buildHeaders(refreshedToken, headers, isFormData),
       });
     }
   }
@@ -127,7 +138,7 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
     throw new ApiRequestError(message, response.status, body?.details || null);
   }
 
-  return body?.data ?? body;
+  return body?.data !== undefined ? body.data : body;
 }
 
 export function normalizeApiError(error: unknown) {

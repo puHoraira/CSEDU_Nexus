@@ -17,15 +17,15 @@ type AppointmentRow = {
 };
 
 export function EcAppointmentsPage() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ termId: "", postId: "", memberId: "", startsOn: "", source: "Election", memberEcYears: 0 });
   const [error, setError] = useState<string | null>(null);
 
-  const { data: posts = [] } = useQuery({ queryKey: ["ec-posts-select", token], queryFn: () => apiRequest<PostRow[]>("/governance/ec-posts", { token }), enabled: Boolean(token) });
-  const { data: terms = [] } = useQuery({ queryKey: ["ec-terms-select", token], queryFn: () => apiRequest<TermRow[]>("/governance/ec-terms", { token }), enabled: Boolean(token) });
-  const { data: members = [] } = useQuery({ queryKey: ["members-select", token], queryFn: () => apiRequest<MemberRow[]>("/membership/members", { token }), enabled: Boolean(token) });
-  const { data: appointments = [] } = useQuery({ queryKey: ["ec-appointments", token], queryFn: () => apiRequest<AppointmentRow[]>("/governance/ec-appointments", { token }), enabled: Boolean(token) });
+  const { data: posts = [] } = useQuery({ queryKey: ["ec-posts-select", token], queryFn: () => apiRequest<PostRow[]>("/governance/ec-posts", { token }), enabled: Boolean(token) && !loading });
+  const { data: terms = [] } = useQuery({ queryKey: ["ec-terms-select", token], queryFn: () => apiRequest<TermRow[]>("/governance/ec-terms", { token }), enabled: Boolean(token) && !loading });
+  const { data: members = [] } = useQuery({ queryKey: ["members-select", token], queryFn: () => apiRequest<MemberRow[]>("/membership/members", { token }), enabled: Boolean(token) && !loading });
+  const { data: appointments = [] } = useQuery({ queryKey: ["ec-appointments", token], queryFn: () => apiRequest<AppointmentRow[]>("/governance/ec-appointments", { token }), enabled: Boolean(token) && !loading });
 
   const mutation = useMutation({
     mutationFn: () => apiRequest("/governance/ec-appointments", { method: "POST", token, body: JSON.stringify(form) }),

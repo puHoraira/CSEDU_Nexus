@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { normalizeApiError } from "../../lib/api";
 import { PageScreen } from "../../components/ui/PageScreen";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -78,7 +79,14 @@ export function LoginPage() {
             {error ? <div className="alert">{error}</div> : null}
             <div className="form-actions">
               <button className="primary-button" type="submit" disabled={loading}>
-                {loading ? "Signing in..." : "Login"}
+                {loading ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  "Login"
+                )}
               </button>
               <Link className="secondary-button" to="/auth/register">
                 Create account
