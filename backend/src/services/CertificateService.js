@@ -33,6 +33,8 @@ class CertificateService {
       certificateType: payload.certificateType,
       purpose: payload.purpose,
       contributionSummary: payload.contributionSummary,
+      ecPostHistory: payload.ecPostHistory || [],
+      volunteerContributions: payload.volunteerContributions || [],
       status: "PendingModerator",
     });
 
@@ -246,29 +248,116 @@ class CertificateService {
     });
 
     const requesterName = `${request.requesterUserId?.firstName || ""} ${request.requesterUserId?.lastName || ""}`.trim();
+    const studentId = request.requesterMemberId?.studentId || "N/A";
+    const batch = request.requesterMemberId?.batch || "N/A";
+    const currentYear = request.requesterMemberId?.currentYear || "N/A";
+    const issueDate = new Date(request.approvedAt || request.updatedAt).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
     const lines = [
-      "University of Dhaka",
-      "Department of Computer Science and Engineering",
-      "CSEDU Students' Club",
+      "═══════════════════════════════════════════════════════════════════════════════",
       "",
-      "Certificate of Membership Contribution",
+      "                        UNIVERSITY OF DHAKA",
+      "              DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING",
+      "                        CSEDU STUDENTS' CLUB",
+      "",
+      "═══════════════════════════════════════════════════════════════════════════════",
+      "",
+      "                   CERTIFICATE OF MEMBERSHIP CONTRIBUTION",
+      "",
+      "═══════════════════════════════════════════════════════════════════════════════",
+      "",
       `Certificate No: ${request.certificateNo}`,
-      `Issued On: ${new Date(request.approvedAt || request.updatedAt).toLocaleDateString()}`,
+      `Issue Date: ${issueDate}`,
       "",
-      `This is to certify that ${requesterName} (${request.requesterMemberId?.studentId || "N/A"})`,
-      `Batch: ${request.requesterMemberId?.batch || "N/A"}, Year: ${request.requesterMemberId?.currentYear || "N/A"}`,
-      "has contributed to the CSEDU Students' Club activities.",
+      "───────────────────────────────────────────────────────────────────────────────",
       "",
-      `Purpose: ${request.purpose}`,
+      "This is to certify that",
       "",
-      "Contribution Summary:",
-      request.contributionSummary,
+      `                          ${requesterName.toUpperCase()}`,
+      `                     Student ID: ${studentId}`,
+      `                     Batch: ${batch} | Year: ${currentYear}`,
       "",
-      "Approvals:",
-      `Moderator: ${request.moderatorReview.signatureName} (${request.moderatorReview.signatureTitle || "Moderator"})`,
-      `Chairman: ${request.chairmanReview.signatureName} (${request.chairmanReview.signatureTitle || "Chairman"})`,
+      "has been an active member of the CSEDU Students' Club and has made significant",
+      "contributions to the club's activities and events.",
+      "",
+      "───────────────────────────────────────────────────────────────────────────────",
+      "",
+      "PURPOSE OF CERTIFICATE:",
+      `${request.purpose}`,
+      "",
     ];
+
+    // Add EC Post History if available
+    if (request.ecPostHistory && request.ecPostHistory.length > 0) {
+      lines.push("───────────────────────────────────────────────────────────────────────────────");
+      lines.push("");
+      lines.push("EXECUTIVE COMMITTEE POSITIONS HELD:");
+      lines.push("");
+      request.ecPostHistory.forEach((post, index) => {
+        const startDate = new Date(post.startDate).toLocaleDateString("en-US", { year: "numeric", month: "short" });
+        const endDate = post.endDate
+          ? new Date(post.endDate).toLocaleDateString("en-US", { year: "numeric", month: "short" })
+          : "Present";
+        lines.push(`${index + 1}. ${post.postTitle} (${post.year})`);
+        lines.push(`   Duration: ${startDate} - ${endDate}`);
+        lines.push("");
+      });
+    }
+
+    // Add Volunteer Contributions if available
+    if (request.volunteerContributions && request.volunteerContributions.length > 0) {
+      lines.push("───────────────────────────────────────────────────────────────────────────────");
+      lines.push("");
+      lines.push("VOLUNTEER CONTRIBUTIONS:");
+      lines.push("");
+      request.volunteerContributions.forEach((contrib, index) => {
+        const contribDate = new Date(contrib.date).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+        lines.push(`${index + 1}. ${contrib.eventTitle}`);
+        lines.push(`   Role: ${contrib.role}`);
+        lines.push(`   Date: ${contribDate}`);
+        if (contrib.description) {
+          lines.push(`   Details: ${contrib.description}`);
+        }
+        lines.push("");
+      });
+    }
+
+    lines.push("───────────────────────────────────────────────────────────────────────────────");
+    lines.push("");
+    lines.push("CONTRIBUTION SUMMARY:");
+    lines.push("");
+    lines.push(request.contributionSummary);
+    lines.push("");
+    lines.push("───────────────────────────────────────────────────────────────────────────────");
+    lines.push("");
+    lines.push("APPROVALS & SIGNATURES:");
+    lines.push("");
+    lines.push(`Moderator: ${request.moderatorReview.signatureName}`);
+    lines.push(`Title: ${request.moderatorReview.signatureTitle || "Moderator"}`);
+    lines.push(`Date: ${request.moderatorReview.actedAt ? new Date(request.moderatorReview.actedAt).toLocaleDateString() : "N/A"}`);
+    lines.push("");
+    lines.push(`Chairman: ${request.chairmanReview.signatureName}`);
+    lines.push(`Title: ${request.chairmanReview.signatureTitle || "Chairman"}`);
+    lines.push(`Date: ${request.chairmanReview.actedAt ? new Date(request.chairmanReview.actedAt).toLocaleDateString() : "N/A"}`);
+    lines.push("");
+    lines.push("═══════════════════════════════════════════════════════════════════════════════");
+    lines.push("");
+    lines.push("This certificate is issued in accordance with Article XIX of the CSEDU Students'");
+    lines.push("Club Constitution and certifies the voluntary contributions made by the member.");
+    lines.push("");
+    lines.push("                    CSEDU Students' Club");
+    lines.push("         Department of Computer Science and Engineering");
+    lines.push("                    University of Dhaka");
+    lines.push("");
+    lines.push("═══════════════════════════════════════════════════════════════════════════════");
 
     return {
       text: lines.join("\n"),

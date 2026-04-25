@@ -10,58 +10,310 @@ const { AuditService } = require("./AuditService");
 const { policyRegistry } = require("../policies");
 
 class AuthService {
-  static buildAuthUserPayload(user, roles) {
+  static buildAuthUserPayload(user, roles, member = null) {
     return {
       id: user._id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      fullName: user.fullName,
       phone: user.phone || "",
       avatarUrl: user.avatarUrl || "",
       bio: user.bio || "",
       experience: user.experience || "",
       designation: user.designation || "",
+      profileCompleteness: user.profileCompleteness || 0,
       roles,
+      membership: member ? {
+        studentId: member.studentId,
+        batch: member.batch,
+        currentYear: member.currentYear,
+        status: member.membershipStatus.status,
+        isEligibleForVoting: member.electionEligibility.isEligibleForVoting,
+        isEligibleForCandidacy: member.electionEligibility.isEligibleForCandidacy
+      } : null
     };
   }
 
   static async register(payload, requestMeta) {
-    const { email, password, firstName, lastName, studentId, batch, currentYear, experience } = payload;
+    const {
+      // Authentication
+      email, password,
+      
+      // Personal Information
+      firstName, lastName, fullNameBangla, fatherName, motherName,
+      dateOfBirth, gender, bloodGroup, religion, nationality,
+      
+      // Contact Information
+      phone, alternativePhone, emergencyContact,
+      
+      // Address Information
+      presentAddress, permanentAddress,
+      
+      // Social Media
+      socialMedia,
+      
+      // Profile Information
+      bio, personalStatement, hobbies, interests,
+      
+      // Skills
+      technicalSkills, softSkills, programmingLanguages, frameworks, tools,
+      
+      // Experience
+      experience, workExperience, leadershipExperience, volunteerExperience,
+      
+      // Achievements
+      achievements, certifications,
+      
+      // Academic Information
+      studentId, batch, currentYear, session, admissionYear,
+      academicRecord, attendanceRecord,
+      
+      // Political Affiliation
+      politicalAffiliation,
+      
+      // Privacy Settings
+      privacySettings
+    } = payload;
 
+    // Check if email already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       throw new ApiError(409, "Email already exists");
     }
 
+    // Check if student ID already exists
+    const existingMember = await Member.findOne({ studentId });
+    if (existingMember) {
+      throw new ApiError(409, "Student ID already registered");
+    }
+
+    // Check political affiliation (Constitutional requirement - Article VI)
+    if (politicalAffiliation?.hasAffiliation) {
+      throw new ApiError(400, "Students with political party affiliation cannot register (Article VI of Constitution)");
+    }
+
+    // Validate membership policy
     const policyResult = await policyRegistry.evaluate("membership.register", { studentId });
     if (!policyResult.allowed) {
       throw new ApiError(409, policyResult.reason || "Membership registration blocked");
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ email, passwordHash, firstName, lastName, experience: experience || "" });
-    await Member.create({ userId: user._id, studentId, batch, currentYear });
+    // Calculate expected graduation year and session if not provided
+    const calculatedAdmissionYear = admissionYear || batch;
+    const expectedGraduationYear = calculatedAdmissionYear + 4;
+    const calculatedSession = session || `${batch}-${(batch + 1).toString().slice(-2)}`;
 
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Create user with comprehensive information
+    const userData = {
+      // Authentication
+      email: email.toLowerCase(),
+      passwordHash,
+      
+      // Personal Information
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      fullNameBangla: fullNameBangla?.trim() || "",
+      fatherName: fatherName?.trim() || "",
+      motherName: motherName?.trim() || "",
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      gender: gender || "Prefer not to say",
+      bloodGroup: bloodGroup || "Unknown",
+      religion: religion?.trim() || "",
+      nationality: nationality?.trim() || "Bangladeshi",
+      
+      // Contact Information
+      phone: phone.trim(),
+      alternativePhone: alternativePhone?.trim() || "",
+      emergencyContact: emergencyContact || {},
+      
+      // Address Information
+      presentAddress: presentAddress || {},
+      permanentAddress: permanentAddress || {},
+      
+      // Social Media
+      socialMedia: socialMedia || {},
+      
+      // Profile Information
+      bio: bio?.trim() || "",
+      personalStatement: personalStatement?.trim() || "",
+      hobbies: hobbies || [],
+      interests: interests || [],
+      
+      // Skills
+      technicalSkills: technicalSkills || [],
+      softSkills: softSkills || [],
+      programmingLanguages: programmingLanguages || [],
+      frameworks: frameworks || [],
+      tools: tools || [],
+      
+      // Experience
+      experience: experience?.trim() || "",
+      workExperience: workExperience || [],
+      leadershipExperience: leadershipExperience || [],
+      volunteerExperience: volunteerExperience || [],
+      
+      // Achievements
+      achievements: achievements || [],
+      certifications: certifications || [],
+      
+      // Political Affiliation
+      politicalAffiliation: {
+        hasAffiliation: false,
+        details: ""
+      },
+      
+      // Privacy Settings
+      privacySettings: privacySettings || {},
+      
+      // System Information
+      isActive: true,
+      isVerified: false,
+      verificationMethod: "Email",
+      registrationSource: "Web"
+    };
+
+    const user = await User.create(userData);
+
+    // Create member record with comprehensive information
+    const memberData = {
+      userId: user._id,
+      
+      // Academic Information
+      studentId: studentId.trim(),
+      batch,
+      currentYear,
+      session: calculatedSession,
+      admissionYear: calculatedAdmissionYear,
+      expectedGraduationYear,
+      
+      // Academic Performance
+      academicRecord: {
+        currentCgpa: academicRecord?.currentCgpa || 0,
+        totalCreditsCompleted: academicRecord?.totalCreditsCompleted || 0,
+        totalCreditsRequired: 160,
+        semesterResults: academicRecord?.semesterResults || [],
+        isGraduating: currentYear >= 4,
+        graduationDate: currentYear >= 4 ? new Date(expectedGraduationYear, 11, 31) : undefined
+      },
+      
+      // Attendance Record
+      attendanceRecord: {
+        overallAttendancePercentage: attendanceRecord?.overallAttendancePercentage || 0,
+        semesterAttendance: attendanceRecord?.semesterAttendance || [],
+        lastUpdated: new Date()
+      },
+      
+      // Disciplinary Record
+      disciplinaryRecord: {
+        totalActions: 0,
+        actions: [],
+        hasActiveDisciplinaryActions: false
+      },
+      
+      // EC Experience
+      ecExperience: [],
+      
+      // Club Participation
+      clubParticipation: {
+        eventsParticipated: 0,
+        eventsOrganized: 0,
+        volunteerHours: 0,
+        committeesServed: [],
+        specialContributions: []
+      },
+      
+      // Election Eligibility (will be calculated in pre-save middleware)
+      electionEligibility: {
+        isEligibleForVoting: true,
+        isEligibleForCandidacy: false, // Will be calculated based on CGPA, attendance, etc.
+        eligibilityReasons: [],
+        lastEligibilityCheck: new Date()
+      },
+      
+      // Election History
+      electionHistory: [],
+      
+      // Membership Status
+      membershipStatus: {
+        status: "Active",
+        statusReason: "New registration",
+        statusChangeDate: new Date(),
+        joinDate: new Date(),
+        lastActiveDate: new Date(),
+        expectedExpiryDate: new Date(expectedGraduationYear + 1, 11, 31),
+        renewalHistory: []
+      },
+      
+      // Financial Record
+      financialRecord: {
+        membershipFeesPaid: 0,
+        outstandingDues: 0,
+        paymentHistory: [],
+        scholarshipStatus: {
+          hasScholarship: false
+        }
+      },
+      
+      // Special Designations
+      specialDesignations: [],
+      
+      // Communication Preferences
+      communicationPreferences: {
+        preferredLanguage: "English",
+        emailNotifications: true,
+        smsNotifications: false,
+        pushNotifications: true,
+        newsletterSubscription: true,
+        eventReminders: true,
+        electionNotifications: true
+      },
+      
+      // Registration Metadata
+      registrationMetadata: {
+        registrationDate: new Date(),
+        registrationMethod: "Online_Form",
+        verificationDocuments: []
+      }
+    };
+
+    const member = await Member.create(memberData);
+
+    // Assign General Member role
     const generalMemberRole = await Role.findOne({ name: "General Member" });
     if (generalMemberRole) {
       await UserRole.create({ userId: user._id, roleId: generalMemberRole._id });
     }
 
+    // Get user roles
     const roles = await AccessService.getUserRoleNames(user._id);
+
+    // Generate tokens
     const accessToken = TokenService.createAccessToken({ sub: user._id.toString(), roles });
     const refreshToken = TokenService.createRefreshToken({ sub: user._id.toString() });
 
+    // Log registration
     await AuditService.log({
       actorId: user._id,
-      action: "AUTH_REGISTER",
+      action: "AUTH_REGISTER_COMPREHENSIVE",
       resource: "User",
       resourceId: user._id.toString(),
       requestId: requestMeta?.requestId,
-      metadata: { email: user.email },
+      metadata: { 
+        email: user.email,
+        studentId: member.studentId,
+        batch: member.batch,
+        profileCompleteness: user.profileCompleteness,
+        cgpa: member.academicRecord.currentCgpa,
+        attendance: member.attendanceRecord.overallAttendancePercentage
+      },
     });
 
     return {
-      user: this.buildAuthUserPayload(user, roles),
+      user: this.buildAuthUserPayload(user, roles, member),
       accessToken,
       refreshToken,
     };
@@ -75,16 +327,19 @@ class AuthService {
       throw new ApiError(409, "Email already exists");
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
     const user = await User.create({
-      email,
+      email: email.toLowerCase(),
       passwordHash,
-      firstName,
-      lastName,
-      designation,
-      phone: phone || "",
-      experience: experience || "",
-      bio: experience || "",
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      designation: designation?.trim() || "",
+      phone: phone?.trim() || "",
+      experience: experience?.trim() || "",
+      bio: experience?.trim() || "",
+      isActive: true,
+      isVerified: false,
+      registrationSource: "Web"
     });
 
     const alumniRole = await Role.findOne({ name: "Alumni" });
@@ -124,6 +379,13 @@ class AuthService {
       throw new ApiError(401, "Invalid credentials");
     }
 
+    // Update last login
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    // Get member information if exists
+    const member = await Member.findOne({ userId: user._id });
+
     const roles = await AccessService.getUserRoleNames(user._id);
     const accessToken = TokenService.createAccessToken({ sub: user._id.toString(), roles });
     const refreshToken = TokenService.createRefreshToken({ sub: user._id.toString() });
@@ -137,7 +399,7 @@ class AuthService {
     });
 
     return {
-      user: this.buildAuthUserPayload(user, roles),
+      user: this.buildAuthUserPayload(user, roles, member),
       accessToken,
       refreshToken,
     };
@@ -157,27 +419,36 @@ class AuthService {
 
   static async getProfile(userId) {
     const [user, member, roles] = await Promise.all([
-      User.findById(userId).select("email firstName lastName phone avatarUrl bio isActive createdAt updatedAt"),
-      Member.findOne({ userId }).select("studentId batch currentYear status"),
+      User.findById(userId).select("-passwordHash"),
+      Member.findOne({ userId }).populate("ecExperience.termId ecExperience.postId"),
       AccessService.getUserRoleNames(userId),
     ]);
 
     if (!user) throw new ApiError(404, "User not found");
 
     return {
-      user: this.buildAuthUserPayload(user, roles),
-      membership: member
-        ? {
-            studentId: member.studentId,
-            batch: member.batch,
-            currentYear: member.currentYear,
-            status: member.status,
-          }
-        : null,
+      user: this.buildAuthUserPayload(user, roles, member),
+      membership: member ? {
+        studentId: member.studentId,
+        batch: member.batch,
+        currentYear: member.currentYear,
+        session: member.session,
+        status: member.membershipStatus.status,
+        academicRecord: member.academicRecord,
+        attendanceRecord: member.attendanceRecord,
+        ecExperience: member.ecExperience,
+        clubParticipation: member.clubParticipation,
+        electionEligibility: member.electionEligibility,
+        leadershipScore: member.calculateLeadershipScore(),
+        yearsInClub: member.yearsInClub
+      } : null,
       account: {
         isActive: user.isActive,
+        isVerified: user.isVerified,
+        profileCompleteness: user.profileCompleteness,
         joinedAt: user.createdAt,
         updatedAt: user.updatedAt,
+        lastLoginAt: user.lastLoginAt
       },
     };
   }
@@ -186,25 +457,135 @@ class AuthService {
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, "User not found");
 
-    user.firstName = payload.firstName;
-    user.lastName = payload.lastName;
-    user.phone = payload.phone || "";
-    user.avatarUrl = payload.avatarUrl || "";
-    user.bio = payload.bio || "";
-    user.designation = payload.designation || "";
-    user.experience = payload.experience || "";
+    const member = await Member.findOne({ userId });
+
+    // Update user fields
+    const userFields = [
+      'firstName', 'lastName', 'fullNameBangla', 'fatherName', 'motherName',
+      'dateOfBirth', 'gender', 'bloodGroup', 'religion', 'nationality',
+      'phone', 'alternativePhone', 'emergencyContact', 'presentAddress',
+      'permanentAddress', 'socialMedia', 'bio', 'personalStatement',
+      'hobbies', 'interests', 'technicalSkills', 'softSkills',
+      'programmingLanguages', 'frameworks', 'tools', 'experience',
+      'workExperience', 'leadershipExperience', 'volunteerExperience',
+      'achievements', 'certifications', 'privacySettings', 'avatarUrl'
+    ];
+
+    userFields.forEach(field => {
+      if (payload[field] !== undefined) {
+        user[field] = payload[field];
+      }
+    });
+
     await user.save();
+
+    // Update member fields if member exists
+    if (member && payload.memberData) {
+      const memberFields = [
+        'academicRecord', 'attendanceRecord', 'clubParticipation',
+        'communicationPreferences'
+      ];
+
+      memberFields.forEach(field => {
+        if (payload.memberData[field] !== undefined) {
+          member[field] = { ...member[field], ...payload.memberData[field] };
+        }
+      });
+
+      await member.save();
+    }
 
     await AuditService.log({
       actorId: user._id,
-      action: "PROFILE_UPDATED",
+      action: "PROFILE_UPDATED_COMPREHENSIVE",
       resource: "User",
       resourceId: user._id.toString(),
       requestId: requestMeta?.requestId,
+      metadata: {
+        profileCompleteness: user.profileCompleteness,
+        fieldsUpdated: Object.keys(payload)
+      }
     });
 
     const roles = await AccessService.getUserRoleNames(user._id);
-    return this.buildAuthUserPayload(user, roles);
+    return this.buildAuthUserPayload(user, roles, member);
+  }
+
+  static async checkEligibility(userId, checkType, requirements = {}) {
+    const member = await Member.findOne({ userId });
+    if (!member) {
+      throw new ApiError(404, "Member not found");
+    }
+
+    let eligibility;
+    
+    switch (checkType) {
+      case 'voting':
+        eligibility = member.checkVotingEligibility(requirements);
+        break;
+      case 'candidacy':
+      case 'ec_post':
+        eligibility = member.checkEcEligibility(requirements);
+        break;
+      default:
+        throw new ApiError(400, "Invalid eligibility check type");
+    }
+
+    return {
+      isEligible: eligibility.isEligible,
+      reasons: eligibility.reasons,
+      memberInfo: {
+        studentId: member.studentId,
+        batch: member.batch,
+        currentCgpa: member.academicRecord.currentCgpa,
+        attendancePercentage: member.attendanceRecord.overallAttendancePercentage,
+        disciplinaryActions: member.disciplinaryRecord.totalActions,
+        membershipStatus: member.membershipStatus.status,
+        leadershipScore: member.calculateLeadershipScore()
+      },
+      requirements
+    };
+  }
+
+  static async updateAcademicRecord(userId, academicData, requestMeta) {
+    const member = await Member.findOne({ userId });
+    if (!member) {
+      throw new ApiError(404, "Member not found");
+    }
+
+    // Update academic record
+    if (academicData.currentCgpa !== undefined) {
+      member.academicRecord.currentCgpa = academicData.currentCgpa;
+    }
+    
+    if (academicData.semesterResults) {
+      member.academicRecord.semesterResults = academicData.semesterResults;
+    }
+
+    if (academicData.attendancePercentage !== undefined) {
+      member.attendanceRecord.overallAttendancePercentage = academicData.attendancePercentage;
+      member.attendanceRecord.lastUpdated = new Date();
+    }
+
+    await member.save();
+
+    await AuditService.log({
+      actorId: userId,
+      action: "ACADEMIC_RECORD_UPDATED",
+      resource: "Member",
+      resourceId: member._id.toString(),
+      requestId: requestMeta?.requestId,
+      metadata: {
+        cgpa: member.academicRecord.currentCgpa,
+        attendance: member.attendanceRecord.overallAttendancePercentage
+      }
+    });
+
+    return {
+      academicRecord: member.academicRecord,
+      attendanceRecord: member.attendanceRecord,
+      electionEligibility: member.electionEligibility
+    };
   }
 }
 

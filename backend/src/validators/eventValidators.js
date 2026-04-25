@@ -65,6 +65,8 @@ const reviewVolunteerSchema = z.object({
 
 const createEventPostSchema = z.object({
   content: z.string().trim().min(3).max(2000),
+  images: z.array(z.string().url()).max(5).optional().default([]),
+  isAnnouncement: z.boolean().optional().default(false),
 });
 
 const createEventCommentSchema = z.object({

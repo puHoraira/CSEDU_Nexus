@@ -1,5 +1,27 @@
 const mongoose = require("mongoose");
 
+const ecPostHistorySchema = new mongoose.Schema(
+  {
+    year: { type: Number, required: true },
+    ecTermId: { type: mongoose.Schema.Types.ObjectId, ref: "EcTerm", default: null },
+    postTitle: { type: String, required: true, trim: true },
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
+const volunteerContributionSchema = new mongoose.Schema(
+  {
+    eventId: { type: mongoose.Schema.Types.ObjectId, ref: "Event", default: null },
+    eventTitle: { type: String, required: true, trim: true },
+    role: { type: String, required: true, trim: true },
+    date: { type: Date, required: true },
+    description: { type: String, default: "", trim: true },
+  },
+  { _id: false }
+);
+
 const reviewStepSchema = new mongoose.Schema(
   {
     action: {
@@ -27,6 +49,8 @@ const certificateRequestSchema = new mongoose.Schema(
     },
     purpose: { type: String, required: true, trim: true, maxlength: 500 },
     contributionSummary: { type: String, required: true, trim: true, maxlength: 3000 },
+    ecPostHistory: { type: [ecPostHistorySchema], default: [] },
+    volunteerContributions: { type: [volunteerContributionSchema], default: [] },
     status: {
       type: String,
       enum: ["PendingModerator", "PendingChairman", "Approved", "Rejected"],
