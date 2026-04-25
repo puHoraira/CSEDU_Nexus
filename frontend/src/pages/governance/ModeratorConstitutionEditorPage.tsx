@@ -67,7 +67,7 @@ function splitArticleHeading(rawHeading: string) {
 }
 
 export function ModeratorConstitutionEditorPage() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("live");
   const [constitutionTitle, setConstitutionTitle] = useState("Constitution of CSEDU Students' Club");
   const [constitutionLogoImageUrl, setConstitutionLogoImageUrl] = useState("");
@@ -81,13 +81,13 @@ export function ModeratorConstitutionEditorPage() {
   const constitutionQuery = useQuery({
     queryKey: ["moderator-constitution-editor-active", token],
     queryFn: () => apiRequest<ConstitutionDoc | null>("/governance/constitution", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const constitutionVersionsQuery = useQuery({
     queryKey: ["moderator-constitution-editor-versions", token],
     queryFn: () => apiRequest<ConstitutionDoc[]>("/governance/constitution/versions", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const constitutionSaveMutation = useMutation({

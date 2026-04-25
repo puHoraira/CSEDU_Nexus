@@ -1,8 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AppShell } from "./components/layout/AppShell";
+import { EnhancedAppShell } from "./components/layout/EnhancedAppShell";
 import { PublicShell } from "./components/layout/PublicShell";
 import { routeDefinitions } from "./routes/routeDefinitions";
-import { HomePage } from "./pages/public/HomePage";
+import { EnhancedHomePage } from "./pages/public/EnhancedHomePage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ConstitutionPage } from "./pages/public/ConstitutionPage";
@@ -18,7 +18,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<PublicShell />}>
-        <Route index element={<HomePage />} />
+        <Route index element={<EnhancedHomePage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/events/:id" element={<EventDetailsPage />} />
         <Route path="/notices" element={<NoticesPage />} />
@@ -28,7 +28,7 @@ export default function App() {
         <Route path="/auth/login" element={<LoginPage />} />
         <Route path="/auth/register" element={<RegisterPage />} />
       </Route>
-      <Route element={<AppShell />}>
+      <Route element={<EnhancedAppShell />}>
         {routeDefinitions.map((route) => (
           <Route
             key={route.path}

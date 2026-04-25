@@ -48,7 +48,7 @@ type ModeratorDetails = {
 };
 
 export function ModeratorDetailsPage() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const [csvFileName, setCsvFileName] = useState("");
   const [csvContent, setCsvContent] = useState("");
   const [csvMessage, setCsvMessage] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function ModeratorDetailsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["moderator-details", token],
     queryFn: () => apiRequest<ModeratorDetails>("/moderator/details", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const bulkRegisterMutation = useMutation({

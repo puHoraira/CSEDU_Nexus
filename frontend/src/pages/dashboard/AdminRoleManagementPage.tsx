@@ -15,7 +15,7 @@ type UserRow = {
 };
 
 export function AdminRoleManagementPage() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState("");
   const [roleName, setRoleName] = useState("");
@@ -24,13 +24,13 @@ export function AdminRoleManagementPage() {
   const rolesQuery = useQuery({
     queryKey: ["admin-roles", token],
     queryFn: () => apiRequest<RoleRow[]>("/admin/roles", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const usersQuery = useQuery({
     queryKey: ["admin-users", token],
     queryFn: () => apiRequest<UserRow[]>("/admin/users", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const assignMutation = useMutation({

@@ -7,7 +7,7 @@ import { PageScreen } from "../../components/ui/PageScreen";
 type TermRow = { _id: string; name: string; startsOn: string; endsOn: string; status: string };
 
 export function EcTermsPage() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: "", startsOn: "", endsOn: "", status: "Draft" });
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export function EcTermsPage() {
   const { data = [] } = useQuery({
     queryKey: ["ec-terms", token],
     queryFn: () => apiRequest<TermRow[]>("/governance/ec-terms", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const mutation = useMutation({

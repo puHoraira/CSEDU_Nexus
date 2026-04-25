@@ -9,7 +9,7 @@ type Candidate = { _id: string; status: string; rejectionReason?: string; electi
 type ModeratorDetailsPayload = { pendingCandidates: Candidate[] };
 
 export function ElectionCommissionPage() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const queryClient = useQueryClient();
   const [selectedElectionId, setSelectedElectionId] = useState("");
   const [phase, setPhase] = useState(1);
@@ -22,14 +22,14 @@ export function ElectionCommissionPage() {
   const elections = useQuery({
     queryKey: ["commission-elections", token],
     queryFn: () => apiRequest<Election[]>("/elections", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const candidates = useQuery({
     queryKey: ["commission-candidates", token],
     queryFn: () =>
       apiRequest<ModeratorDetailsPayload>("/moderator/details", { token }).then((data) => data.pendingCandidates || []),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const phaseMutation = useMutation({

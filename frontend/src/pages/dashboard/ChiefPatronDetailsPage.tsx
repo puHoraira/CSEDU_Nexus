@@ -11,22 +11,22 @@ type Ledger = {
 };
 
 export function ChiefPatronDetailsPage() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
 
   const proposals = useQuery({
     queryKey: ["chief-proposals", token],
     queryFn: () => apiRequest<Proposal[]>("/governance/proposals", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
   const cancellations = useQuery({
     queryKey: ["chief-cancellations", token],
     queryFn: () => apiRequest<Cancellation[]>("/membership/cancellations", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
   const ledger = useQuery({
     queryKey: ["chief-ledger", token],
     queryFn: () => apiRequest<Ledger>("/finance/ledger", { token }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !loading,
   });
 
   const pendingConstitution = useMemo(
