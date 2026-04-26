@@ -168,33 +168,33 @@ export function WorkshopManagePage() {
             <div className="ui-card__body">
               <div className="ui-flex ui-flex-gap-3" style={{ flexWrap: 'wrap' }}>
                 <div className="ui-input-row" style={{ flex: 2, minWidth: 200 }}>
-              <span className="ui-input-icon"><Search size={15} /></span>
-              <input className="ui-input ui-input--icon" placeholder="Search by name or email…"
-                value={search} onChange={e => setSearch(e.target.value)} />
+                  <span className="ui-input-icon"><Search size={15} /></span>
+                  <input className="ui-input ui-input--icon" placeholder="Search by name or email…"
+                    value={search} onChange={e => setSearch(e.target.value)} />
+                </div>
+                <select className="ui-select" style={{ flex: 1, minWidth: 140 }} value={statusFilter} onChange={e => setStatus(e.target.value)}>
+                  <option value="all">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Waitlisted">Waitlisted</option>
+                  <option value="Attended">Attended</option>
+                </select>
+              </div>
             </div>
-            <select className="ui-select" style={{ flex: 1, minWidth: 140 }} value={statusFilter} onChange={e => setStatus(e.target.value)}>
-              <option value="all">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-              <option value="Waitlisted">Waitlisted</option>
-              <option value="Attended">Attended</option>
-            </select>
           </div>
-        </div>
-      </div>
 
-      {/* Loading */}
-      {isLoading && <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}><Spinner size="lg" /></div>}
+          {/* Loading */}
+          {isLoading && <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}><Spinner size="lg" /></div>}
 
-      {/* Empty */}
-      {!isLoading && filtered.length === 0 && (
-        <div className="ui-card"><EmptyState icon={Users} title="No registrations found" size="sm" /></div>
-      )}
+          {/* Empty */}
+          {!isLoading && filtered.length === 0 && (
+            <div className="ui-card"><EmptyState icon={Users} title="No registrations found" size="sm" /></div>
+          )}
 
-      {/* Registrations */}
-      {!isLoading && filtered.length > 0 && (
-        <div className="ui-card" style={{ padding: 0 }}>
+          {/* Registrations */}
+          {!isLoading && filtered.length > 0 && (
+            <div className="ui-card" style={{ padding: 0 }}>
           {filtered.map((reg, i) => (
             <motion.div key={reg._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
               style={{
@@ -271,8 +271,8 @@ export function WorkshopManagePage() {
               </div>
             </motion.div>
           ))}
-        </div>
-      )}
+          </div>
+        )}
         </>
       )}
 
