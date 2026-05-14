@@ -19,7 +19,7 @@ const voteSchema = new mongoose.Schema(
     },
     
     // Security and Verification
-    voteHash: { type: String, required: true }, // cryptographic hash for verification
+    voteHash: { type: String, required: true, unique: true }, // cryptographic hash for verification
     voterVerified: { type: Boolean, default: false },
     verificationMethod: { 
       type: String, 
@@ -70,36 +70,29 @@ const voteSchema = new mongoose.Schema(
 );
 
 // Compound indexes for performance and integrity
-voteSchema.index({ electionId: 1, voterMemberId: 1, phase: 1, postId: 1 }, { unique: true });
+// Phase 2: unique vote per post per voter per election
+voteSchema.index({ electionId: 1, voterMemberId: 1, phase: 1, postId: 1 }, { 
+  unique: true, 
+  partialFilterExpression: { phase: 2, postId: { $ne: null } }
+});
+// Phase 1: unique vote per candidate per voter per election (allows up to 5 different candidates)
+voteSchema.index({ electionId: 1, voterMemberId: 1, candidateId: 1 }, { unique: true });
 voteSchema.index({ electionId: 1, candidateId: 1 });
 voteSchema.index({ electionId: 1, phase: 1 });
 voteSchema.index({ voterMemberId: 1, electionId: 1 });
-voteSchema.index({ voteHash: 1 }, { unique: true });
 voteSchema.index({ castAt: 1 });
 voteSchema.index({ isValid: 1 });
 
-// Pre-save middleware for vote hash generation
-voteSchema.pre('save', function(next) {
-  if (!this.voteHash) {
-    const crypto = require('crypto');
-    const voteData = `${this.electionId}-${this.voterMemberId}-${this.candidateId}-${this.castAt}`;
-    this.voteHash = crypto.createHash('sha256').update(voteData).digest('hex');
-  }
-  next();
-});
-
-// Validation middleware
+// Pre-save middleware for vote validation only
 voteSchema.pre('save', function(next) {
   // Phase 1 votes should not have postId
   if (this.phase === 1 && this.postId) {
     return next(new Error('Phase 1 votes cannot specify a post'));
   }
-  
   // Phase 2 votes must have postId
   if (this.phase === 2 && !this.postId) {
     return next(new Error('Phase 2 votes must specify a post'));
   }
-  
   next();
 });
 

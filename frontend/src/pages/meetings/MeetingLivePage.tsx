@@ -1,322 +1,240 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../../auth/AuthContext";
-import { apiRequest, normalizeApiError } from "../../lib/api";
-import { PageScreen } from "../../components/ui/PageScreen";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { Video, Copy, ArrowLeft, Users, Clock, MapPin, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../auth/AuthContext';
+import { apiRequest, normalizeApiError } from '../../lib/api';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Spinner } from '../../components/ui/Spinner';
+import { Alert } from '../../components/ui/Alert';
+import { formatDateTime } from '../../lib/utils';
+import toast from 'react-hot-toast';
 
 type MeetingRow = {
-  _id: string;
-  roomId?: string;
-  meetingMode: string;
-  title: string;
-  agenda: string;
-  meetingDate: string;
-  venue: string;
-  status: string;
-};
-
-type ZegoUIKitBridge = {
-  joinRoom: (config: { container: HTMLElement | null; sharedLinks?: Array<{ name: string; url: string }> }) => void;
-};
-
-type ZegoUIKitFactory = {
-  create: (appToken: string) => ZegoUIKitBridge;
+  _id: string; roomId?: string; meetingMode: string;
+  title: string; agenda: string; meetingDate: string;
+  venue: string; status: string;
 };
 
 type ZegoKitTokenPayload = {
-  appToken: string;
-  roomId: string;
-  userId: string;
-  userName: string;
+  appToken: string; roomId: string; userId: string; userName: string;
 };
 
 declare global {
   interface Window {
-    ZegoUIKitPrebuilt?: ZegoUIKitFactory;
-    ZegoPrebuiltUIKit?: ZegoUIKitFactory;
+    ZegoUIKitPrebuilt?: { create: (token: string) => { joinRoom: (cfg: any) => void } };
+    ZegoPrebuiltUIKit?: { create: (token: string) => { joinRoom: (cfg: any) => void } };
   }
 }
 
-const UIKIT_SCRIPT_SRC = "https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-uikit-prebuilt.js";
-
-function codeBlock(text: string) {
-  return text.trim();
-}
-
-function getZegoFactory() {
-  return window.ZegoUIKitPrebuilt || window.ZegoPrebuiltUIKit || null;
-}
+const UIKIT_SCRIPT = 'https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-uikit-prebuilt.js';
 
 async function loadScript(src: string) {
   return new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector(`script[src=\"${src}\"]`);
-    if (existing) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = src;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load ZegoUIKitPrebuilt script"));
-    document.body.appendChild(script);
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ZegoUIKit'));
+    document.body.appendChild(s);
   });
 }
 
 export function MeetingLivePage() {
   const { id } = useParams();
   const { user, token, loading } = useAuth();
-  const [mode, setMode] = useState<"uikit" | "sdk">("uikit");
-  const [appToken, setAppToken] = useState("");
-  const [userID, setUserID] = useState("");
-  const [userName, setUserName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isJoining, setIsJoining] = useState(false);
-  const roomContainerRef = useRef<HTMLDivElement | null>(null);
-  const autoJoinedRef = useRef(false);
+  const roomRef   = useRef<HTMLDivElement>(null);
+  const joinedRef = useRef(false);
+  const [joined,   setJoined]   = useState(false);
+  const [joining,  setJoining]  = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
+  const [userName, setUserName] = useState('');
 
   const { data: meetings = [] } = useQuery({
-    queryKey: ["meetings-live", token],
-    queryFn: () => apiRequest<MeetingRow[]>("/meetings", { token }),
-    enabled: Boolean(token) && !loading,
-    retry: false,
+    queryKey: ['meetings-live', token],
+    queryFn: () => apiRequest<MeetingRow[]>('/meetings', { token }),
+    enabled: Boolean(token),
   });
-  const meeting = useMemo(() => meetings.find((item) => item._id === id), [meetings, id]);
-  const isOnlineMeeting = (meeting?.meetingMode || (meeting?.roomId ? "Online" : "Offline")) === "Online";
-  const roomID = isOnlineMeeting ? meeting?.roomId || (id ? `csedu-meeting-${id}` : "") : "";
-  const meetingTime = meeting?.meetingDate ? new Date(meeting.meetingDate).toLocaleString() : "Not scheduled yet";
 
-  const { data: zegoData, isFetching: isTokenLoading } = useQuery({
-    queryKey: ["meeting-zego-kit-token", id, token],
+  const meeting = useMemo(() => meetings.find(m => m._id === id), [meetings, id]);
+  const isOnline = (meeting?.meetingMode || (meeting?.roomId ? 'Online' : 'Offline')) === 'Online';
+  const roomID   = isOnline ? (meeting?.roomId || `csedu-meeting-${id}`) : '';
+
+  const { data: zegoData, isLoading: tokenLoading } = useQuery({
+    queryKey: ['zego-token', id, token],
     queryFn: () => apiRequest<ZegoKitTokenPayload>(`/meetings/${id}/zego-kit-token`, { token }),
-    enabled: Boolean(token && id && isOnlineMeeting) && !loading,
-    retry: false,
+    enabled: Boolean(token && id && isOnline),
   });
 
   useEffect(() => {
-    if (user) {
-      setUserID(user.id);
-      setUserName(`${user.firstName} ${user.lastName}`.trim() || user.email);
-    }
+    if (user) setUserName(`${user.firstName} ${user.lastName}`.trim() || user.email);
   }, [user]);
 
+  // Auto-join when token is ready
   useEffect(() => {
-    if (zegoData?.appToken) {
-      setAppToken(zegoData.appToken);
-    }
-    if (zegoData?.userId) {
-      setUserID(zegoData.userId);
-    }
-    if (zegoData?.userName) {
-      setUserName(zegoData.userName);
-    }
-  }, [zegoData]);
+    if (joinedRef.current || !zegoData?.appToken || !isOnline || !roomRef.current) return;
+    joinedRef.current = true;
+    joinRoom(zegoData.appToken, zegoData.userName || userName);
+  }, [zegoData, isOnline]);
 
-  const uiKitCode = codeBlock(`
-const yourAppToken = '';
-const zp = ZegoUIKitPrebuilt.create(yourAppToken);
-zp.joinRoom({
-  container: document.querySelector("#root"),
-});
-`);
-
-  const sdkCode = codeBlock(`
-const result = await zg.loginRoom(roomID, token, { userID, userName });
-const stream = await zg.createStream(source);
-zg.startPublishingStream(streamID, localStream);
-const remoteStream = await zg.startPlayingStream(streamID);
-zg.logoutRoom(roomID);
-`);
-
-  async function joinUIKitRoom() {
-    if (!isOnlineMeeting) {
-      setError("This meeting is offline. Change it to Online to create and open a room.");
-      return;
-    }
-
-    if (!appToken.trim()) {
-      setError("Provide a Zego app token to start the UIKit room.");
-      return;
-    }
-
+  async function joinRoom(appToken: string, displayName: string) {
     try {
-      setIsJoining(true);
+      setJoining(true);
       setError(null);
-      await loadScript(UIKIT_SCRIPT_SRC);
-
-      const factory = getZegoFactory();
-      if (!factory) {
-        throw new Error("Zego UI Kit global is not available after script load");
-      }
-
-      const zego = factory.create(appToken.trim());
-      zego.joinRoom({
-        container: roomContainerRef.current,
-        sharedLinks: [
-          { name: "Meeting room", url: window.location.href },
-        ],
+      await loadScript(UIKIT_SCRIPT);
+      const factory = window.ZegoUIKitPrebuilt || window.ZegoPrebuiltUIKit;
+      if (!factory) throw new Error('ZegoUIKit not available');
+      const zp = factory.create(appToken);
+      zp.joinRoom({
+        container: roomRef.current,
+        sharedLinks: [{ name: 'Meeting room', url: window.location.href }],
+        scenario: { mode: 2 }, // VideoConference
+        showPreJoinView: true,
+        userName: displayName,
       });
-    } catch (joinError) {
-      setError(normalizeApiError(joinError));
+      setJoined(true);
+    } catch (e) {
+      setError(normalizeApiError(e));
     } finally {
-      setIsJoining(false);
+      setJoining(false);
     }
   }
 
-  async function startUIKitRoom(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await joinUIKitRoom();
+  function handleManualJoin() {
+    if (!zegoData?.appToken) { toast.error('Token not ready yet'); return; }
+    joinedRef.current = false;
+    joinRoom(zegoData.appToken, zegoData.userName || userName);
   }
 
-  async function copyRoomLink() {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setError(null);
-    } catch {
-      setError("Could not copy room link. Please copy it from your browser address bar.");
-    }
+  function copyLink() {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => toast.success('Room link copied!'))
+      .catch(() => toast.error('Could not copy link'));
   }
-
-  useEffect(() => {
-    if (autoJoinedRef.current) return;
-    if (mode !== "uikit") return;
-    if (!isOnlineMeeting) return;
-    if (!appToken.trim()) return;
-    if (!roomContainerRef.current) return;
-
-    autoJoinedRef.current = true;
-    joinUIKitRoom();
-  }, [appToken, isOnlineMeeting, mode]);
 
   return (
-    <PageScreen title="Meeting Live Room" subtitle="Two ways to get started with ZegoCloud: UIKits and SDKs.">
-      <section className="page-section">
-        <div className="meeting-live-hero">
-          <div className="meeting-live-hero__main">
-            <p className="eyebrow">ZegoCloud Meeting Integration</p>
-            <h2 className="page-section__title">{meeting?.title || "Live meeting"}</h2>
-            <p>{meeting?.agenda || "Launch your voice and video room from here."}</p>
-            {meeting && !isOnlineMeeting ? <div className="notice">This meeting is offline, so no Zego room was created.</div> : null}
-            <div className="button-row">
-              <Link className="secondary-button" to={`/dashboard/meetings/${id}`}>Back to details</Link>
-              <button className={mode === "uikit" ? "primary-button" : "secondary-button"} type="button" onClick={() => setMode("uikit")}>UIKits</button>
-              <button className={mode === "sdk" ? "primary-button" : "secondary-button"} type="button" onClick={() => setMode("sdk")}>SDKs</button>
-              <button className="secondary-button" type="button" onClick={copyRoomLink}>Copy room link</button>
+    <div className="ui-page">
+      <PageHeader
+        title={meeting?.title || 'Meeting Room'}
+        description={meeting?.agenda}
+        backButton
+        breadcrumbs={[
+          { label: 'Meetings', href: '/dashboard/meetings' },
+          { label: meeting?.title || 'Meeting', href: `/dashboard/meetings/${id}` },
+          { label: 'Live Room' },
+        ]}
+      />
+
+      {/* Meeting info bar */}
+      {meeting && (
+        <div className="ui-card">
+          <div className="ui-card__body" style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}>
+              <Clock size={15} style={{ color: 'var(--accent)' }} />
+              <span className="ui-text-sm ui-text-muted">{formatDateTime(meeting.meetingDate)}</span>
             </div>
-          </div>
-          <div className="meeting-live-hero__panel">
-            <div className="meeting-live-meta">
-              <span className="chip">Room: {roomID || "-"}</span>
-              <span className="chip">Meeting: {isOnlineMeeting ? "Online" : "Offline"}</span>
-              <span className="chip">Mode: {mode === "uikit" ? "UIKits" : "SDKs"}</span>
-              <span className="chip">User: {userName || "-"}</span>
+            <div className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}>
+              <MapPin size={15} style={{ color: 'var(--accent)' }} />
+              <span className="ui-text-sm ui-text-muted">{isOnline ? 'Online' : meeting.venue}</span>
             </div>
-            <div className="meeting-live-stats">
-              <div className="meeting-live-stat">
-                <span>Scheduled</span>
-                <strong>{meetingTime}</strong>
-              </div>
-              <div className="meeting-live-stat">
-                <span>Venue</span>
-                <strong>{meeting?.venue || "N/A"}</strong>
-              </div>
-              <div className="meeting-live-stat">
-                <span>Status</span>
-                <strong>{meeting?.status || "Unknown"}</strong>
-              </div>
+            <div className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}>
+              <Video size={15} style={{ color: 'var(--accent)' }} />
+              <span className="ui-text-sm ui-text-muted">Room: {roomID || '—'}</span>
+            </div>
+            <Badge variant={meeting.status === 'Ongoing' ? 'success' : 'warning'}>{meeting.status}</Badge>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+              <Button variant="outline" size="sm" leftIcon={Copy} onClick={copyLink}>Copy Link</Button>
+              <Button variant="ghost" size="sm" leftIcon={ArrowLeft} href={`/dashboard/meetings/${id}`}>Back</Button>
             </div>
           </div>
         </div>
-      </section>
-
-      {mode === "uikit" ? (
-        <section className="meeting-integration-grid">
-          <article className="page-section meeting-card">
-            <h3 className="page-section__title">UIKits</h3>
-            <p>Embed interactive scenarios with less than 10 lines of code. Best for MVPs, quick testing, and fast launch.</p>
-            <pre className="code-block">{uiKitCode}</pre>
-            <div className="info">Token status: {isTokenLoading ? "Loading secure app token from server..." : appToken ? "Ready" : "Missing"}</div>
-            <form className="form-grid" onSubmit={startUIKitRoom}>
-              <label className="field">
-                <span>App Token</span>
-                <input
-                  value={appToken}
-                  onChange={(e) => setAppToken(e.target.value)}
-                  placeholder={isTokenLoading ? "Loading token..." : "Token is auto-generated by server"}
-                />
-              </label>
-              <label className="field">
-                <span>Room ID</span>
-                <input value={roomID} readOnly />
-              </label>
-              <label className="field">
-                <span>User ID</span>
-                <input value={userID} onChange={(e) => setUserID(e.target.value)} />
-              </label>
-              <label className="field">
-                <span>User Name</span>
-                <input value={userName} onChange={(e) => setUserName(e.target.value)} />
-              </label>
-              <div className="form-actions">
-                <button className="primary-button" type="submit" disabled={isJoining || !isOnlineMeeting}>{isJoining ? "Joining..." : "Start with UIKits"}</button>
-              </div>
-            </form>
-            <div className="meeting-live-checklist">
-              <h4>Quick checklist</h4>
-              <ul>
-                <li>Confirm this meeting is online.</li>
-                <li>Verify the app token is loaded.</li>
-                <li>Set your display name before joining.</li>
-              </ul>
-            </div>
-            {error ? <div className="alert">{error}</div> : null}
-          </article>
-
-          <article className="page-section meeting-stage">
-            <h3 className="page-section__title">Room Preview</h3>
-            <div ref={roomContainerRef} className="zego-room-container">
-              <div className="empty-state">Your Zego room will render here after you join.</div>
-            </div>
-          </article>
-        </section>
-      ) : (
-        <section className="meeting-integration-grid">
-          <article className="page-section meeting-card">
-            <h3 className="page-section__title">SDKs</h3>
-            <p>Use lower-level core APIs for a fully customized UI and advanced workflows.</p>
-            <pre className="code-block">{sdkCode}</pre>
-            <div className="empty-state">
-              SDK mode is prepared for your custom voice/video implementation. Use your Zego SDK setup and room token flow here.
-            </div>
-            <div className="meeting-live-checklist">
-              <h4>Suggested implementation order</h4>
-              <ul>
-                <li>Login to room using room token and identity.</li>
-                <li>Create and publish local stream.</li>
-                <li>Subscribe to remote streams and handle cleanup.</li>
-              </ul>
-            </div>
-          </article>
-
-          <article className="page-section meeting-card">
-            <h3 className="page-section__title">Get Started Choices</h3>
-            <div className="meeting-choice-grid">
-              <div className="card">
-                <p className="eyebrow">UIKits</p>
-                <strong>Start fast</strong>
-                <p>Embed a ready-made live room and go live in minutes.</p>
-              </div>
-              <div className="card">
-                <p className="eyebrow">SDKs</p>
-                <strong>Full control</strong>
-                <p>Build a fully custom meeting UI and voice/video workflow.</p>
-              </div>
-            </div>
-          </article>
-        </section>
       )}
-    </PageScreen>
+
+      {/* Offline meeting */}
+      {meeting && !isOnline && (
+        <Alert variant="warning">
+          This is an offline meeting — no video room is available. Attend in person at <strong>{meeting.venue}</strong>.
+        </Alert>
+      )}
+
+      {/* Online meeting room */}
+      {isOnline && (
+        <div className="ui-card" style={{ padding: 0, overflow: 'hidden' }}>
+          {/* Loading state */}
+          {(tokenLoading || joining) && !joined && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 24px', gap: 16 }}>
+              <Spinner size="xl" />
+              <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.9rem' }}>
+                {tokenLoading ? 'Preparing your meeting room…' : 'Connecting to room…'}
+              </p>
+            </div>
+          )}
+
+          {/* Error state */}
+          {error && !joining && (
+            <div style={{ padding: 24 }}>
+              <Alert variant="error" title="Could not join room">
+                {error}
+              </Alert>
+              <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
+                <Button leftIcon={Video} onClick={handleManualJoin} isLoading={joining}>
+                  Try Again
+                </Button>
+                <Button variant="outline" href={`/dashboard/meetings/${id}`}>
+                  Back to Meeting
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Pre-join prompt when token ready but not yet joined */}
+          {!tokenLoading && !joining && !joined && !error && zegoData?.appToken && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px', gap: 20 }}
+            >
+              <div style={{
+                width: 80, height: 80, borderRadius: '50%',
+                background: 'var(--gradient-primary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                boxShadow: '0 8px 24px var(--accent-glow)',
+              }}>
+                <Video size={36} />
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ margin: '0 0 8px', fontWeight: 700, color: 'var(--text)' }}>Ready to join?</h3>
+                <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.9rem' }}>
+                  You'll join as <strong>{zegoData.userName || userName}</strong>
+                </p>
+              </div>
+              <div className="ui-input-wrap" style={{ width: '100%', maxWidth: 320 }}>
+                <label className="ui-input-label">Display Name</label>
+                <input className="ui-input" value={userName}
+                  onChange={e => setUserName(e.target.value)}
+                  placeholder="Your name in the meeting" />
+              </div>
+              <Button leftIcon={Video} onClick={handleManualJoin} isLoading={joining}>
+                Join Meeting Room
+              </Button>
+            </motion.div>
+          )}
+
+          {/* The actual Zego room renders here */}
+          <div
+            ref={roomRef}
+            style={{
+              width: '100%',
+              height: joined ? '75vh' : 0,
+              minHeight: joined ? 500 : 0,
+              transition: 'height 0.3s ease',
+            }}
+          />
+        </div>
+      )}
+    </div>
   );
 }

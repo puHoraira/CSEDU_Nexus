@@ -440,7 +440,8 @@ class AuthService {
         clubParticipation: member.clubParticipation,
         electionEligibility: member.electionEligibility,
         leadershipScore: member.calculateLeadershipScore(),
-        yearsInClub: member.yearsInClub
+        yearsInClub: member.yearsInClub,
+        yearCorrectionRequest: member.yearCorrectionRequest ?? { status: 'None' },
       } : null,
       account: {
         isActive: user.isActive,

@@ -9,9 +9,9 @@ const memberSchema = new mongoose.Schema(
     studentId: { type: String, required: true, unique: true, trim: true },
     batch: { type: Number, required: true },
     currentYear: { type: Number, required: true, min: 1, max: 5 },
-    session: { type: String, required: true, trim: true }, // e.g., "2020-21"
-    admissionYear: { type: Number, required: true },
-    expectedGraduationYear: { type: Number, required: true },
+    session: { type: String, trim: true }, // e.g., "2020-21"
+    admissionYear: { type: Number },
+    expectedGraduationYear: { type: Number },
     
     // Academic Performance (Critical for EC eligibility)
     academicRecord: {
@@ -276,7 +276,22 @@ const memberSchema = new mongoose.Schema(
         verificationDate: { type: Date },
         rejectionReason: { type: String, trim: true }
       }]
-    }
+    },
+
+    // Year Correction Request (student can request, moderator approves)
+    yearCorrectionRequest: {
+      status: {
+        type: String,
+        enum: ["None", "Pending", "Approved", "Rejected"],
+        default: "None",
+      },
+      requestedYear: { type: Number, min: 1, max: 5 },
+      reason: { type: String, trim: true },
+      requestedAt: { type: Date },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      reviewedAt: { type: Date },
+      reviewNote: { type: String, trim: true },
+    },
   },
   { 
     timestamps: true,

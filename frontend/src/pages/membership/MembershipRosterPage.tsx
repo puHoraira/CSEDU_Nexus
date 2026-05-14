@@ -10,7 +10,7 @@ export function MembershipRosterPage() {
   const { data = [], isLoading } = useQuery({
     queryKey: ["members", token],
     queryFn: () => apiRequest<MemberRow[]>("/membership/members", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   return (

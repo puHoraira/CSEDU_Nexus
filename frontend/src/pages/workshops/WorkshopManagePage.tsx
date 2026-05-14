@@ -11,6 +11,7 @@ import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { Alert } from '../../components/ui/Alert';
+import { MaterialsManager } from '../../components/workshops/MaterialsManager';
 import { formatDateTime } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -24,16 +25,12 @@ type Registration = {
 
 type Workshop = {
   _id: string; title: string;
-  materials: Array<{ title: string; url: string; type: string }>;
+  materials: Array<{ title: string; url: string; type: string; description?: string; category?: string; size?: string }>;
 };
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'error' | 'neutral'> = {
   Pending:    'warning', Approved: 'success', Rejected: 'error',
   Waitlisted: 'neutral', Attended: 'success', Cancelled: 'error',
-};
-
-const MATERIAL_ICONS: Record<string, any> = {
-  pdf: FileText, video: Video, link: Link2, other: BookOpen,
 };
 
 export function WorkshopManagePage() {
@@ -43,18 +40,17 @@ export function WorkshopManagePage() {
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatus] = useState('all');
   const [activeTab, setActiveTab] = useState<'registrations' | 'materials'>('registrations');
-  const [newMaterial, setNewMaterial] = useState({ title: '', url: '', type: 'link' });
 
   const { data: registrations = [], isLoading } = useQuery({
     queryKey: ['workshop-registrations', id, token],
     queryFn: () => apiRequest<Registration[]>(`/workshops/${id}/registrations`, { token }),
-    enabled: Boolean(id && token) && !loading,
+    enabled: Boolean(id && token),
   });
 
   const { data: workshop, isLoading: workshopLoading } = useQuery({
     queryKey: ['workshop', id],
     queryFn: () => apiRequest<Workshop>(`/workshops/${id}`, { token }),
-    enabled: Boolean(id) && !loading,
+    enabled: Boolean(id),
   });
 
   const approveMut = useMutation({
@@ -71,19 +67,26 @@ export function WorkshopManagePage() {
   });
 
   const addMaterialMut = useMutation({
-    mutationFn: () => apiRequest(`/workshops/${id}/materials`, { method: 'POST', token, body: JSON.stringify(newMaterial) }),
+    mutationFn: (material: any) => apiRequest(`/workshops/${id}/materials`, { method: 'POST', token, body: JSON.stringify(material) }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['workshop', id] });
-      setNewMaterial({ title: '', url: '', type: 'link' });
-      toast.success('Material added — visible to approved participants');
     },
-    onError: e => toast.error(normalizeApiError(e)),
+    onError: e => { throw new Error(normalizeApiError(e)); },
+  });
+
+  const editMaterialMut = useMutation({
+    mutationFn: ({ index, material }: { index: number; material: any }) =>
+      apiRequest(`/workshops/${id}/materials/${index}`, { method: 'PUT', token, body: JSON.stringify(material) }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['workshop', id] });
+    },
+    onError: e => { throw new Error(normalizeApiError(e)); },
   });
 
   const removeMaterialMut = useMutation({
     mutationFn: (index: number) => apiRequest(`/workshops/${id}/materials/${index}`, { method: 'DELETE', token }),
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['workshop', id] }); toast.success('Material removed'); },
-    onError: e => toast.error(normalizeApiError(e)),
+    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['workshop', id] }); },
+    onError: e => { throw new Error(normalizeApiError(e)); },
   });
 
   const filtered = registrations.filter(r => {
@@ -278,126 +281,20 @@ export function WorkshopManagePage() {
 
       {/* ── MATERIALS TAB ── */}
       {activeTab === 'materials' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Add material form */}
-          <div className="ui-card">
-            <div className="ui-card__header">
-              <h3 className="ui-card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Plus size={17} style={{ color: 'var(--accent)' }} /> Add Material
-              </h3>
-            </div>
-            <div className="ui-card__body">
-              <Alert variant="info" className="ui-mb-4">
-                Materials are only visible to participants with <strong>Approved</strong> or <strong>Attended</strong> status.
-              </Alert>
-              <div className="ui-grid-3" style={{ marginBottom: 14 }}>
-                <div className="ui-input-wrap">
-                  <label className="ui-input-label">Title *</label>
-                  <input className="ui-input" value={newMaterial.title}
-                    onChange={e => setNewMaterial(m => ({ ...m, title: e.target.value }))}
-                    placeholder="e.g. Lecture Slides" />
-                </div>
-                <div className="ui-input-wrap">
-                  <label className="ui-input-label">URL *</label>
-                  <input className="ui-input" value={newMaterial.url}
-                    onChange={e => setNewMaterial(m => ({ ...m, url: e.target.value }))}
-                    placeholder="https://drive.google.com/…" />
-                </div>
-                <div className="ui-input-wrap">
-                  <label className="ui-input-label">Type</label>
-                  <select className="ui-select" value={newMaterial.type}
-                    onChange={e => setNewMaterial(m => ({ ...m, type: e.target.value }))}>
-                    <option value="link">Link</option>
-                    <option value="pdf">PDF</option>
-                    <option value="video">Video</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-              <Button leftIcon={Plus} isLoading={addMaterialMut.isPending}
-                onClick={() => {
-                  if (!newMaterial.title.trim() || !newMaterial.url.trim()) {
-                    toast.error('Title and URL are required');
-                    return;
-                  }
-                  addMaterialMut.mutate();
-                }}>
-                Add Material
-              </Button>
-            </div>
-          </div>
-
-          {/* Materials list */}
-          <div className="ui-card" style={{ padding: 0 }}>
-            <div className="ui-card__header">
-              <h3 className="ui-card__title">Current Materials</h3>
-              <Badge variant="neutral">{workshop?.materials?.length ?? 0} items</Badge>
-            </div>
-
-            {workshopLoading && (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
-            )}
-
-            {!workshopLoading && (!workshop?.materials || workshop.materials.length === 0) && (
-              <EmptyState icon={BookOpen} title="No materials yet"
-                description="Add PDFs, videos, or links for approved participants" size="sm" />
-            )}
-
-            {!workshopLoading && workshop?.materials && workshop.materials.length > 0 && (
-              <div>
-                {workshop.materials.map((m, i) => {
-                  const Icon = MATERIAL_ICONS[m.type] ?? Link2;
-                  return (
-                    <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 14, padding: '14px 22px',
-                        borderBottom: i < workshop.materials.length - 1 ? '1px solid var(--border)' : 'none',
-                      }}
-                    >
-                      {/* Icon */}
-                      <div style={{
-                        width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-                        background: 'var(--gradient-primary)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
-                      }}>
-                        <Icon size={18} />
-                      </div>
-
-                      {/* Info */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>{m.title}</p>
-                        <a href={m.url} target="_blank" rel="noopener noreferrer"
-                          className="ui-text-xs ui-text-muted ui-truncate"
-                          style={{ display: 'block', color: 'var(--accent)', textDecoration: 'none' }}>
-                          {m.url}
-                        </a>
-                      </div>
-
-                      {/* Type badge */}
-                      <Badge variant="neutral">{m.type.toUpperCase()}</Badge>
-
-                      {/* Actions */}
-                      <div className="ui-flex ui-flex-gap-2">
-                        <a href={m.url} target="_blank" rel="noopener noreferrer">
-                          <Button variant="ghost" size="sm" leftIcon={Download}>Open</Button>
-                        </a>
-                        <Button variant="danger" size="sm" leftIcon={Trash2}
-                          isLoading={removeMaterialMut.isPending}
-                          onClick={() => {
-                            if (window.confirm(`Remove "${m.title}"?`)) {
-                              removeMaterialMut.mutate(i);
-                            }
-                          }}>
-                          Remove
-                        </Button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+        <MaterialsManager
+          materials={workshop?.materials || []}
+          isLoading={workshopLoading}
+          onAdd={async (material) => {
+            await addMaterialMut.mutateAsync(material);
+          }}
+          onEdit={async (index, material) => {
+            await editMaterialMut.mutateAsync({ index, material });
+          }}
+          onRemove={async (index) => {
+            await removeMaterialMut.mutateAsync(index);
+          }}
+          canEdit={true}
+        />
       )}
     </div>
   );

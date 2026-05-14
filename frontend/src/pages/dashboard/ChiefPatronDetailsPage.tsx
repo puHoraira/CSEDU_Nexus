@@ -16,17 +16,17 @@ export function ChiefPatronDetailsPage() {
   const proposals = useQuery({
     queryKey: ["chief-proposals", token],
     queryFn: () => apiRequest<Proposal[]>("/governance/proposals", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
   const cancellations = useQuery({
     queryKey: ["chief-cancellations", token],
     queryFn: () => apiRequest<Cancellation[]>("/membership/cancellations", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
   const ledger = useQuery({
     queryKey: ["chief-ledger", token],
     queryFn: () => apiRequest<Ledger>("/finance/ledger", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const pendingConstitution = useMemo(

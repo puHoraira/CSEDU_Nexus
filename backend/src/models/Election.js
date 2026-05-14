@@ -59,6 +59,10 @@ const electionSchema = new mongoose.Schema(
       default: "Draft" 
     },
     
+    // Top-level voting window (used for simple elections)
+    startsOn: { type: Date, default: null },
+    endsOn: { type: Date, default: null },
+    
     // Election Configuration
     config: {
       allowSelfNomination: { type: Boolean, default: true },

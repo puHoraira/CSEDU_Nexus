@@ -110,7 +110,7 @@ async function seedRolesAndPermissions() {
   }
 
   const grants = {
-    "System Admin": ["admin.role.read", "admin.role.assign", "admin.role.revoke", "meeting.read"],
+    "System Admin": ["admin.role.read", "admin.role.assign", "admin.role.revoke", "meeting.read", "election.read", "election.vote.cast"],
     "General Member": [
       "event.read",
       "event.volunteer.register",
@@ -167,13 +167,13 @@ async function seedRolesAndPermissions() {
       "event.read",
       "meeting.read",
     ],
-    Treasurer: ["finance.transaction.create", "finance.ledger.read", "finance.report.quarterly", "meeting.read"],
-    "Secretary (Publication)": ["publication.manage", "event.read", "meeting.read"],
-    "Secretary (Sports)": ["sports.manage", "event.read", "meeting.read"],
-    "Secretary (Seminars)": ["seminars.manage", "event.read", "meeting.read"],
-    "Secretary (Cultural)": ["cultural.manage", "event.read", "meeting.read"],
-    "Secretary (Graphics)": ["graphics.manage", "event.read", "meeting.read"],
-    "Executive Member": ["volunteer.group.lead", "event.volunteer.register", "event.read", "meeting.read"],
+    Treasurer: ["finance.transaction.create", "finance.ledger.read", "finance.report.quarterly", "meeting.read", "election.read", "election.vote.cast"],
+    "Secretary (Publication)": ["publication.manage", "event.read", "meeting.read", "election.read", "election.vote.cast"],
+    "Secretary (Sports)": ["sports.manage", "event.read", "meeting.read", "election.read", "election.vote.cast"],
+    "Secretary (Seminars)": ["seminars.manage", "event.read", "meeting.read", "election.read", "election.vote.cast"],
+    "Secretary (Cultural)": ["cultural.manage", "event.read", "meeting.read", "election.read", "election.vote.cast"],
+    "Secretary (Graphics)": ["graphics.manage", "event.read", "meeting.read", "election.read", "election.vote.cast"],
+    "Executive Member": ["volunteer.group.lead", "event.volunteer.register", "event.read", "meeting.read", "election.read", "election.vote.cast"],
     Moderator: [
       "event.create",
       "event.volunteer.manage",

@@ -80,7 +80,7 @@ export function EnhancedProfilePage() {
   const profileQuery = useQuery({
     queryKey: ["my-profile", token],
     queryFn: () => apiRequest<ProfilePayload>("/auth/me", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   useEffect(() => {

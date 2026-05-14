@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 
 export interface BreadcrumbItem { label: string; href?: string; }
@@ -41,14 +40,41 @@ export function PageHeader({ title, description, breadcrumbs, actions, backButto
           {backButton && (
             <button
               onClick={() => navigate(-1)}
+              className="back-button"
               style={{
-                width: 34, height: 34, borderRadius: 10, border: '1px solid var(--border)',
-                background: 'var(--surface)', color: 'var(--muted)', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, marginTop: 6, transition: 'all 0.18s',
+                width: 38, 
+                height: 38, 
+                borderRadius: 12, 
+                border: '2px solid var(--border)',
+                background: 'var(--surface)', 
+                color: 'var(--text)', 
+                cursor: 'pointer',
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                flexShrink: 0, 
+                marginTop: 4, 
+                transition: 'all 0.2s ease',
+                fontWeight: 700,
+                fontSize: '22px',
+                lineHeight: 1,
               }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--accent)';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.borderColor = 'var(--accent)';
+                e.currentTarget.style.transform = 'translateX(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--surface)';
+                e.currentTarget.style.color = 'var(--text)';
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.transform = 'translateX(0)';
+              }}
+              title="Go back"
+              aria-label="Go back"
             >
-              <ArrowLeft size={15} />
+              ←
             </button>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>

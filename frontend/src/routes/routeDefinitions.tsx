@@ -23,7 +23,7 @@ import { AbsenceAlertsPage } from "../pages/meetings/AbsenceAlertsPage";
 import { ModernElectionsPage } from "../pages/elections/ModernElectionsPage";
 import { ElectionCreatePage } from "../pages/elections/ElectionCreatePage";
 import { ElectionCandidatesPage } from "../pages/elections/ElectionCandidatesPage";
-import { ElectionVotePage } from "../pages/elections/ElectionVotePage";
+import { ElectionVotingPage } from "../pages/elections/ElectionVotingPage";
 import { ElectionResultsPage } from "../pages/elections/ElectionResultsPage";
 import { ApplyCandidatePage } from "../pages/elections/ApplyCandidatePage";
 import { ModernEventsPage } from "../pages/events/ModernEventsPage";
@@ -42,9 +42,11 @@ import { ReportsCenterPage } from "../pages/reports/ReportsCenterPage";
 import { WorkshopsPage } from "../pages/workshops/WorkshopsPage";
 import { WorkshopDetailPage } from "../pages/workshops/WorkshopDetailPage";
 import { WorkshopCreatePage } from "../pages/workshops/WorkshopCreatePage";
+import { WorkshopEditPage } from "../pages/workshops/WorkshopEditPage";
 import { WorkshopCheckInPage } from "../pages/workshops/WorkshopCheckInPage";
 import { WorkshopManagePage } from "../pages/workshops/WorkshopManagePage";
 import { WorkshopPaymentResultPage } from "../pages/workshops/WorkshopPaymentResultPage";
+import { MeetingEditPage } from "../pages/meetings/MeetingEditPage";
 import { UnauthorizedPage } from "../pages/dashboard/UnauthorizedPage";
 import { ModeratorDetailsPage } from "../pages/dashboard/ModeratorDetailsPage";
 import { ChiefPatronDetailsPage } from "../pages/dashboard/ChiefPatronDetailsPage";
@@ -132,6 +134,11 @@ export const routeDefinitions: RouteDef[] = [
     requiredRoles: ["President", "General Secretary"],
   },
   { path: "/dashboard/meetings/:id", element: <MeetingDetailsPage /> },
+  {
+    path: "/dashboard/meetings/:id/edit",
+    element: <MeetingEditPage />,
+    requiredRoles: ["President", "General Secretary", "Moderator"],
+  },
   { path: "/dashboard/meetings/:id/room", element: <MeetingLivePage /> },
   {
     path: "/dashboard/meetings/:id/attendance",
@@ -146,16 +153,6 @@ export const routeDefinitions: RouteDef[] = [
   {
     path: "/dashboard/elections",
     element: <ModernElectionsPage />,
-    requiredRoles: [
-      "General Member",
-      "Alumni",
-      "President",
-      "Vice President",
-      "General Secretary",
-      "Moderator",
-      "Election Commissioner",
-      "Chief Patron",
-    ],
   },
   {
     path: "/dashboard/elections/create",
@@ -165,7 +162,6 @@ export const routeDefinitions: RouteDef[] = [
   {
     path: "/dashboard/elections/apply",
     element: <ApplyCandidatePage />,
-    requiredRoles: ["General Member"],
   },
   {
     path: "/dashboard/elections/:id/candidates",
@@ -174,8 +170,7 @@ export const routeDefinitions: RouteDef[] = [
   },
   {
     path: "/dashboard/elections/:id/vote",
-    element: <ElectionVotePage />,
-    requiredRoles: ["General Member", "Moderator", "Chief Patron"],
+    element: <ElectionVotingPage />,
   },
   { path: "/dashboard/elections/:id/results", element: <ElectionResultsPage /> },
   { path: "/dashboard/events", element: <ModernEventsPage /> },
@@ -210,6 +205,7 @@ export const routeDefinitions: RouteDef[] = [
   { path: "/dashboard/workshops/payment-fail",       element: <WorkshopPaymentResultPage type="fail" /> },
   { path: "/dashboard/workshops/payment-cancel",     element: <WorkshopPaymentResultPage type="cancel" /> },
   { path: "/dashboard/workshops/:id",                element: <WorkshopDetailPage /> },
+  { path: "/dashboard/workshops/:id/edit",           element: <WorkshopEditPage />, requiredRoles: ["President","Vice President","General Secretary","AGS (Organization)","Moderator"] },
   { path: "/dashboard/workshops/:id/checkin",        element: <WorkshopCheckInPage />, requiredRoles: ["President","Vice President","General Secretary","AGS (Organization)","Moderator"] },
   { path: "/dashboard/workshops/:id/manage",         element: <WorkshopManagePage />,  requiredRoles: ["President","Vice President","General Secretary","AGS (Organization)","Moderator"] },
   { path: "/dashboard/unauthorized", element: <UnauthorizedPage /> },

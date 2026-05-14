@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Calendar, MapPin, Users, DollarSign, Clock,
   CheckCircle, XCircle, Download, QrCode, Video,
-  User2, Tag, Target, List, CreditCard, Bell
+  User2, Tag, Target, List, CreditCard, Bell, Image, Edit2
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
+import { queryKeys, invalidateQueries } from '../../lib/queryKeys';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -17,6 +18,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { Alert } from '../../components/ui/Alert';
 import { Countdown } from '../../components/ui/Countdown';
 import { formatDate, formatDateTime } from '../../lib/utils';
+import { usePosterGenerator } from '../../hooks/usePosterGenerator';
 import toast from 'react-hot-toast';
 
 type Workshop = {
@@ -47,26 +49,26 @@ export function WorkshopDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user, token, loading } = useAuth();
   const qc = useQueryClient();
+  const { openPosterGenerator, PosterModal } = usePosterGenerator();
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ name: '', email: '', phone: '' });
 
   const { data: workshop, isLoading } = useQuery({
-    queryKey: ['workshop', id],
+    queryKey: queryKeys.workshops.detail(id!, token ?? ''),
     queryFn: () => apiRequest<Workshop>(`/workshops/${id}`, { token }),
-    enabled: Boolean(id) && !loading,
+    enabled: Boolean(id),
   });
 
   const { data: myReg, isLoading: regLoading } = useQuery({
-    queryKey: ['my-workshop-reg', id, token],
+    queryKey: queryKeys.workshops.myRegistration(id!, token ?? ''),
     queryFn: () => apiRequest<Registration | null>(`/workshops/${id}/my-registration`, { token }),
-    enabled: Boolean(id && token) && !loading,
+    enabled: Boolean(id && token),
   });
 
   const registerMut = useMutation({
     mutationFn: () => apiRequest(`/workshops/${id}/register`, { method: 'POST', token, body: JSON.stringify(regForm) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['my-workshop-reg', id, token] });
-      qc.invalidateQueries({ queryKey: ['workshop', id] });
+      Promise.all(invalidateQueries.workshops.detail(qc, id!, token));
       setShowRegForm(false);
       toast.success('Registered successfully!');
     },
@@ -102,6 +104,7 @@ export function WorkshopDetailPage() {
   // Allow registration for Published, Registration_Open, and also Draft (for testing/preview)
   const canRegister = !['Cancelled', 'Completed', 'Registration_Closed'].includes(workshop.status) && !isFull;
   const isManager = user?.roles.some(r => ['President', 'Vice President', 'General Secretary', 'AGS (Organization)', 'Moderator'].includes(r));
+  const canEdit = isManager || workshop.createdBy._id === user?.id;
 
   // Pre-fill form with user data
   const handleOpenRegForm = () => {
@@ -120,6 +123,11 @@ export function WorkshopDetailPage() {
         description={workshop.shortDescription}
         backButton
         breadcrumbs={[{ label: 'Workshops', href: '/dashboard/workshops' }, { label: workshop.title }]}
+        actions={canEdit && (
+          <Button variant="outline" leftIcon={Edit2} href={`/dashboard/workshops/${id}/edit`}>
+            Edit Workshop
+          </Button>
+        )}
       />
 
       {/* Hero */}
@@ -232,8 +240,28 @@ export function WorkshopDetailPage() {
               </div>
               <div className="ui-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {workshop.materials.map((m, i) => (
-                  <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', textDecoration: 'none', transition: 'background 0.18s' }}
+                  <div
+                    key={i}
+                    onClick={() => {
+                      // Handle base64 data URLs differently
+                      if (m.url.startsWith('data:')) {
+                        // Download the file
+                        const link = document.createElement('a');
+                        link.href = m.url;
+                        link.download = m.title || 'download';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      } else {
+                        // Open regular URL in new tab
+                        window.open(m.url, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    style={{ 
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', 
+                      borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', 
+                      cursor: 'pointer', transition: 'background 0.18s' 
+                    }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-soft)'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface)'; }}
                   >
@@ -242,7 +270,7 @@ export function WorkshopDetailPage() {
                       <p style={{ margin: 0, fontWeight: 600, fontSize: '0.88rem', color: 'var(--text)' }}>{m.title}</p>
                       <p className="ui-text-xs ui-text-muted">{m.type.toUpperCase()}</p>
                     </div>
-                  </a>
+                  </div>
                 ))}
               </div>
             </div>
@@ -419,6 +447,27 @@ export function WorkshopDetailPage() {
               Manage Registrations
             </Button>
           )}
+
+          {/* Generate Poster */}
+          {isManager && (
+            <Button variant="outline" fullWidth leftIcon={Image}
+              onClick={() => openPosterGenerator({
+                type: 'workshop',
+                title: workshop.title,
+                subtitle: workshop.shortDescription,
+                date: `${formatDate(workshop.startDate)} - ${formatDate(workshop.endDate)}`,
+                location: workshop.isOnline ? 'Online' : workshop.venue,
+                description: workshop.description.substring(0, 120),
+                additionalInfo: [
+                  workshop.isFree ? 'Free' : `৳${workshop.fee}`,
+                  workshop.level,
+                  `${spotsLeft} spots left`,
+                ],
+                theme: 'green',
+              })}>
+              Generate Poster
+            </Button>
+          )}
         </div>
       </div>
 
@@ -479,6 +528,9 @@ export function WorkshopDetailPage() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Poster Generator Modal */}
+      {PosterModal}
     </div>
   );
 }

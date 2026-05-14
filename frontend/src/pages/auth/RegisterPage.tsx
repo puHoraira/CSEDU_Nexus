@@ -3,6 +3,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { normalizeApiError } from "../../lib/api";
 
+function getRoleHomePage(roles: string[]): string {
+  if (roles.includes("Moderator"))             return "/dashboard/moderator";
+  if (roles.includes("Chief Patron"))          return "/dashboard/chief-patron";
+  if (roles.includes("Election Commissioner")) return "/dashboard/election-commission";
+  if (roles.includes("System Admin"))          return "/dashboard/admin";
+  if (roles.includes("Alumni"))                return "/dashboard/alumni";
+  return "/dashboard/home";
+}
+
 export function RegisterPage() {
   const navigate = useNavigate();
   const { register, registerTeacher } = useAuth();
@@ -50,7 +59,7 @@ export function RegisterPage() {
     
     try {
       if (accountType === "teacher") {
-        await registerTeacher({
+        const result = await registerTeacher({
           email: form.email,
           password: form.password,
           firstName: form.firstName,
@@ -59,9 +68,9 @@ export function RegisterPage() {
           phone: form.phone,
           experience: form.experience,
         });
+        navigate(getRoleHomePage(result.user.roles));
       } else {
-        // Simple student registration - only essential data
-        await register({
+        const result = await register({
           email: form.email,
           password: form.password,
           firstName: form.firstName,
@@ -72,8 +81,8 @@ export function RegisterPage() {
           currentYear: form.currentYear,
           experience: form.experience || "",
         });
+        navigate(getRoleHomePage(result.user.roles));
       }
-      navigate("/dashboard/home");
     } catch (err) {
       setError(normalizeApiError(err));
     } finally {

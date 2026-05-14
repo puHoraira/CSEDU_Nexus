@@ -15,7 +15,7 @@ export function EcTermsPage() {
   const { data = [] } = useQuery({
     queryKey: ["ec-terms", token],
     queryFn: () => apiRequest<TermRow[]>("/governance/ec-terms", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const mutation = useMutation({

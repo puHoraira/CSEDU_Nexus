@@ -54,18 +54,19 @@ export function ImageSlider({ slides, autoPlayInterval = 5000 }: ImageSliderProp
             className={`image-slider__slide ${index === currentIndex ? "is-active" : ""}`}
             style={{ transform: `translateX(${(index - currentIndex) * 100}%)` }}
           >
-            <div className="image-slider__image-wrapper">
-              <img src={slide.imageUrl} alt={slide.title} className="image-slider__image" />
-              <div className="image-slider__overlay" />
-            </div>
-            <div className="image-slider__content">
-              <h2 className="image-slider__title">{slide.title}</h2>
-              <p className="image-slider__description">{slide.description}</p>
-              {slide.link && (
-                <a href={slide.link} className="primary-button">
-                  Learn More
-                </a>
-              )}
+            <div className="image-slider__split-layout">
+              <div className="image-slider__logo-section">
+                <img src={slide.imageUrl} alt={slide.title} className="image-slider__logo" />
+              </div>
+              <div className="image-slider__text-section">
+                <h2 className="image-slider__title">{slide.title}</h2>
+                <p className="image-slider__description">{slide.description}</p>
+                {slide.link && (
+                  <a href={slide.link} className="primary-button">
+                    Learn More
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         ))}

@@ -26,5 +26,6 @@ const upload = multer({
 // Upload routes
 router.post("/avatar", authenticate, upload.single("avatar"), UploadController.uploadAvatar);
 router.post("/document", authenticate, upload.single("document"), UploadController.uploadDocument);
+router.post("/", authenticate, upload.single("file"), UploadController.uploadFile);
 
 module.exports = { uploadRoutes: router };

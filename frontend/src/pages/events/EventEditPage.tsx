@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { apiRequest, normalizeApiError } from "../../lib/api";
+import { queryKeys, invalidateQueries } from "../../lib/queryKeys";
 import { PageScreen } from "../../components/ui/PageScreen";
 
 const SUPPORTED_YEARS = [1, 2, 3, 4, 5];
@@ -135,9 +136,8 @@ export function EventEditPage() {
     },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["events"] }),
-        queryClient.invalidateQueries({ queryKey: ["event-detail-public", id] }),
-        queryClient.invalidateQueries({ queryKey: ["event-detail", id] }),
+        ...invalidateQueries.events.all(queryClient, token),
+        ...invalidateQueries.events.detail(queryClient, id, token),
       ]);
       navigate("/dashboard/events");
     },

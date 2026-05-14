@@ -3,7 +3,9 @@ const QRCode = require('qrcode');
 const SSLCommerzPayment = require('sslcommerz-lts');
 const { Workshop }             = require('../models/Workshop');
 const { WorkshopRegistration } = require('../models/WorkshopRegistration');
+const { Member }               = require('../models/Member');
 const { ApiError }             = require('../core/ApiError');
+const { checkAudienceEligibility, annotateAudienceRelevance } = require('../utils/audienceUtils');
 
 const storeId   = process.env.SSLCOMMERZ_STORE_ID;
 const storePass = process.env.SSLCOMMERZ_STORE_PASSWORD;
@@ -19,7 +21,7 @@ class WorkshopService {
     return workshop;
   }
 
-  static async listWorkshops(query = {}) {
+  static async listWorkshops(query = {}, requestingUserId = null) {
     const filter = {};
     if (query.status)   filter.status   = query.status;
     if (query.category) filter.category = query.category;
@@ -29,7 +31,21 @@ class WorkshopService {
         { description: { $regex: query.search, $options: 'i' } },
       ];
     }
-    return Workshop.find(filter).sort({ startDate: 1 }).populate('createdBy', 'firstName lastName avatarUrl');
+    const workshops = await Workshop.find(filter)
+      .sort({ startDate: 1 })
+      .populate('createdBy', 'firstName lastName avatarUrl');
+
+    // Annotate with audience relevance if we know the requesting user
+    if (requestingUserId) {
+      const member = await Member.findOne({ userId: requestingUserId }).select('batch currentYear');
+      if (member) {
+        return annotateAudienceRelevance(
+          workshops.map(w => w.toObject()),
+          member
+        );
+      }
+    }
+    return workshops;
   }
 
   static async getWorkshopById(id) {
@@ -250,6 +266,17 @@ class WorkshopService {
     const w = await Workshop.findById(workshopId);
     if (!w) throw new ApiError(404, 'Workshop not found');
     w.materials.push(material);
+    await w.save();
+    return w;
+  }
+
+  static async editMaterial(workshopId, index, material) {
+    const w = await Workshop.findById(workshopId);
+    if (!w) throw new ApiError(404, 'Workshop not found');
+    if (index < 0 || index >= w.materials.length) {
+      throw new ApiError(400, 'Invalid material index');
+    }
+    w.materials[index] = material;
     await w.save();
     return w;
   }

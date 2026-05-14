@@ -1,28 +1,13 @@
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { Users, Calendar, Vote, Award, Clock, Bell, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { apiRequest } from '../../lib/api';
+import { queryKeys } from '../../lib/queryKeys';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { StatsCard } from '../../components/ui/StatsCard';
+import { Spinner } from '../../components/ui/Spinner';
 import { formatRelativeTime } from '../../lib/utils';
-
-const STATS = [
-  { title: 'Total Members',       value: '1,234', icon: Users,    trend: { value: 12, label: 'vs last month' }, color: 'primary' as const },
-  { title: 'Upcoming Events',     value: '8',     icon: Calendar, trend: { value: 3,  label: 'this month'   }, color: 'success' as const },
-  { title: 'Active Elections',    value: '2',     icon: Vote,     color: 'warning' as const },
-  { title: 'Certificates Issued', value: '456',   icon: Award,    trend: { value: 8,  label: 'this week'    }, color: 'info'    as const },
-];
-
-const EVENTS = [
-  { id: '1', title: 'Annual General Meeting 2026', date: '2026-05-01T10:00:00', location: 'Main Auditorium', attendees: 45 },
-  { id: '2', title: 'Tech Workshop: React Advanced', date: '2026-04-28T14:00:00', location: 'Lab 301', attendees: 32 },
-  { id: '3', title: 'Sports Day 2026', date: '2026-05-05T09:00:00', location: 'University Ground', attendees: 120 },
-];
-
-const ACTIVITY = [
-  { id: '1', title: 'New event created',      desc: 'Tech Workshop: React Advanced', time: '2026-04-24T10:30:00', init: 'JD' },
-  { id: '2', title: 'Election voting started', desc: 'EC Election 2026',              time: '2026-04-24T09:00:00', init: 'JS' },
-  { id: '3', title: 'New member joined',       desc: 'Alice Johnson',                 time: '2026-04-23T16:45:00', init: 'AJ' },
-];
 
 const QUICK = [
   { label: 'Create Event',   href: '/dashboard/events/create', icon: Calendar },
@@ -31,14 +16,131 @@ const QUICK = [
   { label: 'Notifications',  href: '/dashboard/notifications', icon: Bell },
 ];
 
-const PENDING = [
-  { icon: AlertCircle, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', title: 'Profile Incomplete', desc: 'Complete your profile to participate in elections', href: '/dashboard/profile', label: 'Complete Now' },
-  { icon: Vote,        color: 'var(--accent)', bg: 'rgba(107,163,255,0.1)', border: 'rgba(107,163,255,0.3)', title: 'Active Voting', desc: '2 elections are waiting for your vote', href: '/dashboard/elections', label: 'Vote Now' },
-  { icon: CheckCircle, color: '#10b981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)', title: 'All Caught Up!', desc: 'No pending tasks at the moment', href: '#', label: 'Great Job!' },
-];
+type DashboardStats = {
+  totalMembers: number;
+  upcomingEvents: number;
+  activeElections: number;
+  certificatesIssued: number;
+};
+
+type Event = {
+  _id: string;
+  title: string;
+  eventDate: string;
+  venue: string;
+  stats?: { totalRegistrations: number };
+};
+
+type Election = {
+  _id: string;
+  name: string;
+  status: string;
+  startsOn: string;
+  endsOn: string;
+};
 
 export function EnhancedDashboardHome() {
-  const { user } = useAuth();
+  const { user, token, loading } = useAuth();
+
+  // Fetch dashboard stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['dashboard-stats', token],
+    queryFn: async () => {
+      // Fetch multiple endpoints in parallel, with error handling
+      const [eventsResult, electionsResult, membersResult] = await Promise.allSettled([
+        apiRequest<Event[]>('/events', { token }),
+        apiRequest<Election[]>('/elections', { token }),
+        // Only fetch members if user has permission (handle 403 gracefully)
+        user?.roles.some(r => ['President', 'Vice President', 'General Secretary', 'Moderator', 'Chief Patron'].includes(r))
+          ? apiRequest<any[]>('/membership/members', { token })
+          : Promise.resolve([]),
+      ]);
+
+      const events = eventsResult.status === 'fulfilled' ? eventsResult.value : [];
+      const elections = electionsResult.status === 'fulfilled' ? electionsResult.value : [];
+      const members = membersResult.status === 'fulfilled' ? membersResult.value : [];
+
+      const now = new Date();
+      const upcomingEvents = events.filter(e => new Date(e.eventDate) > now).length;
+      const activeElections = elections.filter(e => e.status === 'Active').length;
+
+      return {
+        totalMembers: members.length,
+        upcomingEvents,
+        activeElections,
+        certificatesIssued: 0, // This would need a certificates endpoint
+      } as DashboardStats;
+    },
+    enabled: Boolean(token),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Fetch recent events
+  const { data: events = [], isLoading: eventsLoading, error: eventsError } = useQuery({
+    queryKey: queryKeys.events.all(token!),
+    queryFn: () => apiRequest<Event[]>('/events', { token }),
+    enabled: Boolean(token),
+    retry: 1, // Only retry once for faster loading
+  });
+
+  // Fetch recent elections for activity
+  const { data: elections = [], isLoading: electionsLoading, error: electionsError } = useQuery({
+    queryKey: queryKeys.elections.all(token!),
+    queryFn: () => apiRequest<Election[]>('/elections', { token }),
+    enabled: Boolean(token),
+    retry: 1, // Only retry once for faster loading
+  });
+
+  const isLoading = (statsLoading || eventsLoading || electionsLoading) && events.length === 0 && elections.length === 0;
+
+  // Process data for display
+  const upcomingEvents = events
+    .filter(e => new Date(e.eventDate) > new Date())
+    .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime())
+    .slice(0, 3);
+
+  const recentActivity = [
+    ...events.slice(0, 2).map(e => ({
+      id: e._id,
+      title: 'New event created',
+      desc: e.title,
+      time: new Date().toISOString(), // Would need createdAt from API
+      init: 'EV',
+    })),
+    ...elections.slice(0, 1).map(e => ({
+      id: e._id,
+      title: e.status === 'Active' ? 'Election voting started' : 'New election created',
+      desc: e.name,
+      time: e.startsOn,
+      init: 'EC',
+    })),
+  ].slice(0, 3);
+
+  const dashboardStats = stats ? [
+    { title: 'Upcoming Events', value: stats.upcomingEvents.toString(), icon: Calendar, color: 'success' as const },
+    { title: 'Active Elections', value: stats.activeElections.toString(), icon: Vote, color: 'warning' as const },
+    ...(stats.totalMembers > 0 ? [{ title: 'Total Members', value: stats.totalMembers.toString(), icon: Users, color: 'primary' as const }] : []),
+    { title: 'My Activities', value: (upcomingEvents.length + recentActivity.length).toString(), icon: Award, color: 'info' as const },
+  ] : [
+    // Fallback stats if main query fails
+    { title: 'Upcoming Events', value: upcomingEvents.length.toString(), icon: Calendar, color: 'success' as const },
+    { title: 'Active Elections', value: elections.filter(e => e.status === 'Active').length.toString(), icon: Vote, color: 'warning' as const },
+    { title: 'My Activities', value: (upcomingEvents.length + recentActivity.length).toString(), icon: Award, color: 'info' as const },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="ui-page">
+        <PageHeader
+          title={`Welcome back, ${user?.firstName ?? 'there'}!`}
+          description="Loading your dashboard..."
+        />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+          <Spinner size="lg" label="Loading dashboard data..." />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ui-page">
@@ -47,9 +149,21 @@ export function EnhancedDashboardHome() {
         description="Here's what's happening with your club today."
       />
 
+      {/* Show error message if some data failed to load, but continue showing dashboard */}
+      {(eventsError || electionsError) && (
+        <div style={{ marginBottom: '20px', padding: '12px 16px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '12px', color: '#f59e0b' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+              Some data couldn't be loaded. You may need additional permissions to view all dashboard information.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="ui-grid-4">
-        {STATS.map((s, i) => (
+        {dashboardStats.map((s, i) => (
           <motion.div key={s.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
             <StatsCard {...s} />
           </motion.div>
@@ -96,98 +210,148 @@ export function EnhancedDashboardHome() {
             <h3 className="ui-card__title">Upcoming Events</h3>
             <a href="/dashboard/events" className="ui-link">View All</a>
           </div>
-          {EVENTS.map((ev, i) => {
-            const d = new Date(ev.date);
-            return (
-              <motion.div
-                key={ev.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.07 }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 16,
-                  padding: '14px 22px',
-                  borderBottom: i < EVENTS.length - 1 ? '1px solid var(--border)' : 'none',
-                  transition: 'background 0.18s', cursor: 'pointer',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-              >
-                <div style={{
-                  width: 50, height: 50, borderRadius: 14, flexShrink: 0,
-                  background: 'var(--gradient-primary)',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff',
-                }}>
-                  <span style={{ fontSize: '1.15rem', fontWeight: 800, lineHeight: 1 }}>{d.getDate()}</span>
-                  <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', opacity: 0.85 }}>
-                    {d.toLocaleDateString('en-US', { month: 'short' })}
-                  </span>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)', marginBottom: 3 }} className="ui-truncate">{ev.title}</div>
-                  <div className="ui-flex ui-flex-gap-3 ui-text-xs ui-text-muted">
-                    <span className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}>
-                      <Clock size={11} /> {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          {upcomingEvents.length === 0 ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--muted)' }}>
+              <Calendar size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+              <p>No upcoming events</p>
+            </div>
+          ) : (
+            upcomingEvents.map((ev, i) => {
+              const d = new Date(ev.eventDate);
+              return (
+                <motion.div
+                  key={ev._id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.07 }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 16,
+                    padding: '14px 22px',
+                    borderBottom: i < upcomingEvents.length - 1 ? '1px solid var(--border)' : 'none',
+                    transition: 'background 0.18s', cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                  onClick={() => window.location.href = `/dashboard/events/${ev._id}`}
+                >
+                  <div style={{
+                    width: 50, height: 50, borderRadius: 14, flexShrink: 0,
+                    background: 'var(--gradient-primary)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                  }}>
+                    <span style={{ fontSize: '1.15rem', fontWeight: 800, lineHeight: 1 }}>{d.getDate()}</span>
+                    <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', opacity: 0.85 }}>
+                      {d.toLocaleDateString('en-US', { month: 'short' })}
                     </span>
-                    <span className="ui-truncate">{ev.location}</span>
                   </div>
-                </div>
-                <span className="chip" style={{ fontSize: '0.7rem', flexShrink: 0 }}>{ev.attendees} attending</span>
-              </motion.div>
-            );
-          })}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)', marginBottom: 3 }} className="ui-truncate">{ev.title}</div>
+                    <div className="ui-flex ui-flex-gap-3 ui-text-xs ui-text-muted">
+                      <span className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}>
+                        <Clock size={11} /> {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span className="ui-truncate">{ev.venue}</span>
+                    </div>
+                  </div>
+                  <span className="chip" style={{ fontSize: '0.7rem', flexShrink: 0 }}>
+                    {ev.stats?.totalRegistrations || 0} registered
+                  </span>
+                </motion.div>
+              );
+            })
+          )}
         </div>
 
         {/* Recent Activity */}
         <div className="ui-card" style={{ padding: 0 }}>
           <div className="ui-card__header"><h3 className="ui-card__title">Recent Activity</h3></div>
           <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {ACTIVITY.map((a, i) => (
-              <motion.div key={a.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
-                className="ui-flex ui-flex-gap-3">
-                <div style={{
-                  width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-                  background: 'var(--gradient-primary)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 700, fontSize: '0.75rem',
-                }}>
-                  {a.init}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{a.title}</div>
-                  <div className="ui-text-xs ui-text-muted ui-truncate">{a.desc}</div>
-                  <div className="ui-text-xs ui-text-muted" style={{ marginTop: 2, opacity: 0.7 }}>{formatRelativeTime(a.time)}</div>
-                </div>
-              </motion.div>
-            ))}
+            {recentActivity.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--muted)' }}>
+                <Bell size={24} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+                <p style={{ fontSize: '0.85rem' }}>No recent activity</p>
+              </div>
+            ) : (
+              recentActivity.map((a, i) => (
+                <motion.div key={a.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
+                  className="ui-flex ui-flex-gap-3">
+                  <div style={{
+                    width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                    background: 'var(--gradient-primary)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontWeight: 700, fontSize: '0.75rem',
+                  }}>
+                    {a.init}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{a.title}</div>
+                    <div className="ui-text-xs ui-text-muted ui-truncate">{a.desc}</div>
+                    <div className="ui-text-xs ui-text-muted" style={{ marginTop: 2, opacity: 0.7 }}>{formatRelativeTime(a.time)}</div>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
       </div>
 
       {/* Pending Actions */}
       <div className="ui-card">
-        <div className="ui-card__header"><h3 className="ui-card__title">Pending Actions</h3></div>
+        <div className="ui-card__header"><h3 className="ui-card__title">Quick Actions</h3></div>
         <div className="ui-card__body">
           <div className="ui-grid-3">
-            {PENDING.map(p => {
-              const Icon = p.icon;
-              return (
-                <motion.div key={p.title} whileHover={{ y: -3 }}
-                  style={{ padding: '18px 20px', borderRadius: 16, background: p.bg, border: `1px solid ${p.border}` }}>
-                  <div className="ui-flex ui-flex-gap-2" style={{ marginBottom: 8, alignItems: 'center' }}>
-                    <Icon size={19} color={p.color} />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text)' }}>{p.title}</span>
-                  </div>
-                  <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.5 }}>{p.desc}</p>
-                  <a href={p.href} style={{
-                    display: 'inline-block', padding: '7px 14px', borderRadius: 10,
-                    background: p.color, color: '#fff', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none',
-                  }}>
-                    {p.label}
-                  </a>
-                </motion.div>
-              );
-            })}
+            <motion.div whileHover={{ y: -3 }}
+              style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)' }}>
+              <div className="ui-flex ui-flex-gap-2" style={{ marginBottom: 8, alignItems: 'center' }}>
+                <CheckCircle size={19} color="#10b981" />
+                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text)' }}>All Set!</span>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.5 }}>
+                Your dashboard is ready. Explore events, elections, and more!
+              </p>
+              <a href="/dashboard/events" style={{
+                display: 'inline-block', padding: '7px 14px', borderRadius: 10,
+                background: '#10b981', color: '#fff', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none',
+              }}>
+                Explore Events
+              </a>
+            </motion.div>
+
+            {stats && stats.activeElections > 0 && (
+              <motion.div whileHover={{ y: -3 }}
+                style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                <div className="ui-flex ui-flex-gap-2" style={{ marginBottom: 8, alignItems: 'center' }}>
+                  <Vote size={19} color="#f59e0b" />
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text)' }}>Active Voting</span>
+                </div>
+                <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.5 }}>
+                  {stats.activeElections} election{stats.activeElections > 1 ? 's are' : ' is'} waiting for your vote
+                </p>
+                <a href="/dashboard/elections" style={{
+                  display: 'inline-block', padding: '7px 14px', borderRadius: 10,
+                  background: '#f59e0b', color: '#fff', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none',
+                }}>
+                  Vote Now
+                </a>
+              </motion.div>
+            )}
+
+            <motion.div whileHover={{ y: -3 }}
+              style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(107,163,255,0.1)', border: '1px solid rgba(107,163,255,0.3)' }}>
+              <div className="ui-flex ui-flex-gap-2" style={{ marginBottom: 8, alignItems: 'center' }}>
+                <Award size={19} color="var(--accent)" />
+                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text)' }}>Certificates</span>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.5 }}>
+                Request certificates for your participation and achievements
+              </p>
+              <a href="/dashboard/certificates" style={{
+                display: 'inline-block', padding: '7px 14px', borderRadius: 10,
+                background: 'var(--accent)', color: '#fff', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none',
+              }}>
+                View Certificates
+              </a>
+            </motion.div>
           </div>
         </div>
       </div>

@@ -13,8 +13,12 @@ import { EventDetailsPage } from "./pages/public/EventDetailsPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { EventsPage } from "./pages/events/EventsPage";
+import { useNavigationRefetch } from "./hooks/useNavigationRefetch";
 
 export default function App() {
+  // Force refetch queries on navigation to ensure data is always fresh
+  useNavigationRefetch();
+  
   return (
     <Routes>
       <Route element={<PublicShell />}>

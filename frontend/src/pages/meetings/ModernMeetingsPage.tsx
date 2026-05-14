@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Calendar, MapPin, Users, Video, Clock, Plus, CheckCircle, XCircle, Search, List, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest } from '../../lib/api';
+import { queryKeys } from '../../lib/queryKeys';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { StatsCard } from '../../components/ui/StatsCard';
 import { Button } from '../../components/ui/Button';
@@ -147,9 +148,9 @@ export function ModernMeetingsPage() {
   const [view, setView]             = useState<'list' | 'calendar'>('list');
 
   const { data: meetings = [], isLoading } = useQuery({
-    queryKey: ['meetings', token],
+    queryKey: queryKeys.meetings.all(token!),
     queryFn: () => apiRequest<Meeting[]>('/meetings', { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const canCreate = user?.roles.some(r => ['President', 'General Secretary'].includes(r));

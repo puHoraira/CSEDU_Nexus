@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { apiRequest, normalizeApiError } from "../../lib/api";
+import { queryKeys, invalidateQueries } from "../../lib/queryKeys";
 import { PageScreen } from "../../components/ui/PageScreen";
 
 const SUPPORTED_YEARS = [1, 2, 3, 4, 5];
@@ -92,7 +93,7 @@ export function EventCreatePage() {
         }),
       }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["events"] });
+      await Promise.all(invalidateQueries.events.all(queryClient, token));
       navigate("/dashboard/events");
     },
     onError: (err) => setError(formatValidationMessage(err)),

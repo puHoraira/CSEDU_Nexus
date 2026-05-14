@@ -6,6 +6,7 @@ const { Member } = require("../models/Member");
 const { ApiError } = require("../core/ApiError");
 const { AuditService } = require("./AuditService");
 const { NotificationService } = require("./NotificationService");
+const { annotateAudienceRelevance } = require("../utils/audienceUtils");
 
 class EventService {
   static normalizeVolunteerEligibility(input = {}) {
@@ -141,8 +142,29 @@ class EventService {
     return event;
   }
 
-  static async listEvents() {
-    return Event.find({}).sort({ eventDate: 1 });
+  static async listEvents(requestingUserId = null) {
+    const events = await Event.find({}).sort({ eventDate: 1 });
+
+    if (requestingUserId) {
+      const member = await Member.findOne({ userId: requestingUserId }).select('batch currentYear');
+      if (member) {
+        // Use volunteerEligibility as the audience targeting field for events
+        return events.map(ev => {
+          const obj = ev.toObject();
+          const ve = obj.volunteerEligibility || {};
+          const hasYears   = Array.isArray(ve.allowedYears)   && ve.allowedYears.length > 0;
+          const hasBatches = Array.isArray(ve.allowedBatches) && ve.allowedBatches.length > 0;
+
+          if (!hasYears && !hasBatches) {
+            return { ...obj, _audienceMatch: 'open' };
+          }
+          const yearMatch  = !hasYears   || ve.allowedYears.includes(member.currentYear);
+          const batchMatch = !hasBatches || ve.allowedBatches.includes(member.batch);
+          return { ...obj, _audienceMatch: yearMatch && batchMatch ? 'targeted' : 'excluded' };
+        });
+      }
+    }
+    return events;
   }
 
   static async listEventFeed(eventId) {

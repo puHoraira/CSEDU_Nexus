@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../auth/AuthContext";
 import { apiRequest } from "../../lib/api";
+import { queryKeys } from "../../lib/queryKeys";
 import { PageScreen } from "../../components/ui/PageScreen";
 
 type Event = {
@@ -46,8 +47,9 @@ export function EnhancedEventsPage() {
   });
 
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ["events", token],
+    queryKey: queryKeys.events.all(token),
     queryFn: () => apiRequest<Event[]>("/events", { token }),
+    enabled: Boolean(token),
   });
 
   // Filter and sort events

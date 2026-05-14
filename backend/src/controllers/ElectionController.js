@@ -18,6 +18,11 @@ class ElectionController {
     return ApiResponse.ok(res, rows, "Elections");
   });
 
+  static get = asyncHandler(async (req, res) => {
+    const row = await ElectionService.getElection(req.params.id);
+    return ApiResponse.ok(res, row, "Election details");
+  });
+
   static addCandidate = asyncHandler(async (req, res) => {
     const row = await ElectionService.addCandidate(req.body, req.auth.userId, req.requestMeta.requestId);
     return ApiResponse.created(res, row, "Candidate added");
@@ -39,6 +44,11 @@ class ElectionController {
   });
 
   static updatePhase = asyncHandler(async (req, res) => {
+    console.log('=== UPDATE PHASE CONTROLLER ===');
+    console.log('Params:', req.params);
+    console.log('Body:', req.body);
+    console.log('User:', req.auth.userId);
+    
     const row = await ElectionService.updatePhase(
       req.params.electionId,
       req.body,
@@ -72,6 +82,11 @@ class ElectionController {
   static publishResults = asyncHandler(async (req, res) => {
     const data = await ElectionService.publishResults(req.params.electionId, req.auth.userId, req.requestMeta.requestId);
     return ApiResponse.ok(res, data, "Election results published");
+  });
+
+  static getMyVotes = asyncHandler(async (req, res) => {
+    const votes = await ElectionService.getMyVotes(req.params.electionId, req.auth.userId);
+    return ApiResponse.ok(res, votes, "Your votes");
   });
 }
 

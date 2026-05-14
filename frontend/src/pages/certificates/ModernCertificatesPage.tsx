@@ -51,9 +51,9 @@ export function ModernCertificatesPage() {
   const [modSign, setModSign]   = useState({ signatureName: '', signatureTitle: 'Moderator' });
   const [chairSign, setChairSign] = useState({ signatureName: '', signatureTitle: 'Chairman' });
 
-  const { data: mine = [],  isLoading: loadMine  } = useQuery({ queryKey: ['cert-my', token],    queryFn: () => apiRequest<CertReq[]>('/certificates/my', { token }),                    enabled: Boolean(token) && !loading });
-  const { data: modInbox = [], isLoading: loadMod } = useQuery({ queryKey: ['cert-mod', token],   queryFn: () => apiRequest<CertReq[]>('/certificates/inbox/moderator', { token }),       enabled: Boolean(token && isMod) && !loading });
-  const { data: chairInbox = [], isLoading: loadChair } = useQuery({ queryKey: ['cert-chair', token], queryFn: () => apiRequest<CertReq[]>('/certificates/inbox/chairman', { token }), enabled: Boolean(token && isChair) && !loading });
+  const { data: mine = [],  isLoading: loadMine  } = useQuery({ queryKey: ['cert-my', token],    queryFn: () => apiRequest<CertReq[]>('/certificates/my', { token }),                    enabled: Boolean(token) });
+  const { data: modInbox = [], isLoading: loadMod } = useQuery({ queryKey: ['cert-mod', token],   queryFn: () => apiRequest<CertReq[]>('/certificates/inbox/moderator', { token }),       enabled: Boolean(token && isMod) });
+  const { data: chairInbox = [], isLoading: loadChair } = useQuery({ queryKey: ['cert-chair', token], queryFn: () => apiRequest<CertReq[]>('/certificates/inbox/chairman', { token }), enabled: Boolean(token && isChair) });
 
   const createMut = useMutation({
     mutationFn: () => apiRequest('/certificates/requests', { method: 'POST', token, body: JSON.stringify({ ...form, ecPostHistory: ecPosts, volunteerContributions: vols }) }),
