@@ -16,10 +16,11 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Environment files (never commit secrets)
-.env
-.env.*
-backend/.env
-frontend/.env
+# Note: .env files are included for deployment purposes
+# Make sure to change secrets in production!
+# .env
+# .env.*
+# backend/.env
 frontend/.env.local
 frontend/.env.*.local
 
