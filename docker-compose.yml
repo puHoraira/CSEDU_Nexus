@@ -12,7 +12,7 @@ services:
       NODE_ENV: production
       PORT: 5000
     ports:
-      - "5000:5000"
+      - "5001:5000"  # Using port 5001 externally to avoid potential conflicts
     networks:
       - csedu_net
     healthcheck:
@@ -33,7 +33,7 @@ services:
     container_name: csedu_frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8080:80"  # Using port 8080 to avoid conflict with BusGo
     depends_on:
       backend:
         condition: service_healthy
