@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 
 type CandidateRow = {
   _id: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: 'Submitted' | 'Under_Review' | 'Approved' | 'Rejected' | 'Withdrawn' | 'Pending';
   rejectionReason?: string;
   postId?: { title?: string } | null;
   memberId?: {
@@ -26,11 +26,18 @@ type CandidateRow = {
   };
 };
 
-const STATUS_CFG: Record<string, { variant: 'warning' | 'success' | 'error'; label: string }> = {
-  Pending:  { variant: 'warning', label: 'Pending' },
-  Approved: { variant: 'success', label: 'Approved' },
-  Rejected: { variant: 'error',   label: 'Rejected' },
+const STATUS_CFG: Record<string, { variant: 'warning' | 'success' | 'error' | 'neutral'; label: string }> = {
+  Pending:      { variant: 'warning', label: 'Pending' },
+  Submitted:    { variant: 'warning', label: 'Submitted' },
+  Under_Review: { variant: 'warning', label: 'Under Review' },
+  Approved:     { variant: 'success', label: 'Approved' },
+  Rejected:     { variant: 'error',   label: 'Rejected' },
+  Withdrawn:    { variant: 'neutral', label: 'Withdrawn' },
 };
+
+// Candidates that need review (can be approved/rejected)
+const needsReview = (status: string) =>
+  status === 'Pending' || status === 'Submitted' || status === 'Under_Review';
 
 export function ElectionCandidatesPage() {
   const { id } = useParams();
@@ -43,20 +50,27 @@ export function ElectionCandidatesPage() {
 
   const { data: members = [] } = useQuery({
     queryKey: ['members-for-candidacy', token],
-    queryFn: () => apiRequest<Array<{ _id: string; studentId: string; batch: number; currentYear: number; status: string }>>('/membership/members', { token }),
-    enabled: Boolean(token) && !loading,
+    queryFn: () => apiRequest<Array<{ 
+      _id: string; 
+      studentId: string; 
+      batch: number; 
+      currentYear: number; 
+      status?: string;
+      membershipStatus?: { status: string };
+    }>>('/membership/members', { token }),
+    enabled: Boolean(token),
   });
 
   const { data: posts = [] } = useQuery({
     queryKey: ['ec-posts-for-candidacy', token],
     queryFn: () => apiRequest<Array<{ _id: string; title: string; isActive?: boolean }>>('/governance/ec-posts', { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const { data: candidates = [], isLoading } = useQuery({
     queryKey: ['election-candidates', id, token],
     queryFn: () => apiRequest<CandidateRow[]>(`/elections/${id}/candidates`, { token }),
-    enabled: Boolean(hasValidId && token) && !loading,
+    enabled: Boolean(hasValidId && token),
   });
 
   const addMut = useMutation({
@@ -145,9 +159,15 @@ export function ElectionCandidatesPage() {
                     <label className="ui-input-label">Member *</label>
                     <select className="ui-select" value={form.memberId} onChange={e => setForm(f => ({ ...f, memberId: e.target.value }))} required>
                       <option value="">Select member…</option>
-                      {members.filter(m => m.status === 'Active').map(m => (
-                        <option key={m._id} value={m._id}>{m.studentId} · Batch {m.batch} · Year {m.currentYear}</option>
-                      ))}
+                      {members
+                        .filter(m => {
+                          // Handle both old and new schema
+                          const status = m.membershipStatus?.status || m.status;
+                          return status === 'Active';
+                        })
+                        .map(m => (
+                          <option key={m._id} value={m._id}>{m.studentId} · Batch {m.batch} · Year {m.currentYear}</option>
+                        ))}
                     </select>
                   </div>
                   <div className="ui-input-wrap">
@@ -253,7 +273,7 @@ export function ElectionCandidatesPage() {
                       </p>
                     )}
 
-                    {c.status === 'Pending' && (
+                    {needsReview(c.status) && (
                       <div style={{ display: 'flex', gap: 8 }}>
                         <Button variant="success" size="sm" leftIcon={CheckCircle} isLoading={validateMut.isPending}
                           onClick={() => validateMut.mutate({ candidateId: c._id, action: 'Approved' })}>

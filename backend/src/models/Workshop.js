@@ -9,9 +9,12 @@ const speakerSchema = new mongoose.Schema({
 }, { _id: false });
 
 const materialSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  url:   { type: String, required: true },
-  type:  { type: String, enum: ['pdf', 'video', 'link', 'other'], default: 'link' },
+  title:       { type: String, required: true },
+  url:         { type: String, required: true },
+  type:        { type: String, enum: ['pdf', 'video', 'link', 'slides', 'code', 'image', 'archive', 'other'], default: 'link' },
+  description: { type: String },
+  category:    { type: String },
+  size:        { type: String },
 }, { _id: false });
 
 const workshopSchema = new mongoose.Schema({
@@ -47,6 +50,14 @@ const workshopSchema = new mongoose.Schema({
   materials:        [materialSchema],
   prerequisites:    [{ type: String }],
   learningOutcomes: [{ type: String }],
+
+  // Audience Targeting (batch/year based)
+  targetAudience: {
+    // Empty arrays = open to all
+    allowedYears:   [{ type: Number, min: 1, max: 5 }],  // e.g. [1, 2] = 1st and 2nd year only
+    allowedBatches: [{ type: Number }],                   // e.g. [2021, 2022]
+    programType:    { type: String, enum: ['undergrad', 'masters', 'all'], default: 'all' },
+  },
 
   // Status
   status: {

@@ -24,13 +24,13 @@ export function AdminRoleManagementPage() {
   const rolesQuery = useQuery({
     queryKey: ["admin-roles", token],
     queryFn: () => apiRequest<RoleRow[]>("/admin/roles", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const usersQuery = useQuery({
     queryKey: ["admin-users", token],
     queryFn: () => apiRequest<UserRow[]>("/admin/users", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const assignMutation = useMutation({

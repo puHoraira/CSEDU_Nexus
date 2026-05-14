@@ -63,14 +63,14 @@ export function ApplyCandidatePage() {
   const profileQ = useQuery({
     queryKey: ['my-profile', token],
     queryFn: () => apiRequest<ProfilePayload>('/auth/me', { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   // Fetch all elections
   const electionsQ = useQuery({
     queryKey: ['elections', token],
     queryFn: () => apiRequest<Election[]>('/elections', { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const membership = profileQ.data?.membership;
@@ -100,7 +100,7 @@ export function ApplyCandidatePage() {
       }
       return results;
     },
-    enabled: Boolean(token) && !loading && activeElections.length > 0,
+    enabled: Boolean(token) && activeElections.length > 0,
   });
 
   // Find my member ID from profile

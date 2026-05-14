@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, MapPin, Users, DollarSign, Star, Bell, BellOff, MessageCircle, Send, Megaphone, Clock, Heart, Plus, X } from 'lucide-react';
+import { Calendar, MapPin, Users, DollarSign, Star, Bell, BellOff, MessageCircle, Send, Megaphone, Clock, Heart, Plus, X, Image, Edit2 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { Countdown } from '../../components/ui/Countdown';
 import { formatDateTime, formatRelativeTime } from '../../lib/utils';
+import { usePosterGenerator } from '../../hooks/usePosterGenerator';
 import toast from 'react-hot-toast';
 
 type Event = {
@@ -129,6 +130,7 @@ export function ModernEventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user, token, loading } = useAuth();
   const qc = useQueryClient();
+  const { openPosterGenerator, PosterModal } = usePosterGenerator();
 
   const [showPostForm, setShowPostForm] = useState(false);
   const [showVolForm, setShowVolForm]   = useState(false);
@@ -142,17 +144,17 @@ export function ModernEventDetailPage() {
   const { data: event, isLoading } = useQuery({
     queryKey: ['event', id, token],
     queryFn: () => apiRequest<Event>(`/events/${id}`, { token }),
-    enabled: Boolean(id && token) && !loading,
+    enabled: Boolean(id && token),
   });
   const { data: posts = [], isLoading: postsLoading } = useQuery({
     queryKey: ['event-feed', id, token],
     queryFn: () => apiRequest<Post[]>(`/events/${id}/feed`, { token }),
-    enabled: Boolean(id && token) && !loading,
+    enabled: Boolean(id && token),
   });
   const { data: eligibility } = useQuery({
     queryKey: ['vol-eligibility', id, token],
     queryFn: () => apiRequest<VolEligibility>(`/events/${id}/volunteer-eligibility`, { token }),
-    enabled: Boolean(id && token) && !loading,
+    enabled: Boolean(id && token),
   });
 
   const followMut = useMutation({
@@ -188,6 +190,7 @@ export function ModernEventDetailPage() {
 
   const isFollowing = event.followers?.includes(user?.id ?? '');
   const canPost = user?.roles.some(r => ['President','Vice President','General Secretary','AGS (Organization)','Moderator'].includes(r)) || event.createdBy._id === user?.id;
+  const canEdit = user?.roles.some(r => ['President','Vice President','General Secretary','AGS (Organization)','Moderator'].includes(r)) || event.createdBy._id === user?.id;
   const regPct  = event.registrationSettings?.maxParticipants
     ? Math.min(100, ((event.stats?.totalRegistrations ?? 0) / event.registrationSettings.maxParticipants) * 100) : 0;
 
@@ -198,6 +201,11 @@ export function ModernEventDetailPage() {
         description={event.shortDescription}
         backButton
         breadcrumbs={[{ label: 'Events', href: '/dashboard/events' }, { label: event.title }]}
+        actions={canEdit && (
+          <Button variant="outline" leftIcon={Edit2} href={`/dashboard/events/${id}/edit`}>
+            Edit Event
+          </Button>
+        )}
       />
 
       {/* Hero */}
@@ -225,9 +233,15 @@ export function ModernEventDetailPage() {
       )}
 
       {/* Two-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) minmax(280px,1fr)', gap: 20, alignItems: 'start' }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'minmax(0,1.6fr) minmax(280px,1fr)', 
+        gap: 20, 
+        alignItems: 'start' 
+      }} 
+      className="event-detail-layout">
         {/* ── Main ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
           {/* About */}
           <div className="ui-card">
             <div className="ui-card__header"><h3 className="ui-card__title">About This Event</h3></div>
@@ -385,7 +399,7 @@ export function ModernEventDetailPage() {
         </div>
 
         {/* ── Sidebar ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
           {/* Event Details */}
           <div className="ui-card">
             <div className="ui-card__header"><h3 className="ui-card__title">Event Details</h3></div>
@@ -464,6 +478,20 @@ export function ModernEventDetailPage() {
               >
                 {isFollowing ? 'Unfollow' : 'Follow Event'}
               </Button>
+              {canPost && (
+                <Button fullWidth variant="outline" leftIcon={Image}
+                  onClick={() => openPosterGenerator({
+                    type: 'event',
+                    title: event.title,
+                    subtitle: event.shortDescription,
+                    date: event.eventDate,
+                    location: event.venue,
+                    description: event.description.substring(0, 120),
+                    theme: 'gold',
+                  })}>
+                  Generate Poster
+                </Button>
+              )}
               {eligibility?.isEligible && !eligibility.existingApplication && (
                 <Button fullWidth variant="success" leftIcon={Plus} onClick={() => setShowVolForm(v => !v)}>
                   Apply as Volunteer
@@ -544,6 +572,9 @@ export function ModernEventDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Poster Generator Modal */}
+      {PosterModal}
     </div>
   );
 }

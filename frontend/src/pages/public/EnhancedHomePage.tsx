@@ -85,28 +85,28 @@ export function EnhancedHomePage() {
   const heroSlides = [
     {
       id: "1",
-      imageUrl: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200&h=600&fit=crop",
+      imageUrl: "/images/cseduStudentCLubLogo.png",
       title: "Welcome to CSEDU Students' Club",
       description: "Fostering innovation, leadership, and community engagement in Computer Science and Engineering",
       link: "/about"
     },
     {
       id: "2",
-      imageUrl: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=1200&h=600&fit=crop",
+      imageUrl: "/images/csedu_logo.png",
       title: "Department of Computer Science and Engineering",
       description: "University of Dhaka - Leading the way in technology education and research",
       link: "/about"
     },
     {
       id: "3",
-      imageUrl: "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1200&h=600&fit=crop",
-      title: "Join Our Community",
+      imageUrl: "/images/du_logo.png",
+      title: "University of Dhaka",
       description: "Be part of a vibrant community of innovators, leaders, and changemakers",
       link: "/auth/register"
     },
     {
       id: "4",
-      imageUrl: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&h=600&fit=crop",
+      imageUrl: "/images/cseduStudentCLubLogo.png",
       title: "Events & Activities",
       description: "Participate in workshops, seminars, cultural programs, and technical competitions",
       link: "/events"
@@ -224,7 +224,7 @@ export function EnhancedHomePage() {
             </div>
             <div className="welcome-image">
               <img 
-                src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&h=800&fit=crop" 
+                src="/images/hudai.png" 
                 alt="CSEDU Students" 
                 className="welcome-img"
               />

@@ -1,9 +1,10 @@
 import { FormEvent, useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Vote, Calendar, Clock, CheckCircle, Plus, Users, Trophy, Play, Square, BarChart2 } from 'lucide-react';
+import { Vote, Calendar, Clock, CheckCircle, Plus, Users, Trophy, Play, Square, BarChart2, Image } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
+import { queryKeys, invalidateQueries } from '../../lib/queryKeys';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { StatsCard } from '../../components/ui/StatsCard';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +13,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { Alert } from '../../components/ui/Alert';
 import { formatDateTime } from '../../lib/utils';
+import { usePosterGenerator } from '../../hooks/usePosterGenerator';
 import toast from 'react-hot-toast';
 
 type Election = { _id: string; name: string; phase: number; startsOn: string; endsOn: string; status: 'Draft' | 'Active' | 'Closed' };
@@ -21,6 +23,19 @@ const STATUS_CFG: Record<string, { label: string; variant: 'success' | 'warning'
   Draft:  { label: 'Draft',  variant: 'neutral',  icon: Clock },
   Active: { label: 'Active', variant: 'success',  icon: Play },
   Closed: { label: 'Closed', variant: 'neutral',  icon: Square },
+  // Backend complex statuses
+  Setup: { label: 'Draft', variant: 'neutral', icon: Clock },
+  Phase1_Active: { label: 'Active', variant: 'success', icon: Play },
+  Phase1_Completed: { label: 'Closed', variant: 'neutral', icon: Square },
+  Phase2_Active: { label: 'Active', variant: 'success', icon: Play },
+  Phase2_Completed: { label: 'Closed', variant: 'neutral', icon: Square },
+  Completed: { label: 'Closed', variant: 'neutral', icon: Square },
+  Cancelled: { label: 'Cancelled', variant: 'warning', icon: Square },
+};
+
+// Helper function to check if election is active
+const isElectionActive = (status: string) => {
+  return status === 'Active' || status === 'Phase1_Active' || status === 'Phase2_Active';
 };
 
 const phaseLabel = (p: number) => p === 1 ? 'Phase 1 — Batch Representatives' : 'Phase 2 — Office Bearers';
@@ -28,6 +43,7 @@ const phaseLabel = (p: number) => p === 1 ? 'Phase 1 — Batch Representatives' 
 export function ModernElectionsPage() {
   const { token, user, loading } = useAuth();
   const qc = useQueryClient();
+  const { openPosterGenerator, PosterModal } = usePosterGenerator();
 
   const canCreate = Boolean(user?.roles.some(r => ['Election Commissioner', 'Moderator'].includes(r)));
   const canRead   = Boolean(user?.roles.some(r =>
@@ -38,14 +54,14 @@ export function ModernElectionsPage() {
   const [form, setForm] = useState({ name: '', termId: '', phase: 1, startsOn: '', endsOn: '' });
 
   const { data: elections = [], isLoading } = useQuery({
-    queryKey: ['elections', token],
+    queryKey: queryKeys.elections.all(token),
     queryFn: () => apiRequest<Election[]>('/elections', { token }),
-    enabled: Boolean(token && canRead) && !loading,
+    enabled: Boolean(token && canRead),
   });
   const { data: terms = [] } = useQuery({
-    queryKey: ['ec-terms-for-election', token],
+    queryKey: queryKeys.governance.ecTermsForElection(token),
     queryFn: () => apiRequest<Term[]>('/governance/ec-terms', { token }),
-    enabled: Boolean(token && canCreate) && !loading,
+    enabled: Boolean(token && canCreate),
   });
 
   const createMut = useMutation({
@@ -54,7 +70,7 @@ export function ModernElectionsPage() {
       body: JSON.stringify({ ...form, startsOn: new Date(form.startsOn).toISOString(), endsOn: new Date(form.endsOn).toISOString() }),
     }),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ['elections', token] });
+      await Promise.all(invalidateQueries.elections.all(qc, token));
       setForm({ name: '', termId: '', phase: 1, startsOn: '', endsOn: '' });
       setShowForm(false);
       toast.success('Election created');
@@ -63,18 +79,36 @@ export function ModernElectionsPage() {
   });
 
   const statusMut = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: 'Draft' | 'Active' | 'Closed' }) =>
-      apiRequest(`/elections/${id}/phase`, { method: 'PATCH', token, body: JSON.stringify({ status }) }),
-    onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['elections', token] }); toast.success('Status updated'); },
+    mutationFn: ({ id, status, phase }: { id: string; status: string; phase?: number }) =>
+      apiRequest(`/elections/${id}/phase`, { 
+        method: 'PATCH', 
+        token, 
+        body: JSON.stringify({ status, ...(phase && { phase }) }) 
+      }),
+    onSuccess: async (_data, variables) => { 
+      await Promise.all(invalidateQueries.elections.all(qc, token)); 
+      toast.success('Status updated'); 
+    },
     onError: e => toast.error(normalizeApiError(e)),
   });
 
-  const stats = useMemo(() => ({
-    total:  elections.length,
-    active: elections.filter(e => e.status === 'Active').length,
-    draft:  elections.filter(e => e.status === 'Draft').length,
-    closed: elections.filter(e => e.status === 'Closed').length,
-  }), [elections]);
+  const stats = useMemo(() => {
+    // Map complex backend statuses to simple frontend categories
+    const getSimpleStatus = (status: string) => {
+      if (status === 'Draft' || status === 'Setup') return 'draft';
+      if (isElectionActive(status)) return 'active';
+      if (status === 'Completed' || status.includes('Completed')) return 'closed';
+      if (status === 'Cancelled') return 'closed';
+      return 'draft';
+    };
+    
+    return {
+      total:  elections.length,
+      active: elections.filter(e => getSimpleStatus(e.status) === 'active').length,
+      draft:  elections.filter(e => getSimpleStatus(e.status) === 'draft').length,
+      closed: elections.filter(e => getSimpleStatus(e.status) === 'closed').length,
+    };
+  }, [elections]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -201,9 +235,10 @@ export function ModernElectionsPage() {
             const cfg = STATUS_CFG[el.status] ?? STATUS_CFG.Draft;
             const StatusIcon = cfg.icon;
             const now    = new Date();
-            const starts = new Date(el.startsOn);
-            const ends   = new Date(el.endsOn);
-            const isActive = el.status === 'Active';
+            // Handle missing dates with fallbacks
+            const starts = el.startsOn ? new Date(el.startsOn) : now;
+            const ends   = el.endsOn ? new Date(el.endsOn) : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            const isActive = isElectionActive(el.status);
             const pct = isActive ? Math.min(100, ((now.getTime() - starts.getTime()) / (ends.getTime() - starts.getTime())) * 100) : 0;
             const daysLeft = Math.max(0, Math.ceil((ends.getTime() - now.getTime()) / 86400000));
 
@@ -265,13 +300,25 @@ export function ModernElectionsPage() {
                         {canCreate && (
                           <>
                             <Button variant="ghost" size="sm" href={`/dashboard/elections/${el._id}/candidates`} leftIcon={Users}>Candidates</Button>
+                            <Button variant="outline" size="sm" leftIcon={Image}
+                              onClick={() => openPosterGenerator({
+                                type: 'election',
+                                title: 'Choose Your Representative',
+                                subtitle: el.name,
+                                date: el.startsOn,
+                                theme: 'blue',
+                              })}>
+                              Generate Poster
+                            </Button>
                             {el.status === 'Draft' && (
-                              <Button variant="success" size="sm" leftIcon={Play} isLoading={statusMut.isPending}
-                                onClick={() => statusMut.mutate({ id: el._id, status: 'Active' })}>Activate</Button>
+                              <Button variant="success" size="sm" leftIcon={Play} 
+                                isLoading={statusMut.isPending && statusMut.variables?.id === el._id}
+                                onClick={() => statusMut.mutate({ id: el._id, status: 'Active', phase: el.phase })}>Activate</Button>
                             )}
                             {isActive && (
-                              <Button variant="danger" size="sm" leftIcon={Square} isLoading={statusMut.isPending}
-                                onClick={() => statusMut.mutate({ id: el._id, status: 'Closed' })}>Close</Button>
+                              <Button variant="danger" size="sm" leftIcon={Square} 
+                                isLoading={statusMut.isPending && statusMut.variables?.id === el._id}
+                                onClick={() => statusMut.mutate({ id: el._id, status: 'Closed', phase: el.phase })}>Close</Button>
                             )}
                           </>
                         )}
@@ -284,6 +331,9 @@ export function ModernElectionsPage() {
           })}
         </div>
       )}
+
+      {/* Poster Generator Modal */}
+      {PosterModal}
     </div>
   );
 }

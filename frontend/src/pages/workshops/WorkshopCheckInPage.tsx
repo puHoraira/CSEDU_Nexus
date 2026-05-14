@@ -32,7 +32,7 @@ export function WorkshopCheckInPage() {
   const { data: workshop } = useQuery({
     queryKey: ['workshop', id],
     queryFn: () => apiRequest<Workshop>(`/workshops/${id}`, { token }),
-    enabled: Boolean(id) && !loading,
+    enabled: Boolean(id),
   });
 
   const checkInMut = useMutation({

@@ -16,25 +16,14 @@ const router = express.Router();
 
 router.get("/", authenticate, authorize("election.read"), ElectionController.list);
 router.post("/", authenticate, authorize("election.create"), validate(createElectionSchema), ElectionController.create);
+
+// Specific candidate routes BEFORE /:id to avoid conflicts
 router.post(
   "/candidates",
   authenticate,
   authorize("election.candidate.add"),
   validate(addCandidateSchema),
   ElectionController.addCandidate
-);
-router.get(
-  "/:electionId/candidates",
-  authenticate,
-  authorize("election.read"),
-  ElectionController.listCandidates
-);
-router.patch(
-  "/:electionId/phase",
-  authenticate,
-  authorize("election.commission.manage"),
-  validate(updateElectionPhaseSchema),
-  ElectionController.updatePhase
 );
 router.patch(
   "/candidates/:candidateId/validate",
@@ -50,13 +39,18 @@ router.patch(
   validate(cancelCandidateSchema),
   ElectionController.cancelCandidate
 );
+
+// Vote routes
 router.post("/votes", authenticate, authorize("election.vote.cast"), validate(castVoteSchema), ElectionController.castVote);
+
+// Election-specific routes
+router.get("/:electionId/candidates", authenticate, authorize("election.read"), ElectionController.listCandidates);
+router.patch("/:electionId/phase", authenticate, authorize("election.commission.manage"), validate(updateElectionPhaseSchema), ElectionController.updatePhase);
+router.get("/:electionId/my-votes", authenticate, ElectionController.getMyVotes);
 router.get("/:electionId/results", authenticate, ElectionController.results);
-router.post(
-  "/:electionId/publish-results",
-  authenticate,
-  authorize("election.results.publish"),
-  ElectionController.publishResults
-);
+router.post("/:electionId/publish-results", authenticate, authorize("election.results.publish"), ElectionController.publishResults);
+
+// Generic get by ID LAST to avoid catching other routes
+router.get("/:id", authenticate, authorize("election.read"), ElectionController.get);
 
 module.exports = { electionRoutes: router };

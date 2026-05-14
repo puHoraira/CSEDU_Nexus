@@ -66,8 +66,11 @@ export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOpt
 /**
  * Format date with time
  */
-export function formatDateTime(date: string | Date): string {
-  return new Date(date).toLocaleString('en-US', {
+export function formatDateTime(date: string | Date | undefined | null): string {
+  if (!date) return 'Not set';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return 'Invalid date';
+  return d.toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

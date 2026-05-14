@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Calendar, MapPin, Users, Clock, Search, Plus, Star, TrendingUp, DollarSign, Filter, Grid3x3, List } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest } from '../../lib/api';
+import { queryKeys } from '../../lib/queryKeys';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { StatsCard } from '../../components/ui/StatsCard';
 import { Button } from '../../components/ui/Button';
@@ -42,9 +43,9 @@ export function ModernEventsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ['events', token],
+    queryKey: queryKeys.events.all(token!),
     queryFn: () => apiRequest<Event[]>('/events', { token }),
-    enabled: !loading,
+    enabled: Boolean(token),
   });
 
   const filtered = useMemo(() => {

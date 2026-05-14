@@ -39,7 +39,7 @@ export function NotificationsPage() {
   const listQuery = useQuery({
     queryKey: ['notifications', token, unreadOnly],
     queryFn: () => apiRequest<NotificationListPayload>(`/notifications?limit=50&unreadOnly=${unreadOnly}`, { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const markReadMut = useMutation({

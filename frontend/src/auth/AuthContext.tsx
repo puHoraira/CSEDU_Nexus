@@ -27,9 +27,9 @@ type AuthContextValue = {
   user: ApiUser | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (input: RegisterInput) => Promise<void>;
-  registerTeacher: (input: RegisterTeacherInput) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthPayload>;
+  register: (input: RegisterInput) => Promise<AuthPayload>;
+  registerTeacher: (input: RegisterTeacherInput) => Promise<AuthPayload>;
   setUserProfile: (nextUser: ApiUser) => void;
   logout: () => void;
 };
@@ -93,28 +93,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(result.accessToken);
   }
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string): Promise<AuthPayload> {
     const result = await apiRequest<AuthPayload>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
     await applyAuth(result);
+    return result;
   }
 
-  async function register(input: RegisterInput) {
+  async function register(input: RegisterInput): Promise<AuthPayload> {
     const result = await apiRequest<AuthPayload>("/auth/register", {
       method: "POST",
       body: JSON.stringify(input),
     });
     await applyAuth(result);
+    return result;
   }
 
-  async function registerTeacher(input: RegisterTeacherInput) {
+  async function registerTeacher(input: RegisterTeacherInput): Promise<AuthPayload> {
     const result = await apiRequest<AuthPayload>("/auth/register-teacher", {
       method: "POST",
       body: JSON.stringify(input),
     });
     await applyAuth(result);
+    return result;
   }
 
   function logout() {

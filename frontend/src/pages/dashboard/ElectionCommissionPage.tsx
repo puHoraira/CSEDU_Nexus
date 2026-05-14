@@ -22,14 +22,14 @@ export function ElectionCommissionPage() {
   const elections = useQuery({
     queryKey: ["commission-elections", token],
     queryFn: () => apiRequest<Election[]>("/elections", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const candidates = useQuery({
     queryKey: ["commission-candidates", token],
     queryFn: () =>
       apiRequest<ModeratorDetailsPayload>("/moderator/details", { token }).then((data) => data.pendingCandidates || []),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const phaseMutation = useMutation({

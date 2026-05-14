@@ -101,6 +101,13 @@ const meetingSchema = new mongoose.Schema(
       enum: ["EC_Meeting", "General_Body", "Committee", "Planning", "Review", "Other"],
       default: "EC_Meeting"
     },
+
+    // Audience Targeting (batch/year based)
+    targetAudience: {
+      allowedYears:   [{ type: Number, min: 1, max: 5 }],
+      allowedBatches: [{ type: Number }],
+      programType:    { type: String, enum: ['undergrad', 'masters', 'all'], default: 'all' },
+    },
     
     // Status & Lifecycle
     status: {

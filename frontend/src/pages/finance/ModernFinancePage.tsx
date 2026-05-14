@@ -30,7 +30,7 @@ export function ModernFinancePage() {
   const { data: ledger, isLoading } = useQuery({
     queryKey: ['finance-overview', token],
     queryFn: () => apiRequest<LedgerData>('/finance/ledger', { token }),
-    enabled: Boolean(token && canRead) && !loading,
+    enabled: Boolean(token && canRead),
   });
 
   const recentRows = ledger?.rows?.slice(0, 8) ?? [];

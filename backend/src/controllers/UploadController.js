@@ -30,6 +30,23 @@ class UploadController {
     
     return ApiResponse.ok(res, { url: base64Document }, "Document uploaded successfully");
   });
+
+  // General file upload
+  static uploadFile = asyncHandler(async (req, res) => {
+    if (!req.file) {
+      throw new ApiError(400, "No file uploaded");
+    }
+
+    // Convert to base64 data URL
+    const base64File = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    
+    return ApiResponse.ok(res, { 
+      url: base64File,
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    }, "File uploaded successfully");
+  });
 }
 
 module.exports = { UploadController };

@@ -60,6 +60,33 @@ class MembershipController {
     const item = await MembershipService.grantAlumniRole(req.params.id, req.auth.userId, req.requestMeta.requestId);
     return ApiResponse.ok(res, item, "Alumni role granted");
   });
+
+  // Year correction requests
+  static requestYearCorrection = asyncHandler(async (req, res) => {
+    const item = await MembershipService.requestYearCorrection(
+      req.auth.userId,
+      req.body.requestedYear,
+      req.body.reason,
+      req.requestMeta.requestId
+    );
+    return ApiResponse.created(res, item, "Year correction request submitted");
+  });
+
+  static listPendingYearCorrectionRequests = asyncHandler(async (_req, res) => {
+    const items = await MembershipService.listPendingYearCorrectionRequests();
+    return ApiResponse.ok(res, items, "Pending year correction requests");
+  });
+
+  static reviewYearCorrectionRequest = asyncHandler(async (req, res) => {
+    const item = await MembershipService.reviewYearCorrectionRequest(
+      req.params.id,
+      req.auth.userId,
+      req.body.action,
+      req.body.reviewNote,
+      req.requestMeta.requestId
+    );
+    return ApiResponse.ok(res, item, `Year correction request ${req.body.action.toLowerCase()}`);
+  });
 }
 
 module.exports = { MembershipController };

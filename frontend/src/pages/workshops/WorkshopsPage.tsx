@@ -51,7 +51,7 @@ export function WorkshopsPage() {
   const { data: workshops = [], isLoading } = useQuery({
     queryKey: ['workshops', token],
     queryFn: () => apiRequest<Workshop[]>('/workshops', { token }),
-    enabled: !loading,
+    enabled: Boolean(token),
   });
 
   const filtered = useMemo(() => {

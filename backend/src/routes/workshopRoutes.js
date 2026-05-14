@@ -37,6 +37,7 @@ router.post('/check-in', authenticate, WorkshopController.checkIn);
 
 // Materials management
 router.post('/:id/materials',          authenticate, WorkshopController.addMaterial);
+router.put('/:id/materials/:index',    authenticate, WorkshopController.editMaterial);
 router.delete('/:id/materials/:index', authenticate, WorkshopController.removeMaterial);
 
 module.exports = { workshopRoutes: router };

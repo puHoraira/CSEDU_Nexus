@@ -219,6 +219,110 @@ class MembershipService {
 
     return { memberId: member._id.toString(), userId: member.userId.toString(), role: "Alumni" };
   }
+
+  // ── Year Correction Requests ──────────────────────────────────────────────
+
+  static async requestYearCorrection(actorUserId, requestedYear, reason, requestId) {
+    const member = await Member.findOne({ userId: actorUserId });
+    if (!member) throw new ApiError(404, "Member record not found");
+
+    if (member.yearCorrectionRequest?.status === "Pending") {
+      throw new ApiError(409, "You already have a pending year correction request. Wait for the moderator to review it before submitting a new one.");
+    }
+
+    if (requestedYear < 1 || requestedYear > 5) {
+      throw new ApiError(400, "Year must be between 1 and 5");
+    }
+
+    member.yearCorrectionRequest = {
+      status: "Pending",
+      requestedYear,
+      reason: reason || "",
+      requestedAt: new Date(),
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewNote: "",
+    };
+    await member.save();
+
+    await AuditService.log({
+      actorId: actorUserId,
+      action: "YEAR_CORRECTION_REQUESTED",
+      resource: "Member",
+      resourceId: member._id.toString(),
+      requestId,
+      metadata: { requestedYear, currentYear: member.currentYear },
+    });
+
+    await NotificationService.createForRoleNames(["Moderator"], {
+      title: "Year correction request submitted",
+      message: `Student ${member.studentId} has requested a year correction to Year ${requestedYear}.`,
+      category: "Membership",
+      actionUrl: "/dashboard/moderator",
+      entityType: "Member",
+      entityId: member._id.toString(),
+    });
+
+    return member.yearCorrectionRequest;
+  }
+
+  static async listPendingYearCorrectionRequests() {
+    return Member.find({ "yearCorrectionRequest.status": "Pending" })
+      .populate("userId", "firstName lastName email")
+      .select("studentId batch currentYear session yearCorrectionRequest userId")
+      .sort({ "yearCorrectionRequest.requestedAt": 1 });
+  }
+
+  static async reviewYearCorrectionRequest(memberId, actorId, action, reviewNote, requestId) {
+    const member = await Member.findById(memberId).populate("userId", "firstName lastName email");
+    if (!member) throw new ApiError(404, "Member not found");
+    if (member.yearCorrectionRequest?.status !== "Pending") {
+      throw new ApiError(400, "No pending year correction request for this member");
+    }
+
+    if (!["Approved", "Rejected"].includes(action)) {
+      throw new ApiError(400, "Action must be Approved or Rejected");
+    }
+
+    member.yearCorrectionRequest.status = action;
+    member.yearCorrectionRequest.reviewedBy = actorId;
+    member.yearCorrectionRequest.reviewedAt = new Date();
+    member.yearCorrectionRequest.reviewNote = reviewNote || "";
+
+    if (action === "Approved") {
+      member.currentYear = member.yearCorrectionRequest.requestedYear;
+    }
+
+    await member.save();
+
+    await AuditService.log({
+      actorId,
+      action: `YEAR_CORRECTION_${action.toUpperCase()}`,
+      resource: "Member",
+      resourceId: member._id.toString(),
+      requestId,
+      metadata: {
+        requestedYear: member.yearCorrectionRequest.requestedYear,
+        newYear: action === "Approved" ? member.currentYear : undefined,
+        reviewNote,
+      },
+    });
+
+    if (member.userId) {
+      await NotificationService.createForUser(member.userId._id || member.userId, {
+        title: `Year correction request ${action.toLowerCase()}`,
+        message: action === "Approved"
+          ? `Your year has been updated to Year ${member.currentYear}.`
+          : `Your year correction request was rejected. ${reviewNote ? `Reason: ${reviewNote}` : ""}`,
+        category: "Membership",
+        actionUrl: "/dashboard/profile",
+        entityType: "Member",
+        entityId: member._id.toString(),
+      });
+    }
+
+    return member;
+  }
 }
 
 module.exports = { MembershipService };

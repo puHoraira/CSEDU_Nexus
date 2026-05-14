@@ -81,13 +81,13 @@ export function ModeratorConstitutionEditorPage() {
   const constitutionQuery = useQuery({
     queryKey: ["moderator-constitution-editor-active", token],
     queryFn: () => apiRequest<ConstitutionDoc | null>("/governance/constitution", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const constitutionVersionsQuery = useQuery({
     queryKey: ["moderator-constitution-editor-versions", token],
     queryFn: () => apiRequest<ConstitutionDoc[]>("/governance/constitution/versions", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const constitutionSaveMutation = useMutation({

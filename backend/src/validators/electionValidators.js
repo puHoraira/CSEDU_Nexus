@@ -14,7 +14,10 @@ const createElectionSchema = z.object({
 const addCandidateSchema = z.object({
   electionId: z.string().min(10),
   memberId: z.string().min(10),
-  postId: z.string().min(10).optional().nullable(),
+  postId: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? null : val,
+    z.string().min(10).nullable()
+  ),
   memberEcYears: z.number().int().min(0).default(0),
 });
 

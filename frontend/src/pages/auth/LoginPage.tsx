@@ -5,6 +5,16 @@ import { normalizeApiError } from "../../lib/api";
 import { PageScreen } from "../../components/ui/PageScreen";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 
+/** Returns the best landing page for a given set of roles. */
+function getRoleHomePage(roles: string[]): string {
+  if (roles.includes("Moderator"))           return "/dashboard/moderator";
+  if (roles.includes("Chief Patron"))        return "/dashboard/chief-patron";
+  if (roles.includes("Election Commissioner")) return "/dashboard/election-commission";
+  if (roles.includes("System Admin"))        return "/dashboard/admin";
+  if (roles.includes("Alumni"))              return "/dashboard/alumni";
+  return "/dashboard/home";
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -18,8 +28,8 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      await login(email, password);
-      navigate("/dashboard/home");
+      const result = await login(email, password);
+      navigate(getRoleHomePage(result.user.roles));
     } catch (err) {
       setError(normalizeApiError(err));
     } finally {

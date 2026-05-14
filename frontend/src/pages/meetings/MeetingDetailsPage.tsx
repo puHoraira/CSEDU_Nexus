@@ -10,10 +10,11 @@ type MeetingRow = { _id: string; roomId?: string; meetingMode: string; title: st
 
 export function MeetingDetailsPage() {
   const { id } = useParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { data = [] } = useQuery({ queryKey: ["meetings", token], queryFn: () => apiRequest<MeetingRow[]>("/meetings", { token }), enabled: Boolean(token) });
   const meeting = useMemo(() => data.find((item) => item._id === id), [data, id]);
   const meetingMode = meeting?.meetingMode || (meeting?.roomId ? "Online" : "Offline");
+  const canEdit = user?.roles.some(r => ['President', 'General Secretary', 'Moderator'].includes(r));
 
   return (
     <PageScreen title="Meeting Details" subtitle="Minutes, decisions, and meeting status.">
@@ -30,6 +31,7 @@ export function MeetingDetailsPage() {
           <div className="button-row">
             {meetingMode === "Online" ? <Link className="primary-button" to={`/dashboard/meetings/${meeting._id}/room`}>Open Zego Room</Link> : <span className="chip">Offline meeting</span>}
             <Link className="secondary-button" to={`/dashboard/meetings/${meeting._id}/attendance`}>Attendance</Link>
+            {canEdit && <Link className="secondary-button" to={`/dashboard/meetings/${meeting._id}/edit`}>Edit Meeting</Link>}
           </div>
         </section>
       ) : (

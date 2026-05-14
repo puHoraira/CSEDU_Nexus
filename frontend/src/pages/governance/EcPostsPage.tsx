@@ -15,7 +15,7 @@ export function EcPostsPage() {
   const { data = [] } = useQuery({
     queryKey: ["ec-posts", token],
     queryFn: () => apiRequest<PostRow[]>("/governance/ec-posts", { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   const mutation = useMutation({

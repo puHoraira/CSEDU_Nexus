@@ -16,6 +16,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Spinner } from '../../components/ui/Spinner';
 import { Alert } from '../../components/ui/Alert';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
+import { YearCorrectionRequest } from '../../components/membership/YearCorrectionRequest';
 import toast from 'react-hot-toast';
 
 type ProfilePayload = {
@@ -29,6 +30,14 @@ type ProfilePayload = {
     academicRecord?: { currentCgpa?: number };
     attendanceRecord?: { overallAttendancePercentage?: number };
     electionEligibility?: { isEligibleForVoting?: boolean; isEligibleForCandidacy?: boolean };
+    yearCorrectionRequest?: {
+      status: 'None' | 'Pending' | 'Approved' | 'Rejected';
+      requestedYear?: number;
+      reason?: string;
+      requestedAt?: string;
+      reviewedAt?: string;
+      reviewNote?: string;
+    };
   } | null;
   account: { isActive: boolean; joinedAt: string; updatedAt: string; profileCompleteness?: number };
 };
@@ -52,7 +61,7 @@ export function ModernProfilePage() {
   const profileQ = useQuery({
     queryKey: ['my-profile', token],
     queryFn: () => apiRequest<ProfilePayload>('/auth/me', { token }),
-    enabled: Boolean(token) && !loading,
+    enabled: Boolean(token),
   });
 
   useEffect(() => {
@@ -253,6 +262,16 @@ export function ModernProfilePage() {
                 )}
               </div>
             </div>
+          )}
+
+          {/* Year Correction Request */}
+          {isStudent && profileQ.data?.membership && (
+            <YearCorrectionRequest
+              currentYear={profileQ.data.membership.currentYear}
+              batch={profileQ.data.membership.batch}
+              yearCorrectionRequest={profileQ.data.membership.yearCorrectionRequest}
+              onRefresh={() => profileQ.refetch()}
+            />
           )}
         </div>
 
