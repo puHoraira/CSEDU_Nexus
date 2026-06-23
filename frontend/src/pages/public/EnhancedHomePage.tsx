@@ -41,28 +41,28 @@ export function EnhancedHomePage() {
   // Fallback leadership messages if no dynamic messages are available
   const fallbackLeadershipMessages = [
     {
-      name: "Prof. Dr. Mohammad Mahfuzul Islam",
+      name: "Dr. Md. Abdur Razzaque",
       title: "Chief Patron",
       designation: "Chairman, Department of CSE, University of Dhaka",
       message: "The CSEDU Students' Club represents the spirit of innovation and collaboration that defines our department. I am proud to see our students taking initiative in organizing events, workshops, and activities that enrich their academic journey and contribute to the broader community. This platform not only develops technical skills but also nurtures leadership, teamwork, and social responsibility.",
       imageUrl: ""
     },
     {
-      name: "Dr. Md. Abdur Razzaque",
+      name: "Fahim Arefin",
       title: "Moderator",
       designation: "Student Advisor, Department of CSE",
       message: "As moderator of the CSEDU Students' Club, I have witnessed firsthand the dedication and enthusiasm of our students. The club serves as a bridge between academic learning and practical application, providing opportunities for students to showcase their talents, learn from each other, and build lasting connections. I encourage all students to actively participate and make the most of this platform.",
       imageUrl: ""
     },
     {
-      name: "Md. Rakibul Hasan",
+      name: "Ronaldo",
       title: "President",
       designation: "CSEDU Students' Club 2024",
       message: "It is an honor to serve as President of the CSEDU Students' Club. Our mission is to create an inclusive environment where every member can thrive, learn, and contribute. This year, we are focused on organizing impactful events, fostering innovation, and strengthening our community bonds. Together, we will continue the legacy of excellence and make meaningful contributions to our department and society.",
       imageUrl: ""
     },
     {
-      name: "Fatema Tuz Johora",
+      name: "Messi",
       title: "General Secretary",
       designation: "CSEDU Students' Club 2024",
       message: "As General Secretary, my goal is to ensure smooth coordination of all club activities and maintain transparent communication among members. We are committed to organizing diverse events that cater to different interests - from technical workshops to cultural festivals. I invite all members to actively participate, share ideas, and help us build a stronger, more vibrant club community.",
