@@ -38,3 +38,9 @@ Thumbs.db
 # Temporary
 *.tmp
 *.temp
+
+# Documentation files (keep locally, exclude from Git except README.md)
+*.md
+!README.md
+!backend/README.md
+!frontend/README.md
