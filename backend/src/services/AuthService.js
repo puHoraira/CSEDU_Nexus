@@ -5,6 +5,7 @@ const { Member } = require("../models/Member");
 const { Role } = require("../models/Role");
 const { UserRole } = require("../models/UserRole");
 const { TokenService } = require("./TokenService");
+const { EmailService } = require("./EmailService");
 const { AccessService } = require("./AccessService");
 const { AuditService } = require("./AuditService");
 const { policyRegistry } = require("../policies");
@@ -23,6 +24,8 @@ class AuthService {
       experience: user.experience || "",
       designation: user.designation || "",
       profileCompleteness: user.profileCompleteness || 0,
+      emailVerified: user.emailVerified || false,
+      isVerified: user.isVerified || false,
       roles,
       membership: member ? {
         studentId: member.studentId,
@@ -586,6 +589,171 @@ class AuthService {
       academicRecord: member.academicRecord,
       attendanceRecord: member.attendanceRecord,
       electionEligibility: member.electionEligibility
+    };
+  }
+
+  // Email Verification Methods
+  static async sendVerificationEmail(userId) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    if (user.emailVerified) {
+      throw new ApiError(400, "Email is already verified");
+    }
+
+    // Generate verification token
+    const { token, expires } = EmailService.generateVerificationToken();
+
+    // Update user with verification token
+    user.emailVerificationToken = token;
+    user.emailVerificationExpires = expires;
+    await user.save();
+
+    // Send verification email
+    const emailResult = await EmailService.sendVerificationEmail(user, token);
+
+    return {
+      message: "Verification email sent successfully",
+      email: user.email,
+      previewUrl: emailResult.previewUrl // For development only
+    };
+  }
+
+  static async verifyEmail(token, email) {
+    const user = await User.findOne({ 
+      email: email.toLowerCase(),
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      throw new ApiError(400, "Invalid or expired verification token");
+    }
+
+    // Mark email as verified
+    user.emailVerified = true;
+    user.isVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    // Send welcome email
+    try {
+      await EmailService.sendWelcomeEmail(user);
+    } catch (error) {
+      console.error("Failed to send welcome email:", error);
+      // Don't fail the verification if welcome email fails
+    }
+
+    // Log the verification
+    await AuditService.log({
+      actorId: user._id,
+      action: "EMAIL_VERIFIED",
+      resource: "User",
+      resourceId: user._id.toString(),
+      metadata: { email: user.email }
+    });
+
+    return {
+      message: "Email verified successfully",
+      user: {
+        id: user._id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        isVerified: user.isVerified
+      }
+    };
+  }
+
+  static async requestPasswordReset(email) {
+    const user = await User.findOne({ 
+      email: email.toLowerCase(),
+      isActive: true 
+    });
+
+    // Always return success to prevent email enumeration
+    const successResponse = {
+      message: "If an account with that email exists, a password reset link has been sent"
+    };
+
+    if (!user) {
+      return successResponse;
+    }
+
+    // Generate password reset token
+    const { token, expires } = EmailService.generatePasswordResetToken();
+
+    // Update user with reset token
+    user.passwordResetToken = token;
+    user.passwordResetExpires = expires;
+    await user.save();
+
+    // Send password reset email
+    try {
+      const emailResult = await EmailService.sendPasswordResetEmail(user, token);
+      
+      // Log the reset request
+      await AuditService.log({
+        actorId: user._id,
+        action: "PASSWORD_RESET_REQUESTED",
+        resource: "User",
+        resourceId: user._id.toString(),
+        metadata: { email: user.email }
+      });
+
+      return {
+        ...successResponse,
+        previewUrl: emailResult.previewUrl // For development only
+      };
+    } catch (error) {
+      console.error("Failed to send password reset email:", error);
+      return successResponse; // Still return success to prevent information disclosure
+    }
+  }
+
+  static async resetPassword(token, email, newPassword) {
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: new Date() },
+      isActive: true
+    });
+
+    if (!user) {
+      throw new ApiError(400, "Invalid or expired password reset token");
+    }
+
+    // Validate new password
+    if (!newPassword || newPassword.length < 8) {
+      throw new ApiError(400, "Password must be at least 8 characters long");
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    // Update user password and clear reset token
+    user.passwordHash = passwordHash;
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+    await user.save();
+
+    // Log the password reset
+    await AuditService.log({
+      actorId: user._id,
+      action: "PASSWORD_RESET_COMPLETED",
+      resource: "User",
+      resourceId: user._id.toString(),
+      metadata: { email: user.email }
+    });
+
+    return {
+      message: "Password reset successfully",
+      user: {
+        id: user._id,
+        email: user.email
+      }
     };
   }
 }

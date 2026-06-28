@@ -7,7 +7,11 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seeds/seedBaseData.js",
-    "grant-admin": "node src/scripts/grantSystemAdmin.js"
+    "grant-admin": "node src/scripts/grantSystemAdmin.js",
+    "env:local": "node switch-env.js local && echo 'Now run: npm run dev'",
+    "env:prod": "node switch-env.js production && echo 'Now run: npm start'",
+    "dev:local": "node switch-env.js local && npm run dev",
+    "start:prod": "node switch-env.js production && npm start"
   },
   "dependencies": {
     "axios": "^1.15.2",
@@ -23,8 +27,11 @@
     "mongoose": "^8.5.1",
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
+    "nodemailer": "^6.9.14",
     "qrcode": "^1.5.4",
+    "speakeasy": "^2.0.0",
     "sslcommerz-lts": "^1.2.0",
+    "uuid": "^10.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

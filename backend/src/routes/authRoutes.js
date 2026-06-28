@@ -3,17 +3,25 @@ const { AuthController } = require("../controllers/AuthController");
 const { validate } = require("../middleware/validate");
 const { authenticate } = require("../middleware/auth");
 const { authorize } = require("../middleware/authorize");
+const { rateLimiter } = require("../middleware/rateLimiter");
 const { registerSchema, registerTeacherSchema, loginSchema, updateProfileSchema } = require("../validators/authValidators");
 
 const router = express.Router();
 
 // Authentication routes
-router.post("/login", validate(loginSchema), AuthController.login);
+router.post("/login", rateLimiter('login'), validate(loginSchema), AuthController.login);
 router.post("/refresh", AuthController.refresh);
 router.post("/logout", AuthController.logout);
 
+// Email verification routes
+router.post("/send-verification", rateLimiter('emailVerification'), authenticate, AuthController.sendVerificationEmail);
+router.post("/verify-email", AuthController.verifyEmail);
+router.post("/request-password-reset", rateLimiter('passwordReset'), AuthController.requestPasswordReset);
+router.post("/reset-password", AuthController.resetPassword);
+
 // Registration routes - SIMPLE VALIDATION
 router.post("/register", 
+  rateLimiter('registration'),
   validate(registerSchema),
   AuthController.register
 );

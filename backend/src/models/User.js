@@ -138,6 +138,48 @@ const userSchema = new mongoose.Schema(
     // System Information
     isActive: { type: Boolean, default: true },
     isVerified: { type: Boolean, default: false },
+    emailVerified: { type: Boolean, default: false },
+    emailVerificationToken: { type: String, default: null },
+    emailVerificationExpires: { type: Date, default: null },
+    passwordResetToken: { type: String, default: null },
+    passwordResetExpires: { type: Date, default: null },
+    
+    // Security & Authentication
+    twoFactorAuth: {
+      enabled: { type: Boolean, default: false },
+      secret: { type: String, default: null },
+      backupCodes: [{
+        code: { type: String },
+        used: { type: Boolean, default: false },
+        usedAt: { type: Date }
+      }],
+      enabledAt: { type: Date },
+      disabledAt: { type: Date }
+    },
+    
+    // Account Security
+    loginLockout: {
+      attempts: { type: Number, default: 0 },
+      lockedUntil: { type: Date },
+      lastAttempt: { type: Date }
+    },
+    passwordResetLockout: {
+      attempts: { type: Number, default: 0 },
+      lockedUntil: { type: Date },
+      lastAttempt: { type: Date }
+    },
+    
+    // Device Tracking
+    devices: [{
+      fingerprint: { type: String },
+      userAgent: { type: String },
+      firstSeen: { type: Date },
+      lastSeen: { type: Date },
+      lastSuccessfulLogin: { type: Date },
+      trusted: { type: Boolean, default: false },
+      loginAttempts: { type: Number, default: 0 },
+      failedAttempts: { type: Number, default: 0 }
+    }],
     verificationMethod: { 
       type: String, 
       enum: ["Email", "Phone", "Manual", "Student_ID"], 
@@ -234,6 +276,9 @@ userSchema.pre('save', function(next) {
 userSchema.index({ email: 1 });
 userSchema.index({ phone: 1 });
 userSchema.index({ isActive: 1 });
+userSchema.index({ emailVerified: 1 });
+userSchema.index({ emailVerificationToken: 1 });
+userSchema.index({ passwordResetToken: 1 });
 userSchema.index({ createdAt: -1 });
 userSchema.index({ profileCompleteness: -1 });
 

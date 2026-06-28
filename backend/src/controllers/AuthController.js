@@ -57,6 +57,30 @@ class AuthController {
     return ApiResponse.ok(res, null, "Logged out successfully");
   });
 
+  // Email Verification endpoints
+  static sendVerificationEmail = asyncHandler(async (req, res) => {
+    const result = await AuthService.sendVerificationEmail(req.auth.userId);
+    return ApiResponse.ok(res, result, "Verification email sent successfully");
+  });
+
+  static verifyEmail = asyncHandler(async (req, res) => {
+    const { token, email } = req.body;
+    const result = await AuthService.verifyEmail(token, email);
+    return ApiResponse.ok(res, result, "Email verified successfully");
+  });
+
+  static requestPasswordReset = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    const result = await AuthService.requestPasswordReset(email);
+    return ApiResponse.ok(res, result, "Password reset email sent successfully");
+  });
+
+  static resetPassword = asyncHandler(async (req, res) => {
+    const { token, email, newPassword } = req.body;
+    const result = await AuthService.resetPassword(token, email, newPassword);
+    return ApiResponse.ok(res, result, "Password reset successfully");
+  });
+
   // Get registration statistics (for admin/moderator)
   static getRegistrationStats = asyncHandler(async (req, res) => {
     const { Member } = require("../models/Member");
