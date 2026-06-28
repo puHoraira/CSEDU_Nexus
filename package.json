@@ -1,0 +1,25 @@
+{
+  "name": "csedu-nexus",
+  "version": "1.0.0",
+  "description": "CSEDU Nexus - Student Organization Management System",
+  "private": true,
+  "scripts": {
+    "env:local": "node switch-env.js local",
+    "env:prod": "node switch-env.js production",
+    "dev": "node switch-env.js local && concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\"",
+    "build": "node switch-env.js production && cd frontend && npm run build",
+    "start": "node switch-env.js production && cd backend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd frontend && npm install",
+    "seed": "cd backend && npm run seed",
+    "docker:up": "node switch-env.js production && docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build --no-cache"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}
