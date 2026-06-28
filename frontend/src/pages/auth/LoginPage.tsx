@@ -102,6 +102,21 @@ export function LoginPage() {
                 Create account
               </Link>
             </div>
+            
+            {/* Forgot Password Link */}
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <Link 
+                to="/forgot-password" 
+                style={{ 
+                  color: 'var(--primary)', 
+                  textDecoration: 'none', 
+                  fontSize: '0.9rem',
+                  fontWeight: 500
+                }}
+              >
+                Forgot your password?
+              </Link>
+            </div>
           </form>
         </section>
         <aside className="card stack">
