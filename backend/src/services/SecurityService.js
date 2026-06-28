@@ -29,8 +29,8 @@ class SecurityService {
   static lockoutSettings = {
     maxLoginAttempts: 5,
     lockoutDuration: 15 * 60 * 1000, // 15 minutes
-    maxPasswordResetAttempts: 3,
-    resetLockoutDuration: 60 * 60 * 1000, // 1 hour
+    maxPasswordResetAttempts: 5,
+    resetLockoutDuration: 30 * 60 * 1000, // 30 minutes
     maxVerificationAttempts: 10,
     verificationLockoutDuration: 30 * 60 * 1000 // 30 minutes
   };
@@ -38,7 +38,7 @@ class SecurityService {
   // Rate limiting settings
   static rateLimits = {
     login: { windowMs: 15 * 60 * 1000, max: 5 }, // 5 attempts per 15 minutes
-    passwordReset: { windowMs: 60 * 60 * 1000, max: 3 }, // 3 attempts per hour
+    passwordReset: { windowMs: 15 * 60 * 1000, max: 5 }, // 5 attempts per 15 minutes
     emailVerification: { windowMs: 60 * 60 * 1000, max: 5 }, // 5 attempts per hour
     registration: { windowMs: 60 * 60 * 1000, max: 3 } // 3 registrations per hour
   };
