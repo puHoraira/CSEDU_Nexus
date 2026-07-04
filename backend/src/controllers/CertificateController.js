@@ -62,7 +62,7 @@ class CertificateController {
       req.requestMeta.requestId
     );
 
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename=\"${data.filename}\"`);
     return res.status(200).send(data.text);
   });
