@@ -654,8 +654,49 @@ memberSchema.methods.calculateAlumniProfileCompleteness = function() {
   return Math.min(score, 100);
 };
 
-// Pre-save middleware to update eligibility
+// Pre-save middleware to update eligibility and auto-calculate batch/session
 memberSchema.pre('save', function(next) {
+  const batchCalculator = require('../utils/batchCalculator');
+  
+  // Auto-calculate batch from student ID if not set
+  if (this.studentId && !this.batch) {
+    try {
+      const batchInfo = batchCalculator.getBatchInfoFromStudentId(this.studentId);
+      this.batch = batchInfo.batchNumber;
+      this.session = batchInfo.session;
+      if (!this.admissionYear) {
+        this.admissionYear = batchInfo.sessionYear;
+      }
+    } catch (err) {
+      // Skip if student ID format is invalid
+    }
+  }
+  
+  // Auto-calculate session from batch if not set
+  if (this.batch && !this.session) {
+    try {
+      const sessionYear = batchCalculator.calculateSessionFromBatch(this.batch);
+      this.session = batchCalculator.formatSession(sessionYear);
+      if (!this.admissionYear) {
+        this.admissionYear = sessionYear;
+      }
+    } catch (err) {
+      // Skip if batch is invalid
+    }
+  }
+  
+  // Validate batch and session consistency
+  if (this.batch && this.session) {
+    try {
+      const sessionYear = parseInt(this.session.split('-')[0]);
+      if (!batchCalculator.validateBatchAndSession(this.batch, sessionYear)) {
+        console.warn(`Batch ${this.batch} does not match session ${this.session} for student ${this.studentId}`);
+      }
+    } catch (err) {
+      // Skip validation if session format is invalid
+    }
+  }
+  
   // Update eligibility status
   const ecEligibility = this.checkEcEligibility();
   const votingEligibility = this.checkVotingEligibility();
