@@ -20,7 +20,7 @@ class MembershipService {
   static async createCancellationRequest(payload, actorId, requestId) {
     const member = await Member.findById(payload.memberId);
     if (!member) throw new ApiError(404, "Member not found");
-    if (member.status !== "Active") throw new ApiError(400, "Only active members can be cancelled");
+    if (member.membershipStatus?.status !== "Active") throw new ApiError(400, "Only active members can be cancelled");
 
     const request = await MembershipCancellation.create({
       memberId: payload.memberId,
@@ -159,7 +159,8 @@ class MembershipService {
     const member = await Member.findById(memberId);
     if (!member) throw new ApiError(404, "Member not found");
 
-    member.status = "Active";
+    member.membershipStatus.status = "Active";
+    member.membershipStatus.statusChangeDate = new Date();
     await member.save();
 
     await AuditService.log({
@@ -177,7 +178,10 @@ class MembershipService {
     const member = await Member.findById(memberId);
     if (!member) throw new ApiError(404, "Member not found");
 
-    member.status = "Cancelled";
+    member.membershipStatus.status = "Cancelled";
+    member.membershipStatus.statusReason = reason || "Direct cancellation";
+    member.membershipStatus.statusChangeDate = new Date();
+    member.membershipStatus.statusChangedBy = actorId;
     await member.save();
 
     await AuditService.log({

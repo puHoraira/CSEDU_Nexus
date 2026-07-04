@@ -2,8 +2,20 @@ const { env } = require("./config/env");
 const { connectDB } = require("./config/db");
 const { app } = require("./app");
 
+const { EmailService } = require("./services/EmailService");
+
 async function bootstrap() {
   await connectDB();
+  
+  // Initialize email service
+  try {
+    await EmailService.initialize();
+    console.log("✓ Email service initialized");
+  } catch (error) {
+    console.warn("⚠ Email service initialization failed:", error.message);
+    console.warn("  Emails will not be sent. Check SMTP configuration.");
+  }
+  
   app.listen(env.PORT, () => {
     console.log(`API listening on port ${env.PORT}`);
   });

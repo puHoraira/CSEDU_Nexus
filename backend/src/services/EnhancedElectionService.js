@@ -178,7 +178,7 @@ class EnhancedElectionService {
       throw new ApiError(404, "Member record not found");
     }
 
-    if (member.status !== "Active") {
+    if (member.membershipStatus?.status !== "Active") {
       throw new ApiError(400, "Only active members can apply as candidates");
     }
 

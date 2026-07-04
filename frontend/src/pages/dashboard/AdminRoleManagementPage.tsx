@@ -10,6 +10,7 @@ type UserRow = {
   name: string;
   email: string;
   studentId: string | null;
+  academicYearLevel: string | null;
   memberStatus: string | null;
   roles: string[];
 };
@@ -135,6 +136,7 @@ export function AdminRoleManagementPage() {
             <p><strong>Name:</strong> {selectedUser.name}</p>
             <p><strong>Email:</strong> {selectedUser.email}</p>
             <p><strong>Student ID:</strong> {selectedUser.studentId || "-"}</p>
+            <p><strong>Academic Year:</strong> {selectedUser.academicYearLevel?.replace('_', ' ') || "-"}</p>
             <p><strong>Member Status:</strong> {selectedUser.memberStatus || "-"}</p>
             <p><strong>Roles:</strong> {selectedUser.roles.join(", ") || "None"}</p>
           </div>

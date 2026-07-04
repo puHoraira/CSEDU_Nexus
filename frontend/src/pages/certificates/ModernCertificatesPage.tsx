@@ -56,7 +56,29 @@ export function ModernCertificatesPage() {
   const { data: chairInbox = [], isLoading: loadChair } = useQuery({ queryKey: ['cert-chair', token], queryFn: () => apiRequest<CertReq[]>('/certificates/inbox/chairman', { token }), enabled: Boolean(token && isChair) });
 
   const createMut = useMutation({
-    mutationFn: () => apiRequest('/certificates/requests', { method: 'POST', token, body: JSON.stringify({ ...form, ecPostHistory: ecPosts, volunteerContributions: vols }) }),
+    mutationFn: () => {
+      // Convert date strings to ISO datetime format
+      const formattedEcPosts = ecPosts.map(post => ({
+        ...post,
+        startDate: post.startDate ? new Date(post.startDate).toISOString() : undefined,
+        endDate: post.endDate ? new Date(post.endDate).toISOString() : undefined,
+      }));
+      
+      const formattedVols = vols.map(vol => ({
+        ...vol,
+        date: vol.date ? new Date(vol.date).toISOString() : undefined,
+      }));
+      
+      return apiRequest('/certificates/requests', { 
+        method: 'POST', 
+        token, 
+        body: JSON.stringify({ 
+          ...form, 
+          ecPostHistory: formattedEcPosts, 
+          volunteerContributions: formattedVols 
+        }) 
+      });
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['cert-my', token] });
       setForm({ certificateType: 'MembershipContribution', purpose: '', contributionSummary: '' });

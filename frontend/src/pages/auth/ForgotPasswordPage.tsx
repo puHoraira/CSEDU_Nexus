@@ -21,7 +21,7 @@ export const ForgotPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await apiRequest('/auth/request-password-reset', {
+      const response: any = await apiRequest('/auth/request-password-reset', {
         method: 'POST',
         body: JSON.stringify({ email: email.trim() }),
       });
@@ -68,7 +68,7 @@ export const ForgotPasswordPage: React.FC = () => {
           
           <div className="space-y-3">
             <Link
-              to="/login"
+              to="/auth/login"
               className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors inline-block text-center"
             >
               Back to Login
@@ -149,7 +149,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
           <div className="text-center">
             <Link
-              to="/login"
+              to="/auth/login"
               className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />

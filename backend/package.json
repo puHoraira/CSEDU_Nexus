@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "seed": "node src/seeds/seedBaseData.js",
     "grant-admin": "node src/scripts/grantSystemAdmin.js",
+    "fix-batch": "node src/scripts/fixBatchAndSession.js",
     "env:local": "node switch-env.js local && echo 'Now run: npm run dev'",
     "env:prod": "node switch-env.js production && echo 'Now run: npm start'",
     "dev:local": "node switch-env.js local && npm run dev",

@@ -16,6 +16,9 @@ const enhancedElectionRoutes = require("./enhancedElectionRoutes");
 const { uploadRoutes } = require("./uploadRoutes");
 const eventRegistrationRoutes = require("./eventRegistrationRoutes");
 const { workshopRoutes } = require("./workshopRoutes");
+const { yearPromotionRoutes } = require("./yearPromotionRoutes");
+const { adminMemberRoutes } = require("./adminMemberRoutes");
+const { ecMemberRoutes } = require("./ecMemberRoutes");
 
 const apiRouter = express.Router();
 
@@ -31,11 +34,14 @@ apiRouter.use("/elections", electionRoutes);
 apiRouter.use("/enhanced-elections", enhancedElectionRoutes);
 apiRouter.use("/moderator", moderatorRoutes);
 apiRouter.use("/admin", adminRoutes);
+apiRouter.use("/admin/members", adminMemberRoutes);
 apiRouter.use("/certificates", certificateRoutes);
 apiRouter.use("/notifications", notificationRoutes);
 apiRouter.use("/homepage-messages", homepageMessageRoutes);
 apiRouter.use("/upload", uploadRoutes);
 apiRouter.use("/workshops", workshopRoutes);
+apiRouter.use("/year-promotion", yearPromotionRoutes);
+apiRouter.use("/ec-members", ecMemberRoutes);
 apiRouter.use("/", eventRegistrationRoutes);
 
 module.exports = { apiRouter };

@@ -115,141 +115,166 @@ function createElectionPoster(data: PosterData, theme: any): string {
     <div style="
       width: 1080px;
       height: 1080px;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #2a2f4a 100%);
       position: relative;
       overflow: hidden;
-      font-family: 'Segoe UI', 'Inter', -apple-system, sans-serif;
+      font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     ">
-      <!-- Decorative Elements -->
+      <!-- Animated Background Pattern -->
+      <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 0;">
+        <defs>
+          <pattern id="dots" width="30" height="30" patternUnits="userSpaceOnUse">
+            <circle cx="15" cy="15" r="2" fill="#ffffff"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#dots)"/>
+      </svg>
+
+      <!-- Decorative Glow Elements -->
       <div style="
         position: absolute;
-        top: -100px;
-        right: -100px;
-        width: 400px;
-        height: 400px;
-        background: ${theme.gradient};
-        border-radius: 50%;
-        opacity: 0.1;
-        filter: blur(80px);
-      "></div>
-      <div style="
-        position: absolute;
-        bottom: -150px;
-        left: -150px;
-        width: 500px;
-        height: 500px;
-        background: ${theme.gradient};
-        border-radius: 50%;
-        opacity: 0.08;
+        top: -200px;
+        right: -200px;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, ${theme.primary}40, transparent 70%);
         filter: blur(100px);
       "></div>
-
-      <!-- Top Section with Logos -->
       <div style="
         position: absolute;
-        top: 50px;
-        left: 60px;
-        right: 60px;
+        bottom: -250px;
+        left: -250px;
+        width: 700px;
+        height: 700px;
+        background: radial-gradient(circle, ${theme.accent}30, transparent 70%);
+        filter: blur(120px);
+      "></div>
+
+      <!-- Top Header with Logos -->
+      <div style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 45px 70px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+        backdrop-filter: blur(10px);
+        z-index: 10;
       ">
-        <div style="display: flex; align-items: center; gap: 25px;">
-          <img src="/images/du_logo.png" style="height: 80px; filter: brightness(0) invert(1) drop-shadow(0 4px 12px rgba(0,0,0,0.3));" />
-          <img src="/images/cseduStudentCLubLogo.png" style="height: 80px; drop-shadow(0 4px 12px rgba(0,0,0,0.3));" />
-          <img src="/images/csedu_logo.png" style="height: 80px; filter: brightness(0) invert(1) drop-shadow(0 4px 12px rgba(0,0,0,0.3));" />
+        <div style="display: flex; align-items: center; gap: 30px;">
+          <img src="/images/du_logo.png" style="height: 90px; filter: brightness(0) invert(1) drop-shadow(0 6px 16px rgba(0,0,0,0.4));" />
+          <div style="width: 2px; height: 70px; background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.3), transparent);"></div>
+          <img src="/images/cseduStudentCLubLogo.png" style="height: 90px; drop-shadow(0 6px 16px rgba(0,0,0,0.4));" />
+          <div style="width: 2px; height: 70px; background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.3), transparent);"></div>
+          <img src="/images/csedu_logo.png" style="height: 90px; filter: brightness(0) invert(1) drop-shadow(0 6px 16px rgba(0,0,0,0.4));" />
         </div>
         <div style="
           background: ${theme.gradient};
-          padding: 12px 28px;
-          border-radius: 50px;
-          font-size: 16px;
-          font-weight: 700;
+          padding: 16px 36px;
+          border-radius: 60px;
+          font-size: 17px;
+          font-weight: 800;
           color: #ffffff;
           text-transform: uppercase;
-          letter-spacing: 1.5px;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-        ">ELECTION 2025</div>
+          letter-spacing: 2.5px;
+          box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+          border: 2px solid rgba(255,255,255,0.1);
+        ">ELECTION ${new Date(data.date).getFullYear()}</div>
       </div>
 
-      <!-- Main Content -->
+      <!-- Main Hero Section -->
       <div style="
         position: absolute;
-        top: 220px;
-        left: 60px;
-        right: 60px;
+        top: 250px;
+        left: 70px;
+        right: 70px;
+        z-index: 5;
       ">
-        <!-- Title -->
-        <div style="margin-bottom: 50px;">
-          <h1 style="
-            font-size: 96px;
+        <!-- Title with Gradient -->
+        <div style="margin-bottom: 60px;">
+          <div style="
+            font-size: 110px;
             font-weight: 900;
             color: #ffffff;
-            margin: 0 0 15px 0;
-            line-height: 1;
-            letter-spacing: -2px;
-            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-          ">YOUR VOTE</h1>
-          <h2 style="
-            font-size: 96px;
+            margin: 0;
+            line-height: 0.95;
+            letter-spacing: -3px;
+            text-shadow: 0 6px 30px rgba(0, 0, 0, 0.7);
+            margin-bottom: 15px;
+          ">YOUR VOTE</div>
+          <div style="
+            font-size: 110px;
             font-weight: 900;
             background: ${theme.gradient};
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             margin: 0;
-            line-height: 1;
-            letter-spacing: -2px;
-          ">MATTERS</h2>
+            line-height: 0.95;
+            letter-spacing: -3px;
+            text-shadow: 0 0 40px ${theme.primary}60;
+            filter: drop-shadow(0 8px 32px ${theme.primary}40);
+          ">MATTERS</div>
+          <div style="
+            margin-top: 25px;
+            font-size: 26px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            line-height: 1.5;
+          ">Shape the future of CSEDU Students' Club</div>
         </div>
 
-        <!-- Info Grid -->
+        <!-- Info Cards Grid -->
         <div style="
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 30px;
-          margin-bottom: 40px;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 28px;
+          margin-bottom: 35px;
         ">
           <!-- Date Card -->
           <div style="
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 35px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+            backdrop-filter: blur(30px);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 28px;
+            padding: 38px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
           ">
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 20px;
-              margin-bottom: 20px;
-            ">
+            <div style="position: absolute; top: 0; right: 0; width: 150px; height: 150px; background: ${theme.gradient}; opacity: 0.1; border-radius: 0 28px 0 50%;"></div>
+            <div style="display: flex; align-items: center; gap: 22px; position: relative; z-index: 1;">
               <div style="
-                width: 60px;
-                height: 60px;
+                width: 70px;
+                height: 70px;
                 background: ${theme.gradient};
-                border-radius: 16px;
+                border-radius: 20px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 32px;
+                font-size: 36px;
                 flex-shrink: 0;
+                box-shadow: 0 8px 24px ${theme.primary}50;
               ">📅</div>
-              <div>
+              <div style="flex: 1;">
                 <div style="
-                  font-size: 16px;
+                  font-size: 15px;
                   color: rgba(255, 255, 255, 0.6);
-                  font-weight: 600;
+                  font-weight: 700;
                   text-transform: uppercase;
-                  letter-spacing: 1px;
-                  margin-bottom: 5px;
+                  letter-spacing: 1.5px;
+                  margin-bottom: 8px;
                 ">Election Date</div>
                 <div style="
-                  font-size: 32px;
-                  font-weight: 800;
+                  font-size: 34px;
+                  font-weight: 900;
                   color: #ffffff;
-                  line-height: 1;
+                  line-height: 1.1;
+                  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
                 ">${new Date(data.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
               </div>
             </div>
@@ -257,100 +282,124 @@ function createElectionPoster(data: PosterData, theme: any): string {
 
           <!-- Time Card -->
           <div style="
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 35px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+            backdrop-filter: blur(30px);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 28px;
+            padding: 38px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
           ">
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 20px;
-              margin-bottom: 20px;
-            ">
+            <div style="position: absolute; top: 0; right: 0; width: 150px; height: 150px; background: ${theme.gradient}; opacity: 0.1; border-radius: 0 28px 0 50%;"></div>
+            <div style="display: flex; align-items: center; gap: 22px; position: relative; z-index: 1;">
               <div style="
-                width: 60px;
-                height: 60px;
+                width: 70px;
+                height: 70px;
                 background: ${theme.gradient};
-                border-radius: 16px;
+                border-radius: 20px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 32px;
+                font-size: 36px;
                 flex-shrink: 0;
+                box-shadow: 0 8px 24px ${theme.primary}50;
               ">⏰</div>
-              <div>
+              <div style="flex: 1;">
                 <div style="
-                  font-size: 16px;
+                  font-size: 15px;
                   color: rgba(255, 255, 255, 0.6);
-                  font-weight: 600;
+                  font-weight: 700;
                   text-transform: uppercase;
-                  letter-spacing: 1px;
-                  margin-bottom: 5px;
+                  letter-spacing: 1.5px;
+                  margin-bottom: 8px;
                 ">Voting Hours</div>
                 <div style="
-                  font-size: 32px;
-                  font-weight: 800;
+                  font-size: 34px;
+                  font-weight: 900;
                   color: #ffffff;
-                  line-height: 1;
+                  line-height: 1.1;
+                  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
                 ">${data.time || '9:00 AM - 5:00 PM'}</div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Call to Action -->
+        <!-- Call to Action Banner -->
         <div style="
           background: ${theme.gradient};
-          border-radius: 24px;
-          padding: 40px;
+          border-radius: 28px;
+          padding: 45px 50px;
           text-align: center;
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 20px 60px ${theme.primary}40, 0 0 0 2px rgba(255,255,255,0.1);
+          position: relative;
+          overflow: hidden;
         ">
-          <div style="
-            font-size: 28px;
-            font-weight: 800;
-            color: #ffffff;
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-          ">Shape the Future of CSEDUSC</div>
-          <div style="
-            font-size: 18px;
-            color: rgba(255, 255, 255, 0.95);
-            line-height: 1.6;
-          ">Every vote counts. Be part of the change. Exercise your democratic right.</div>
+          <div style="position: absolute; top: -100px; right: -100px; width: 300px; height: 300px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+          <div style="position: absolute; bottom: -80px; left: -80px; width: 250px; height: 250px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
+          <div style="position: relative; z-index: 1;">
+            <div style="
+              font-size: 32px;
+              font-weight: 900;
+              color: #ffffff;
+              margin-bottom: 14px;
+              text-transform: uppercase;
+              letter-spacing: 1.5px;
+              text-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            ">Every Voice Counts</div>
+            <div style="
+              font-size: 20px;
+              color: rgba(255, 255, 255, 0.95);
+              line-height: 1.6;
+              font-weight: 500;
+            ">Exercise your democratic right. Be the change you want to see.</div>
+          </div>
         </div>
       </div>
 
-      <!-- Footer -->
+      <!-- Footer Section -->
       <div style="
         position: absolute;
         bottom: 50px;
-        left: 60px;
-        right: 60px;
+        left: 70px;
+        right: 70px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding-top: 30px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 35px;
+        border-top: 2px solid rgba(255, 255, 255, 0.12);
       ">
         <div style="
-          color: rgba(255, 255, 255, 0.7);
-          font-size: 16px;
-          font-weight: 600;
-          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.75);
+          font-size: 17px;
+          font-weight: 700;
+          line-height: 1.6;
+          letter-spacing: 0.5px;
         ">
-          <div>COMPUTER SCIENCE & ENGINEERING</div>
+          <div style="margin-bottom: 4px;">COMPUTER SCIENCE & ENGINEERING</div>
           <div>UNIVERSITY OF DHAKA</div>
         </div>
         <div style="
-          color: rgba(255, 255, 255, 0.5);
-          font-size: 14px;
-          text-align: right;
-        ">#CSEDUSC2025</div>
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        ">
+          <div style="
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 10px 24px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.2);
+          ">
+            <div style="
+              color: rgba(255, 255, 255, 0.9);
+              font-size: 15px;
+              font-weight: 700;
+              letter-spacing: 1px;
+            ">#CSEDUSC${new Date(data.date).getFullYear()}</div>
+          </div>
+        </div>
       </div>
     </div>
   `;

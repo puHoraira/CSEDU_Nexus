@@ -52,8 +52,33 @@ class ElectionService {
     return election;
   }
 
-  static async listElections() {
-    return Election.find({}).sort({ createdAt: -1 });
+  static async listElections(requestingUserId = null) {
+    const elections = await Election.find({}).sort({ createdAt: -1 });
+    
+    if (requestingUserId) {
+      const { Member } = require("../models/Member");
+      const member = await Member.findOne({ userId: requestingUserId }).select('academicYearLevel');
+      
+      if (member) {
+        return elections.filter(election => {
+          const targetYears = election.targetYears || [];
+          
+          // No target years or includes All_Years - show to everyone
+          if (targetYears.length === 0 || targetYears.includes("All_Years")) {
+            return true;
+          }
+          
+          // Check if user's year level is in target years
+          return targetYears.includes(member.academicYearLevel);
+        });
+      }
+    }
+    
+    // No user context - only show All_Years elections or elections without targetYears
+    return elections.filter(election => {
+      const targetYears = election.targetYears || [];
+      return targetYears.length === 0 || targetYears.includes("All_Years");
+    });
   }
 
   static async addCandidate(payload, actorId, requestId) {

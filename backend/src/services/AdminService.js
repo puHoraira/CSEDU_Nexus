@@ -16,7 +16,7 @@ class AdminService {
     const userIds = users.map((item) => item._id);
 
     const [members, assignments] = await Promise.all([
-      Member.find({ userId: { $in: userIds } }).select("userId studentId batch currentYear status"),
+      Member.find({ userId: { $in: userIds } }).select("userId studentId batch currentYear academicYearLevel membershipStatus"),
       UserRole.find({
         userId: { $in: userIds },
         startsAt: { $lte: now },
@@ -47,7 +47,8 @@ class AdminService {
         studentId: member?.studentId || null,
         batch: member?.batch || null,
         currentYear: member?.currentYear || null,
-        memberStatus: member?.status || null,
+        academicYearLevel: member?.academicYearLevel || null,
+        memberStatus: member?.membershipStatus?.status || null,
         roles,
       };
     });
