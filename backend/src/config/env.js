@@ -13,6 +13,10 @@ const env = {
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || "http://localhost:3000",
   ZEGO_APP_ID: process.env.ZEGO_APP_ID || "",
   ZEGO_SERVER_SECRET: process.env.ZEGO_SERVER_SECRET || "",
+  // Cloudinary (video recording uploads)
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || "",
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
 };
 
 module.exports = { env };

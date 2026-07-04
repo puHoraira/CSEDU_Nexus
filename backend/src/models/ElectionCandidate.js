@@ -126,9 +126,9 @@ electionCandidateSchema.index({ phase: 1, status: 1 });
 
 // Validation middleware
 electionCandidateSchema.pre('save', function(next) {
-  // Phase 1 candidates should not have postId
+  // Phase 1 candidates should not have postId — strip it silently
   if (this.phase === 1 && this.postId) {
-    return next(new Error('Phase 1 candidates cannot have a specific post'));
+    this.postId = null;
   }
   
   // Phase 2 candidates must have postId

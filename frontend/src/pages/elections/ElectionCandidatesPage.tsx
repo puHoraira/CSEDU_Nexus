@@ -73,10 +73,25 @@ export function ElectionCandidatesPage() {
     enabled: Boolean(hasValidId && token),
   });
 
+  // Fetch election to know current phase so we can hide postId for Phase 1
+  const { data: election } = useQuery({
+    queryKey: ['election-detail', id, token],
+    queryFn: () => apiRequest<{ _id: string; currentPhase: number; name: string }>(`/elections/${id}`, { token }),
+    enabled: Boolean(hasValidId && token),
+  });
+
+  const isPhase1 = (election?.currentPhase ?? 1) === 1;
+
   const addMut = useMutation({
     mutationFn: () => apiRequest('/elections/candidates', {
       method: 'POST', token,
-      body: JSON.stringify({ electionId: id, memberId: form.memberId, postId: form.postId || null, memberEcYears: form.memberEcYears }),
+      body: JSON.stringify({
+        electionId: id,
+        memberId: form.memberId,
+        // Never send postId for Phase 1 — backend will reject it
+        postId: isPhase1 ? null : (form.postId || null),
+        memberEcYears: form.memberEcYears,
+      }),
     }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['election-candidates', id, token] });
@@ -161,7 +176,6 @@ export function ElectionCandidatesPage() {
                       <option value="">Select member…</option>
                       {members
                         .filter(m => {
-                          // Handle both old and new schema
                           const status = m.membershipStatus?.status || m.status;
                           return status === 'Active';
                         })
@@ -170,15 +184,25 @@ export function ElectionCandidatesPage() {
                         ))}
                     </select>
                   </div>
+
+                  {/* Post selector — always shown so admin can assign any role */}
                   <div className="ui-input-wrap">
-                    <label className="ui-input-label">Post (optional for Phase 1)</label>
-                    <select className="ui-select" value={form.postId} onChange={e => setForm(f => ({ ...f, postId: e.target.value }))}>
-                      <option value="">Representative (Phase 1)</option>
+                    <label className="ui-input-label">
+                      Post {isPhase1 ? '(leave empty for Phase 1)' : '* required for Phase 2'}
+                    </label>
+                    <select
+                      className="ui-select"
+                      value={form.postId}
+                      onChange={e => setForm(f => ({ ...f, postId: e.target.value }))}
+                      required={!isPhase1}
+                    >
+                      <option value="">— No post (Batch Representative) —</option>
                       {posts.filter(p => p.isActive !== false).map(p => (
                         <option key={p._id} value={p._id}>{p.title}</option>
                       ))}
                     </select>
                   </div>
+
                   <div className="ui-input-wrap">
                     <label className="ui-input-label">EC Years Experience</label>
                     <input type="number" min={0} className="ui-input" value={form.memberEcYears}

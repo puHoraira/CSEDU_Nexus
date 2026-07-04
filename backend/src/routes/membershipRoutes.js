@@ -23,6 +23,7 @@ const reviewYearCorrectionSchema = z.object({
 });
 
 router.get("/members", authenticate, authorize("membership.read"), MembershipController.listMembers);
+router.get("/members/me", authenticate, MembershipController.getSelf);
 router.get(
   "/cancellations",
   authenticate,

@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../auth/AuthContext";
 import { apiRequest, normalizeApiError } from "../../lib/api";
 import { PageScreen } from "../../components/ui/PageScreen";
+import { VideoRecorder } from "../../components/elections/VideoRecorder";
 
 type CandidateRow = {
   _id: string;
@@ -25,6 +26,13 @@ type ElectionRow = {
   status: "Draft" | "Active" | "Closed";
 };
 
+/** Shape returned by GET /membership/members/me */
+type MemberSelf = {
+  _id: string;
+  studentId?: string;
+  batch?: number;
+};
+
 function phaseLabel(phase: 1 | 2) {
   return phase === 1 ? "Phase 1 - Batch Representative Ballot" : "Phase 2 - Office Bearer Ballot";
 }
@@ -38,9 +46,14 @@ export function ElectionVotePage() {
   const { id } = useParams();
   const { token, user } = useAuth();
   const hasValidId = Boolean(id && /^[a-fA-F0-9]{24}$/.test(id));
+
   const [form, setForm] = useState({ candidateId: "" });
   const [confirmSubmission, setConfirmSubmission] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+
+  // 16.1 — videoRecordingId state; set once upload completes; retained on vote failure (16.5)
+  const [videoRecordingId, setVideoRecordingId] = useState<string | null>(null);
 
   const { data: elections = [] } = useQuery({
     queryKey: ["elections", token],
@@ -56,22 +69,39 @@ export function ElectionVotePage() {
     retry: false,
   });
 
+  // 16.1 — Resolve the authenticated voter's Member _id via /membership/members/me
+  const { data: memberSelf } = useQuery({
+    queryKey: ["member-self", token],
+    queryFn: () => apiRequest<MemberSelf>("/membership/members/me", { token }),
+    enabled: Boolean(token),
+    retry: false,
+  });
+
+  const memberRecordId = memberSelf?._id ?? null;
+
   const election = useMemo(() => elections.find((row) => row._id === id) || null, [elections, id]);
   const approvedCandidates = candidates.filter((candidate) => candidate.status === "Approved");
   const selectedCandidate = approvedCandidates.find((candidate) => candidate._id === form.candidateId) || null;
 
   const mutation = useMutation({
+    // 16.3 — Include videoRecordingId in the POST /elections/votes body
     mutationFn: () =>
       apiRequest("/elections/votes", {
         method: "POST",
         token,
-        body: JSON.stringify({ electionId: id, candidateId: form.candidateId }),
+        body: JSON.stringify({ electionId: id, candidateId: form.candidateId, videoRecordingId }),
       }),
     onSuccess: async () => {
       setMessage("Your ballot was submitted successfully.");
       setConfirmSubmission(false);
+      setIsSubmittingVote(false);
+      // Note: videoRecordingId is intentionally NOT reset here (16.5)
     },
-    onError: (err) => setMessage(normalizeApiError(err)),
+    // 16.5 — On vote submission error, retain videoRecordingId so voter can resubmit
+    onError: (err) => {
+      setIsSubmittingVote(false);
+      setMessage(normalizeApiError(err));
+    },
   });
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -88,6 +118,11 @@ export function ElectionVotePage() {
       setMessage("Confirm your selection before casting the vote.");
       return;
     }
+    if (!videoRecordingId) {
+      setMessage("Please wait for the video recording to upload before casting your vote.");
+      return;
+    }
+    setIsSubmittingVote(true);
     mutation.mutate();
   }
 
@@ -123,6 +158,31 @@ export function ElectionVotePage() {
           </div>
         </div>
       </section>
+
+      {/* 16.2 — VideoRecorder above the candidate selection section */}
+      {hasValidId && memberRecordId && (
+        <section className="page-section" style={{ marginTop: 18 }}>
+          <div className="constitution-section-header">
+            <div>
+              <p className="constitution-section-header__eyebrow">Step 1 — Record video</p>
+              <h2 className="page-section__title" style={{ fontSize: "1.35rem" }}>
+                Camera verification
+              </h2>
+              <p style={{ color: "var(--muted)", marginTop: 4 }}>
+                Your webcam will automatically record while you vote. The recording is required to submit your ballot.
+              </p>
+            </div>
+          </div>
+          <VideoRecorder
+            electionId={id!}
+            voterId={memberRecordId}
+            token={token}
+            isSubmitting={isSubmittingVote}
+            onRecordingComplete={(vid) => setVideoRecordingId(vid)}
+            onError={(msg) => setMessage(msg)}
+          />
+        </section>
+      )}
 
       <div className="grid-2" style={{ marginTop: 18 }}>
         <section className="page-section">
@@ -211,6 +271,16 @@ export function ElectionVotePage() {
               )}
             </div>
 
+            {/* Recording status indicator in the submission panel */}
+            <div className="candidate-summary-card" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <p className="eyebrow" style={{ margin: 0 }}>Video recording</p>
+              {videoRecordingId ? (
+                <span className="chip" style={{ color: "var(--success, #16a34a)" }}>✓ Uploaded</span>
+              ) : (
+                <span className="chip">Waiting for upload…</span>
+              )}
+            </div>
+
             <label className="register-agreement" style={{ margin: 0 }}>
               <input
                 type="checkbox"
@@ -224,7 +294,12 @@ export function ElectionVotePage() {
             </label>
 
             <div className="form-actions">
-              <button className="primary-button" type="submit" disabled={mutation.isPending || !selectedCandidate || !confirmSubmission}>
+              {/* 16.4 — Submit button disabled until videoRecordingId is set */}
+              <button
+                className="primary-button"
+                type="submit"
+                disabled={mutation.isPending || !selectedCandidate || !confirmSubmission || !videoRecordingId}
+              >
                 {mutation.isPending ? "Submitting ballot..." : "Cast vote"}
               </button>
               <Link className="secondary-button" to="/dashboard/elections">Back to elections</Link>

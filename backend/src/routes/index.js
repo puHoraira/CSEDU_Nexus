@@ -6,6 +6,7 @@ const { financeRoutes } = require("./financeRoutes");
 const { membershipRoutes } = require("./membershipRoutes");
 const { meetingRoutes } = require("./meetingRoutes");
 const { electionRoutes } = require("./electionRoutes");
+const { videoRecordingRoutes } = require("./videoRecordingRoutes");
 const { moderatorRoutes } = require("./moderatorRoutes");
 const { adminRoutes } = require("./adminRoutes");
 const { certificateRoutes } = require("./certificateRoutes");
@@ -24,6 +25,8 @@ apiRouter.use("/events", eventRoutes);
 apiRouter.use("/finance", financeRoutes);
 apiRouter.use("/membership", membershipRoutes);
 apiRouter.use("/meetings", meetingRoutes);
+// Mount /elections/recordings BEFORE /elections to prevent the /:id catch-all from intercepting
+apiRouter.use("/elections/recordings", videoRecordingRoutes);
 apiRouter.use("/elections", electionRoutes);
 apiRouter.use("/enhanced-elections", enhancedElectionRoutes);
 apiRouter.use("/moderator", moderatorRoutes);

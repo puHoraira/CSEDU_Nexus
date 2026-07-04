@@ -1,8 +1,21 @@
 const { ApiResponse } = require("../core/ApiResponse");
 const { asyncHandler } = require("../core/asyncHandler");
+const { ApiError } = require("../core/ApiError");
+const { Member } = require("../models/Member");
 const { MembershipService } = require("../services/MembershipService");
 
 class MembershipController {
+  /**
+   * GET /membership/members/me
+   * Returns the Member document (_id, studentId, batch) for the authenticated user.
+   * Used by the election vote page to resolve the voter's Member _id for video recording.
+   */
+  static getSelf = asyncHandler(async (req, res) => {
+    const member = await Member.findOne({ userId: req.auth.userId }).select("_id studentId batch");
+    if (!member) throw new ApiError(404, "No member record found for the authenticated user");
+    return ApiResponse.ok(res, member, "Member record");
+  });
+
   static listMembers = asyncHandler(async (_req, res) => {
     const items = await MembershipService.listMembers();
     return ApiResponse.ok(res, items, "Members");

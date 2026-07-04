@@ -25,6 +25,10 @@ const castVoteSchema = z.object({
   electionId: z.string().min(10),
   candidateId: z.string().min(10),
   voterMemberId: z.string().min(10).optional(),
+  videoRecordingId: z.preprocess(
+    (val) => (val === null || val === undefined) ? undefined : val,
+    z.string().min(10).optional()
+  ),
 });
 
 const updateElectionPhaseSchema = z.object({

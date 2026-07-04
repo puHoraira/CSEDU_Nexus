@@ -5,8 +5,10 @@ const { ElectionCandidate } = require("../models/ElectionCandidate");
 const { Vote } = require("../models/Vote");
 const { Member } = require("../models/Member");
 const { EcPost } = require("../models/EcPost");
+const { VoteRecording } = require("../models/VoteRecording");
 const { policyRegistry } = require("../policies");
 const { AuditService } = require("./AuditService");
+const { VideoRecordingService } = require("./VideoRecordingService");
 
 class ElectionService {
   static async createElection(payload, actorId, requestId) {
@@ -85,8 +87,8 @@ class ElectionService {
 
     console.log('Checking phase constraints...');
     if (electionPhase === 1 && payload.postId) {
-      console.log('ERROR: Phase 1 with postId');
-      throw new ApiError(400, "Phase 1 (batch representative) candidates must not include postId");
+      // Phase 1 is batch representative — postId is not applicable, strip it silently
+      payload.postId = null;
     }
 
     if (electionPhase === 2 && !payload.postId) {
@@ -154,6 +156,20 @@ class ElectionService {
   }
 
   static async castVote(payload, actorId, requestId) {
+    // --- Recording gate (optional — videoRecordingId may be absent in the
+    // 30-second session flow where the recording uploads after the vote) ---
+    let recording = null;
+    if (payload.videoRecordingId) {
+      recording = await VoteRecording.findById(payload.videoRecordingId);
+      if (!recording) {
+        throw new ApiError(403, "Invalid video recording reference");
+      }
+      if (recording.voteId !== null && recording.voteId !== undefined) {
+        throw new ApiError(409, "This recording has already been used for a vote");
+      }
+    }
+    // --- End recording gate ---
+
     const election = await Election.findById(payload.electionId);
     if (!election) throw new ApiError(404, "Election not found");
     
@@ -188,6 +204,11 @@ class ElectionService {
     
     if (voter.userId.toString() !== actorId) {
       throw new ApiError(403, "You can only cast vote for your own member account");
+    }
+
+    // Verify recording ownership now that we have the resolved voter._id (Requirement 6.2–6.3)
+    if (recording && recording.voterId.toString() !== voter._id.toString()) {
+      throw new ApiError(403, "Invalid video recording reference");
     }
 
     const candidate = await ElectionCandidate.findById(payload.candidateId);
@@ -247,6 +268,10 @@ class ElectionService {
       castAt,
       voteHash,
     });
+
+    // Backfill the voteId on the recording so it can't be reused (Requirement 6.5)
+    await VideoRecordingService.backfillVoteId(payload.videoRecordingId, vote._id);
+
     await AuditService.log({
       actorId,
       action: "ELECTION_VOTE_CAST",

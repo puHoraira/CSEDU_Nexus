@@ -10,6 +10,7 @@ class SecurityService {
   static loginAttempts = new Map();
   static passwordResetAttempts = new Map();
   static verificationAttempts = new Map();
+  static videoUploadAttempts = new Map();
 
   // Password complexity requirements
   static passwordRequirements = {
@@ -40,7 +41,8 @@ class SecurityService {
     login: { windowMs: 15 * 60 * 1000, max: 5 }, // 5 attempts per 15 minutes
     passwordReset: { windowMs: 15 * 60 * 1000, max: 5 }, // 5 attempts per 15 minutes
     emailVerification: { windowMs: 60 * 60 * 1000, max: 5 }, // 5 attempts per hour
-    registration: { windowMs: 60 * 60 * 1000, max: 3 } // 3 registrations per hour
+    registration: { windowMs: 60 * 60 * 1000, max: 3 }, // 3 registrations per hour
+    videoUpload: { windowMs: 5 * 60 * 1000, max: 20 }, // 20 uploads per 5 minutes
   };
 
   // Password strength validation
@@ -147,6 +149,8 @@ class SecurityService {
         return this.passwordResetAttempts;
       case 'emailVerification':
         return this.verificationAttempts;
+      case 'videoUpload':
+        return this.videoUploadAttempts;
       default:
         return this.loginAttempts;
     }

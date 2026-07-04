@@ -1,0 +1,209 @@
+Your task : 
+## Current Project
+The project is a full-stack MERN application called **CSEDU Nexus**, a club management platform for the Computer Science & Engineering Department Students' Club at the University of Dhaka. It already includes authentication, RBAC, events, workshops, meetings, finance, certificates, notifications, and a two-phase election module.
+
+Use the provided repository analysis as the source of truth and follow the existing architecture, folder structure, naming conventions, middleware, controllers, services, and React frontend design.
+
+---
+
+# Objective
+
+Enhance the Election module by adding a secure video recording system during vote casting.
+
+Whenever a voter casts a vote:
+
+1. The user's webcam must automatically open.
+2. Record a video of the voter during the voting session.
+3. Limit the maximum upload size to **80 MB**.
+4. Upload the recorded video directly to **Cloudinary** using the Cloudinary API.
+5. Store only the Cloudinary URL and required metadata inside MongoDB.
+6. Do NOT store videos in MongoDB.
+
+The recording should become a permanent part of the voting process.
+
+---
+
+# Functional Requirements
+
+Implement the complete feature including:
+
+## Frontend
+
+- Camera permission handling
+- Webcam preview
+- Video recording
+- Start recording automatically when voting begins
+- Stop recording automatically when voting finishes
+- Allow retry if recording fails
+- Show upload progress
+- Prevent vote submission until video upload succeeds
+- Proper loading/error UI
+- Mobile-compatible recording
+- Responsive design
+
+---
+
+## Backend
+
+Create all necessary:
+
+- Models
+- Controllers
+- Services
+- Routes
+- Middleware
+- Validation
+- Cloudinary integration
+- Error handling
+
+Follow the existing project architecture.
+
+---
+
+## Cloudinary
+
+Implement:
+
+- Secure upload
+- Folder organization
+- Public ID generation
+- Delete API support (optional)
+- Metadata storage
+
+Store fields such as:
+
+- voter
+- election
+- vote
+- cloudinary public_id
+- secure_url
+- duration
+- uploaded_at
+- size
+
+---
+
+## Database
+
+Design the required schema(s).
+
+Use references instead of duplication.
+
+Follow the existing Mongoose style.
+
+---
+
+## Election Flow
+
+The new flow should become:
+
+Authenticate User
+↓
+
+Validate election
+↓
+
+Validate eligibility
+↓
+
+Open webcam
+↓
+
+Record video
+↓
+
+Upload to Cloudinary
+↓
+
+Store video metadata
+↓
+
+Cast vote
+↓
+
+Save vote record
+↓
+
+Return success response
+
+If video upload fails, the vote must not be submitted.
+
+---
+
+## Security
+
+Implement appropriate security measures, including:
+
+- Authentication
+- Authorization
+- Ownership validation
+- Upload validation
+- File type validation
+- Maximum 80 MB upload limit
+- Protection against duplicate voting
+- Prevent bypassing video recording
+- Secure Cloudinary credentials through environment variables
+
+---
+
+## API
+
+Design any new REST endpoints needed, following the existing REST conventions.
+
+Include request and response formats.
+
+---
+
+## Frontend Integration
+
+Integrate the feature into the existing Election pages without changing unrelated modules.
+
+Reuse the current:
+
+- React architecture
+- Axios instance
+- TanStack Query
+- Authentication context
+- Protected routes
+- UI components
+
+---
+
+## Code Quality
+
+Follow the repository's coding style.
+
+Maintain:
+
+- Separation of concerns
+- Clean architecture
+- Reusable components
+- Proper validation
+- Consistent error handling
+
+---
+
+## Deliverables
+
+Analyze the existing repository first, then provide:
+
+1. Overall implementation strategy.
+2. Required database changes.
+3. New models and relationships.
+4. Required backend files.
+5. Required frontend files.
+6. Cloudinary integration plan.
+7. API design.
+8. Complete voting workflow.
+9. Security considerations.
+10. Step-by-step implementation plan.
+11. Potential edge cases.
+12. Suggested improvements to make the feature production-ready.
+
+Do not rewrite existing modules unnecessarily. Reuse existing infrastructure wherever possible and keep the implementation consistent with the current architecture.
+
+
+CLOUDINARY_CLOUD_NAME=dwpa5ac0w
+CLOUDINARY_API_KEY= 637941236336665
+CLOUDINARY_API_SECRET= F_rfBE7U-Hww4dZHNKLndPkA4Ts
+
