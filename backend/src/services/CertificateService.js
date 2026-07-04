@@ -23,7 +23,8 @@ class CertificateService {
       throw new ApiError(404, "Membership record not found for current user");
     }
 
-    if (member.status !== "Active") {
+    // Check membershipStatus.status instead of member.status
+    if (member.membershipStatus?.status !== "Active") {
       throw new ApiError(400, "Only active members can request certificates");
     }
 

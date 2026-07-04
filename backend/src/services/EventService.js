@@ -303,7 +303,7 @@ class EventService {
       }
     }
 
-    if (!member || member.status !== "Active") {
+    if (!member || member.membershipStatus?.status !== "Active") {
       throw new ApiError(400, "Only active members can apply as volunteers");
     }
 

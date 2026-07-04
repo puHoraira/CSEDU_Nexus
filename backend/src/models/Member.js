@@ -272,6 +272,65 @@ const memberSchema = new mongoose.Schema(
       certificateNumber: { type: String, trim: true }
     }],
     
+    // Alumni Information (for graduated members)
+    alumniInfo: {
+      graduatedYear: { type: Number },
+      graduatedBatch: { type: Number },
+      finalCgpa: { type: Number, min: 0, max: 4.0 },
+      degreeReceived: { type: String, trim: true }, // e.g., "BSc in CSE"
+      
+      // Current Professional Information
+      currentEmployer: { type: String, trim: true },
+      currentPosition: { type: String, trim: true },
+      currentLocation: { type: String, trim: true },
+      industry: { type: String, trim: true }, // e.g., "Software", "Academia", "Finance"
+      employmentStatus: {
+        type: String,
+        enum: ["Employed", "Self_Employed", "Higher_Studies", "Unemployed", "Not_Disclosed"],
+        default: "Not_Disclosed"
+      },
+      
+      // Higher Studies
+      isInHigherStudies: { type: Boolean, default: false },
+      higherStudiesInstitution: { type: String, trim: true },
+      higherStudiesDegree: { type: String, trim: true }, // e.g., "MS in CS"
+      higherStudiesCountry: { type: String, trim: true },
+      
+      // Contact & Social
+      linkedinUrl: { type: String, trim: true },
+      personalWebsite: { type: String, trim: true },
+      githubUrl: { type: String, trim: true },
+      alternateEmail: { type: String, trim: true },
+      alternatePhone: { type: String, trim: true },
+      
+      // Achievements Post-Graduation
+      achievements: [{
+        title: { type: String, required: true, trim: true },
+        description: { type: String, trim: true },
+        date: { type: Date },
+        category: { type: String, enum: ["Award", "Publication", "Patent", "Startup", "Promotion", "Other"] }
+      }],
+      
+      // Alumni Engagement
+      willingToMentor: { type: Boolean, default: false },
+      willingToRecruit: { type: Boolean, default: false },
+      willingToSpeak: { type: Boolean, default: false },
+      lastContactedDate: { type: Date },
+      engagementScore: { type: Number, default: 0, min: 0, max: 100 },
+      
+      // Alumni Contributions
+      donationHistory: [{
+        amount: { type: Number },
+        date: { type: Date },
+        purpose: { type: String, trim: true }
+      }],
+      totalDonations: { type: Number, default: 0 },
+      
+      // Profile Completeness
+      profileCompleteness: { type: Number, default: 0, min: 0, max: 100 },
+      lastUpdated: { type: Date, default: Date.now }
+    },
+    
     // Communication Preferences
     communicationPreferences: {
       preferredLanguage: { 
@@ -545,6 +604,54 @@ memberSchema.methods.calculateLeadershipScore = function() {
   score += this.specialDesignations.length * 8;
   
   return Math.min(score, 100); // Cap at 100
+};
+
+// Method to calculate alumni profile completeness
+memberSchema.methods.calculateAlumniProfileCompleteness = function() {
+  if (!this.alumniInfo) return 0;
+  
+  let score = 0;
+  const weights = {
+    graduatedYear: 5,
+    finalCgpa: 5,
+    currentEmployer: 10,
+    currentPosition: 10,
+    currentLocation: 5,
+    industry: 5,
+    employmentStatus: 10,
+    linkedinUrl: 10,
+    alternateEmail: 10,
+    alternatePhone: 5,
+    willingToMentor: 5,
+    willingToRecruit: 5,
+    willingToSpeak: 5,
+    higherStudiesInfo: 10 // if in higher studies
+  };
+  
+  const ai = this.alumniInfo;
+  
+  if (ai.graduatedYear) score += weights.graduatedYear;
+  if (ai.finalCgpa) score += weights.finalCgpa;
+  if (ai.currentEmployer) score += weights.currentEmployer;
+  if (ai.currentPosition) score += weights.currentPosition;
+  if (ai.currentLocation) score += weights.currentLocation;
+  if (ai.industry) score += weights.industry;
+  if (ai.employmentStatus && ai.employmentStatus !== 'Not_Disclosed') score += weights.employmentStatus;
+  if (ai.linkedinUrl) score += weights.linkedinUrl;
+  if (ai.alternateEmail) score += weights.alternateEmail;
+  if (ai.alternatePhone) score += weights.alternatePhone;
+  
+  // Boolean flags
+  if (ai.willingToMentor) score += weights.willingToMentor;
+  if (ai.willingToRecruit) score += weights.willingToRecruit;
+  if (ai.willingToSpeak) score += weights.willingToSpeak;
+  
+  // Higher studies info
+  if (ai.isInHigherStudies && ai.higherStudiesInstitution) {
+    score += weights.higherStudiesInfo;
+  }
+  
+  return Math.min(score, 100);
 };
 
 // Pre-save middleware to update eligibility
