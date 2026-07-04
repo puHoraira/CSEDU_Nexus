@@ -26,6 +26,13 @@ const eventSchema = new mongoose.Schema(
     description: { type: String, default: "", trim: true },
     shortDescription: { type: String, default: "", trim: true, maxlength: 200 },
     
+    // Target Academic Years (for filtering who can see this event)
+    targetYears: {
+      type: [String],
+      enum: ["First_Year", "Second_Year", "Third_Year", "Fourth_Year", "Masters", "All_Years"],
+      default: ["All_Years"]
+    },
+    
     // Event Details
     eventDate: { type: Date, required: true },
     endDate: { type: Date }, // For multi-day events

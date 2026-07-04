@@ -146,25 +146,27 @@ class EventService {
     const events = await Event.find({}).sort({ eventDate: 1 });
 
     if (requestingUserId) {
-      const member = await Member.findOne({ userId: requestingUserId }).select('batch currentYear');
+      const member = await Member.findOne({ userId: requestingUserId }).select('batch currentYear academicYearLevel');
       if (member) {
-        // Use volunteerEligibility as the audience targeting field for events
-        return events.map(ev => {
-          const obj = ev.toObject();
-          const ve = obj.volunteerEligibility || {};
-          const hasYears   = Array.isArray(ve.allowedYears)   && ve.allowedYears.length > 0;
-          const hasBatches = Array.isArray(ve.allowedBatches) && ve.allowedBatches.length > 0;
-
-          if (!hasYears && !hasBatches) {
-            return { ...obj, _audienceMatch: 'open' };
+        return events.filter(ev => {
+          const targetYears = ev.targetYears || [];
+          
+          // No target years or includes All_Years - show to everyone
+          if (targetYears.length === 0 || targetYears.includes("All_Years")) {
+            return true;
           }
-          const yearMatch  = !hasYears   || ve.allowedYears.includes(member.currentYear);
-          const batchMatch = !hasBatches || ve.allowedBatches.includes(member.batch);
-          return { ...obj, _audienceMatch: yearMatch && batchMatch ? 'targeted' : 'excluded' };
+          
+          // Check if user's year level is in target years
+          return targetYears.includes(member.academicYearLevel);
         });
       }
     }
-    return events;
+    
+    // No user context - only show All_Years events or events without targetYears
+    return events.filter(ev => {
+      const targetYears = ev.targetYears || [];
+      return targetYears.length === 0 || targetYears.includes("All_Years");
+    });
   }
 
   static async listEventFeed(eventId) {

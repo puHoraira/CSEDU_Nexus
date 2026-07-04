@@ -35,8 +35,9 @@ class EventController {
     return ApiResponse.ok(res, event, "Event");
   });
 
-  static list = asyncHandler(async (_req, res) => {
-    const events = await EventService.listEvents();
+  static list = asyncHandler(async (req, res) => {
+    const userId = req.auth?.userId || req.user?._id || null;
+    const events = await EventService.listEvents(userId);
     return ApiResponse.ok(res, events, "Events");
   });
 

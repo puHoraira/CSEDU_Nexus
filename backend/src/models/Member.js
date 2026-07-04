@@ -9,9 +9,48 @@ const memberSchema = new mongoose.Schema(
     studentId: { type: String, required: true, unique: true, trim: true },
     batch: { type: Number, required: true },
     currentYear: { type: Number, required: true, min: 1, max: 5 },
+    
+    // Year Classification (for filtering content and eligibility)
+    academicYearLevel: {
+      type: String,
+      enum: ["First_Year", "Second_Year", "Third_Year", "Fourth_Year", "Masters", "Graduated"],
+      required: true,
+      default: "First_Year"
+    },
+    
     session: { type: String, trim: true }, // e.g., "2020-21"
     admissionYear: { type: Number },
     expectedGraduationYear: { type: Number },
+    
+    // Promotion History (tracking year-level promotions)
+    promotionHistory: [{
+      fromYear: { 
+        type: String, 
+        enum: ["First_Year", "Second_Year", "Third_Year", "Fourth_Year", "Masters", "Graduated"]
+      },
+      toYear: { 
+        type: String, 
+        enum: ["First_Year", "Second_Year", "Third_Year", "Fourth_Year", "Masters", "Graduated"]
+      },
+      promotedAt: { type: Date, default: Date.now },
+      promotedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      promotionType: {
+        type: String,
+        enum: ["Bulk_Promotion", "Individual_Promotion", "Manual_Correction"],
+        default: "Bulk_Promotion"
+      },
+      academicYear: { type: String, trim: true }, // e.g., "2023-2024"
+      notes: { type: String, trim: true }
+    }],
+    
+    // Track if student failed and retained in same year
+    retentionStatus: {
+      isRetained: { type: Boolean, default: false },
+      retentionReason: { type: String, trim: true },
+      retainedAt: { type: Date },
+      retainedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      originalPromotionYear: { type: String, trim: true }
+    },
     
     // Academic Performance (Critical for EC eligibility)
     academicRecord: {
@@ -367,6 +406,90 @@ memberSchema.methods.checkEcEligibility = function(requirements = {}) {
   return eligibility;
 };
 
+// Method to promote student to next year level
+memberSchema.methods.promoteToNextYear = function(promotedBy, notes = '', promotionType = 'Bulk_Promotion') {
+  const yearProgression = {
+    'First_Year': 'Second_Year',
+    'Second_Year': 'Third_Year',
+    'Third_Year': 'Fourth_Year',
+    'Fourth_Year': 'Masters',
+    'Masters': 'Graduated'
+  };
+  
+  const fromYear = this.academicYearLevel;
+  const toYear = yearProgression[fromYear];
+  
+  if (!toYear) {
+    throw new Error(`Cannot promote from ${fromYear}`);
+  }
+  
+  // Add to promotion history
+  this.promotionHistory.push({
+    fromYear,
+    toYear,
+    promotedAt: new Date(),
+    promotedBy,
+    promotionType,
+    academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+    notes
+  });
+  
+  // Update current year level
+  this.academicYearLevel = toYear;
+  
+  // Update currentYear numeric field
+  const yearLevelToNumber = {
+    'First_Year': 1,
+    'Second_Year': 2,
+    'Third_Year': 3,
+    'Fourth_Year': 4,
+    'Masters': 5,
+    'Graduated': 5
+  };
+  this.currentYear = yearLevelToNumber[toYear];
+  
+  // Clear retention status if promoted
+  if (this.retentionStatus.isRetained) {
+    this.retentionStatus.isRetained = false;
+  }
+  
+  // Update membership status if graduated
+  if (toYear === 'Graduated') {
+    this.membershipStatus.status = 'Graduated';
+    this.membershipStatus.statusReason = 'Student graduated';
+    this.membershipStatus.statusChangeDate = new Date();
+    this.academicRecord.isGraduating = true;
+    this.academicRecord.graduationDate = new Date();
+  }
+  
+  return this;
+};
+
+// Method to retain student in current year (failed)
+memberSchema.methods.retainInCurrentYear = function(retainedBy, reason = '') {
+  this.retentionStatus = {
+    isRetained: true,
+    retentionReason: reason,
+    retainedAt: new Date(),
+    retainedBy,
+    originalPromotionYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
+  };
+  
+  return this;
+};
+
+// Static method to get next year level
+memberSchema.statics.getNextYearLevel = function(currentLevel) {
+  const yearProgression = {
+    'First_Year': 'Second_Year',
+    'Second_Year': 'Third_Year',
+    'Third_Year': 'Fourth_Year',
+    'Fourth_Year': 'Masters',
+    'Masters': 'Graduated'
+  };
+  return yearProgression[currentLevel] || null;
+};
+
 // Method to check voting eligibility
 memberSchema.methods.checkVotingEligibility = function(requirements = {}) {
   const {
@@ -471,11 +594,13 @@ memberSchema.pre('save', function(next) {
 memberSchema.index({ userId: 1 });
 memberSchema.index({ studentId: 1 });
 memberSchema.index({ batch: 1 });
+memberSchema.index({ academicYearLevel: 1 });
 memberSchema.index({ 'membershipStatus.status': 1 });
 memberSchema.index({ 'academicRecord.currentCgpa': -1 });
 memberSchema.index({ 'attendanceRecord.overallAttendancePercentage': -1 });
 memberSchema.index({ 'electionEligibility.isEligibleForCandidacy': 1 });
 memberSchema.index({ 'electionEligibility.isEligibleForVoting': 1 });
+memberSchema.index({ 'retentionStatus.isRetained': 1 });
 memberSchema.index({ createdAt: -1 });
 
 const Member = mongoose.model("Member", memberSchema);

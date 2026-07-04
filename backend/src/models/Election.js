@@ -6,6 +6,13 @@ const electionSchema = new mongoose.Schema(
     description: { type: String, default: "" },
     termId: { type: mongoose.Schema.Types.ObjectId, ref: "EcTerm", required: true },
     
+    // Target Academic Years (for filtering who can see/vote in this election)
+    targetYears: {
+      type: [String],
+      enum: ["First_Year", "Second_Year", "Third_Year", "Fourth_Year", "Masters", "All_Years"],
+      default: ["All_Years"]
+    },
+    
     // Election Phases
     currentPhase: { type: Number, enum: [0, 1, 2], default: 0 }, // 0 = Setup, 1 = Phase 1, 2 = Phase 2
     

@@ -13,8 +13,9 @@ class ElectionController {
     return ApiResponse.created(res, row, "Election created");
   });
 
-  static list = asyncHandler(async (_req, res) => {
-    const rows = await ElectionService.listElections();
+  static list = asyncHandler(async (req, res) => {
+    const userId = req.auth?.userId || req.user?._id || null;
+    const rows = await ElectionService.listElections(userId);
     return ApiResponse.ok(res, rows, "Elections");
   });
 
