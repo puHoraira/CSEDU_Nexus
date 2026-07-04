@@ -1,6 +1,7 @@
 const { env } = require("./config/env");
 const { connectDB } = require("./config/db");
 const { app } = require("./app");
+
 const { EmailService } = require("./services/EmailService");
 
 async function bootstrap() {

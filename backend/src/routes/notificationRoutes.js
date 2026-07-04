@@ -1,5 +1,6 @@
 const express = require("express");
 const { authenticate } = require("../middleware/auth");
+
 const { authorize } = require("../middleware/authorize");
 const { NotificationController } = require("../controllers/NotificationController");
 
