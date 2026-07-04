@@ -42,7 +42,7 @@ export const ResetPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await apiRequest('/auth/reset-password', {
+      const response: any = await apiRequest('/auth/reset-password', {
         method: 'POST',
         body: JSON.stringify({
           token,

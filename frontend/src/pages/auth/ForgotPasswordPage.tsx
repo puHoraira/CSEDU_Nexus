@@ -21,7 +21,7 @@ export const ForgotPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await apiRequest('/auth/request-password-reset', {
+      const response: any = await apiRequest('/auth/request-password-reset', {
         method: 'POST',
         body: JSON.stringify({ email: email.trim() }),
       });

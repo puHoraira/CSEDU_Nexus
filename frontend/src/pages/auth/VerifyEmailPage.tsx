@@ -27,7 +27,7 @@ export const VerifyEmailPage: React.FC = () => {
 
   const verifyEmail = async () => {
     try {
-      const response = await apiRequest('/auth/verify-email', {
+      const response: any = await apiRequest('/auth/verify-email', {
         method: 'POST',
         body: JSON.stringify({ token, email }),
       });
