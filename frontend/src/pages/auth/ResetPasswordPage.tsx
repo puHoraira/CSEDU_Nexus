@@ -57,7 +57,7 @@ export const ResetPasswordPage: React.FC = () => {
         
         // Redirect to login after 3 seconds
         setTimeout(() => {
-          navigate('/login', { state: { passwordReset: true } });
+          navigate('/auth/login', { state: { passwordReset: true } });
         }, 3000);
       }
     } catch (error: any) {
@@ -134,7 +134,7 @@ export const ResetPasswordPage: React.FC = () => {
           </p>
           
           <Link
-            to="/login"
+            to="/auth/login"
             className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors inline-block text-center"
           >
             Continue to Login
@@ -285,7 +285,7 @@ export const ResetPasswordPage: React.FC = () => {
 
           <div className="text-center">
             <Link
-              to="/login"
+              to="/auth/login"
               className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />

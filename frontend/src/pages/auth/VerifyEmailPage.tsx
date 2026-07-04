@@ -38,7 +38,7 @@ export const VerifyEmailPage: React.FC = () => {
         
         // Redirect to login after 3 seconds
         setTimeout(() => {
-          navigate('/login', { state: { emailVerified: true } });
+          navigate('/auth/login', { state: { emailVerified: true } });
         }, 3000);
       }
     } catch (error: any) {
@@ -151,7 +151,7 @@ export const VerifyEmailPage: React.FC = () => {
             {verificationStatus === 'success' && (
               <div className="space-y-3">
                 <Link
-                  to="/login"
+                  to="/auth/login"
                   className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                 >
                   Continue to Login
@@ -190,7 +190,7 @@ export const VerifyEmailPage: React.FC = () => {
 
                 <div className="flex gap-3">
                   <Link
-                    to="/login"
+                    to="/auth/login"
                     className="flex-1 border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors text-center"
                   >
                     Try Login
