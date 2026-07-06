@@ -53,6 +53,7 @@ import { ChiefPatronDetailsPage } from "../pages/dashboard/ChiefPatronDetailsPag
 import { ElectionCommissionPage } from "../pages/dashboard/ElectionCommissionPage";
 import { AlumniPortalPage } from "../pages/dashboard/AlumniPortalPage";
 import { AdminRoleManagementPage } from "../pages/dashboard/AdminRoleManagementPage";
+import { YearPromotionPage } from "../pages/admin/YearPromotionPage";
 
 type RouteDef = {
   path: string;
@@ -90,6 +91,11 @@ export const routeDefinitions: RouteDef[] = [
     path: "/dashboard/admin",
     element: <AdminRoleManagementPage />,
     requiredRoles: ["System Admin"],
+  },
+  {
+    path: "/dashboard/admin/year-promotion",
+    element: <YearPromotionPage />,
+    requiredRoles: ["Moderator", "Chief Patron"],
   },
   { path: "/dashboard/membership", element: <MembershipOverviewPage /> },
   {
