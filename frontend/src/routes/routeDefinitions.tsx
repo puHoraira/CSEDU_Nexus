@@ -53,7 +53,7 @@ import { ChiefPatronDetailsPage } from "../pages/dashboard/ChiefPatronDetailsPag
 import { ElectionCommissionPage } from "../pages/dashboard/ElectionCommissionPage";
 import { AlumniPortalPage } from "../pages/dashboard/AlumniPortalPage";
 import { AdminRoleManagementPage } from "../pages/dashboard/AdminRoleManagementPage";
-import { YearPromotionPage } from "../pages/admin/YearPromotionPage";
+import YearPromotionPage from "../pages/admin/YearPromotionPage";
 
 type RouteDef = {
   path: string;
