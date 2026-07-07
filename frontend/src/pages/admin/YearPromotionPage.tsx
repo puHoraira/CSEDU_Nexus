@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useAuth } from '../../auth/AuthContext';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+import { apiRequest } from '../../lib/api';
 
 interface Student {
   memberId: string;
@@ -37,7 +34,6 @@ interface YearStats {
 }
 
 const YearPromotionPage: React.FC = () => {
-  const { token } = useAuth();
   const [stats, setStats] = useState<YearStats[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [preview, setPreview] = useState<PromotionPreview | null>(null);
@@ -60,10 +56,8 @@ const YearPromotionPage: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/year-promotion/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setStats(response.data.data || []);
+      const response: any = await apiRequest('/year-promotion/stats');
+      setStats(response.data || []);
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
@@ -72,11 +66,8 @@ const YearPromotionPage: React.FC = () => {
   const fetchPreview = async (yearLevel: string) => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/year-promotion/preview/${yearLevel}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setPreview(response.data.data);
+      const response: any = await apiRequest(`/year-promotion/preview/${yearLevel}`);
+      setPreview(response.data);
     } catch (error) {
       console.error('Error fetching preview:', error);
       alert('Failed to load promotion preview');
@@ -104,17 +95,16 @@ const YearPromotionPage: React.FC = () => {
 
     setPromoting(true);
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/year-promotion/bulk-promote`,
-        {
+      const response: any = await apiRequest('/year-promotion/bulk-promote', {
+        method: 'POST',
+        body: JSON.stringify({
           yearLevel: selectedYear,
           excludeRetained,
           notes
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+        })
+      });
 
-      const result = response.data.data;
+      const result = response.data;
       alert(
         `Promotion completed!\n\nSuccessfully promoted: ${result.successCount}\nFailed: ${result.failedCount}`
       );
@@ -127,7 +117,7 @@ const YearPromotionPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error promoting students:', error);
-      alert(error.response?.data?.message || 'Failed to promote students');
+      alert(error.message || 'Failed to promote students');
     } finally {
       setPromoting(false);
     }
@@ -141,11 +131,10 @@ const YearPromotionPage: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await axios.post(
-        `${API_BASE_URL}/year-promotion/promote/${memberId}`,
-        { notes: 'Individual promotion' },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await apiRequest(`/year-promotion/promote/${memberId}`, {
+        method: 'POST',
+        body: JSON.stringify({ notes: 'Individual promotion' })
+      });
 
       alert(`${studentName} promoted successfully`);
       fetchStats();
@@ -154,7 +143,7 @@ const YearPromotionPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error promoting student:', error);
-      alert(error.response?.data?.message || 'Failed to promote student');
+      alert(error.message || 'Failed to promote student');
     }
   };
 
@@ -167,11 +156,10 @@ const YearPromotionPage: React.FC = () => {
     if (!reason) return;
 
     try {
-      await axios.post(
-        `${API_BASE_URL}/year-promotion/retain/${memberId}`,
-        { reason },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await apiRequest(`/year-promotion/retain/${memberId}`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
 
       alert(`${studentName} marked as retained`);
       fetchStats();
@@ -180,7 +168,7 @@ const YearPromotionPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error retaining student:', error);
-      alert(error.response?.data?.message || 'Failed to retain student');
+      alert(error.message || 'Failed to retain student');
     }
   };
 
@@ -192,11 +180,10 @@ const YearPromotionPage: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await axios.post(
-        `${API_BASE_URL}/year-promotion/clear-retention/${memberId}`,
-        { reason: 'Cleared by admin' },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await apiRequest(`/year-promotion/clear-retention/${memberId}`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: 'Cleared by admin' })
+      });
 
       alert(`Retention status cleared for ${studentName}`);
       fetchStats();
@@ -205,7 +192,7 @@ const YearPromotionPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error clearing retention:', error);
-      alert(error.response?.data?.message || 'Failed to clear retention');
+      alert(error.message || 'Failed to clear retention');
     }
   };
 
