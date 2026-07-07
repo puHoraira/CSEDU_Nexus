@@ -22,16 +22,24 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setEmailNotVerified(false);
     try {
       const result = await login(email, password);
       navigate(getRoleHomePage(result.user.roles));
     } catch (err) {
-      setError(normalizeApiError(err));
+      const errorMsg = normalizeApiError(err);
+      setError(errorMsg);
+      
+      // Check if error is about email verification
+      if (errorMsg.toLowerCase().includes("verify your email")) {
+        setEmailNotVerified(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -86,7 +94,21 @@ export function LoginPage() {
               <span>Password</span>
               <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Your account password" required />
             </label>
-            {error ? <div className="alert">{error}</div> : null}
+            {error ? (
+              <div className="alert">
+                {error}
+                {emailNotVerified && (
+                  <div style={{ marginTop: 12, padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 6 }}>
+                    <strong>Need help?</strong>
+                    <ul style={{ marginTop: 8, paddingLeft: 20, fontSize: "0.9rem" }}>
+                      <li>Check your email inbox for the verification link</li>
+                      <li>Check your spam/junk folder</li>
+                      <li>Click the verification link to activate your account</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : null}
             <div className="form-actions">
               <button className="primary-button" type="submit" disabled={loading}>
                 {loading ? (
@@ -103,7 +125,6 @@ export function LoginPage() {
               </Link>
             </div>
             
-            {/* Forgot Password Link */}
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <Link 
                 to="/forgot-password" 
@@ -115,6 +136,18 @@ export function LoginPage() {
                 }}
               >
                 Forgot your password?
+              </Link>
+              <span style={{ margin: '0 8px', color: 'var(--muted)' }}>•</span>
+              <Link 
+                to="/auth/resend-verification" 
+                style={{ 
+                  color: 'var(--primary)', 
+                  textDecoration: 'none', 
+                  fontSize: '0.9rem',
+                  fontWeight: 500
+                }}
+              >
+                Resend verification email
               </Link>
             </div>
           </form>

@@ -63,6 +63,40 @@ class AuthController {
     return ApiResponse.ok(res, result, "Verification email sent successfully");
   });
 
+  static requestVerificationEmail = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    const { User } = require("../models/User");
+    
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase(), isActive: true });
+    
+    // Always return success to prevent email enumeration
+    const successResponse = {
+      message: "If an account with that email exists and is not verified, a verification link has been sent"
+    };
+
+    if (!user) {
+      return ApiResponse.ok(res, successResponse);
+    }
+
+    // If already verified, still return success
+    if (user.emailVerified) {
+      return ApiResponse.ok(res, successResponse);
+    }
+
+    // Send verification email
+    try {
+      const result = await AuthService.sendVerificationEmail(user._id);
+      return ApiResponse.ok(res, {
+        ...successResponse,
+        previewUrl: result.previewUrl // For development only
+      });
+    } catch (error) {
+      console.error("Failed to send verification email:", error);
+      return ApiResponse.ok(res, successResponse); // Still return success
+    }
+  });
+
   static verifyEmail = asyncHandler(async (req, res) => {
     const { token, email } = req.body;
     const result = await AuthService.verifyEmail(token, email);

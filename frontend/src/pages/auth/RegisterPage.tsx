@@ -41,6 +41,8 @@ export function RegisterPage() {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
 
   function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -68,7 +70,10 @@ export function RegisterPage() {
           phone: form.phone,
           experience: form.experience,
         });
-        navigate(getRoleHomePage(result.user.roles));
+        
+        // Show verification success message
+        setUserEmail(form.email);
+        setRegistrationSuccess(true);
       } else {
         const result = await register({
           email: form.email,
@@ -81,7 +86,10 @@ export function RegisterPage() {
           currentYear: form.currentYear,
           experience: form.experience || "",
         });
-        navigate(getRoleHomePage(result.user.roles));
+        
+        // Show verification success message
+        setUserEmail(form.email);
+        setRegistrationSuccess(true);
       }
     } catch (err) {
       setError(normalizeApiError(err));
@@ -92,7 +100,59 @@ export function RegisterPage() {
 
   return (
     <section className="register-layout">
-      <aside className="register-hero">
+      {registrationSuccess ? (
+        <div className="register-content" style={{ maxWidth: 600, margin: "auto", padding: 40 }}>
+          <div className="success-message" style={{ 
+            textAlign: "center", 
+            padding: 40, 
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            borderRadius: 12,
+            color: "white"
+          }}>
+            <div style={{ fontSize: 64, marginBottom: 20 }}>✉️</div>
+            <h1 style={{ marginBottom: 16, color: "white" }}>Check Your Email</h1>
+            <p style={{ fontSize: 18, marginBottom: 24, opacity: 0.95 }}>
+              We've sent a verification link to <strong>{userEmail}</strong>
+            </p>
+            <div style={{ 
+              background: "rgba(255,255,255,0.1)", 
+              padding: 20, 
+              borderRadius: 8,
+              marginBottom: 24
+            }}>
+              <p style={{ marginBottom: 12, fontSize: 16 }}>
+                <strong>Next Steps:</strong>
+              </p>
+              <ol style={{ textAlign: "left", fontSize: 14, lineHeight: 1.8 }}>
+                <li>Open your email inbox</li>
+                <li>Look for an email from CSEDU Nexus</li>
+                <li>Click the verification link in the email</li>
+                <li>Once verified, you can log in to your account</li>
+              </ol>
+            </div>
+            <p style={{ fontSize: 14, opacity: 0.85, marginBottom: 20 }}>
+              Didn't receive the email? Check your spam folder or wait a few minutes.
+            </p>
+            <Link 
+              to="/auth/login" 
+              className="primary-button"
+              style={{ 
+                display: "inline-block",
+                padding: "12px 32px",
+                background: "white",
+                color: "#667eea",
+                textDecoration: "none",
+                borderRadius: 8,
+                fontWeight: 600
+              }}
+            >
+              Go to Login Page
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <>
+          <aside className="register-hero">
         <h2>Join the club workspace.</h2>
         <p>
           Create your account to access membership tools, event workflows, meeting actions, and role-aware club services.
@@ -294,6 +354,8 @@ export function RegisterPage() {
           <span>UNIVERSITY CHARTER</span>
         </footer>
       </div>
+    </>
+      )}
     </section>
   );
 }

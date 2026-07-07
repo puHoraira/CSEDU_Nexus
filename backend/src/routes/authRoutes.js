@@ -15,6 +15,7 @@ router.post("/logout", AuthController.logout);
 
 // Email verification routes
 router.post("/send-verification", rateLimiter('emailVerification'), authenticate, AuthController.sendVerificationEmail);
+router.post("/request-verification", rateLimiter('emailVerification'), AuthController.requestVerificationEmail);
 router.post("/verify-email", AuthController.verifyEmail);
 router.post("/request-password-reset", rateLimiter('passwordReset'), AuthController.requestPasswordReset);
 router.post("/reset-password", AuthController.resetPassword);

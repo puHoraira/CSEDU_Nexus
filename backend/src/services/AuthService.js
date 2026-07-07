@@ -315,10 +315,19 @@ class AuthService {
       },
     });
 
+    // Send email verification
+    try {
+      await this.sendVerificationEmail(user._id);
+    } catch (error) {
+      console.error("Failed to send verification email:", error);
+      // Don't fail registration if email sending fails
+    }
+
     return {
       user: this.buildAuthUserPayload(user, roles, member),
       accessToken,
       refreshToken,
+      emailVerificationSent: true
     };
   }
 
@@ -364,10 +373,19 @@ class AuthService {
       metadata: { email: user.email, designation, mappedRole: "Alumni" },
     });
 
+    // Send email verification
+    try {
+      await this.sendVerificationEmail(user._id);
+    } catch (error) {
+      console.error("Failed to send verification email:", error);
+      // Don't fail registration if email sending fails
+    }
+
     return {
       user: this.buildAuthUserPayload(user, roles),
       accessToken,
       refreshToken,
+      emailVerificationSent: true
     };
   }
 
@@ -380,6 +398,11 @@ class AuthService {
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) {
       throw new ApiError(401, "Invalid credentials");
+    }
+
+    // Check email verification
+    if (!user.emailVerified) {
+      throw new ApiError(403, "Please verify your email before logging in. Check your inbox for the verification link.");
     }
 
     // Update last login

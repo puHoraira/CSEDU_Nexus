@@ -8,6 +8,7 @@ import { RegisterPage } from "./pages/auth/RegisterPage";
 import { VerifyEmailPage } from "./pages/auth/VerifyEmailPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
+import { ResendVerificationPage } from "./pages/auth/ResendVerificationPage";
 import { ConstitutionPage } from "./pages/public/ConstitutionPage";
 import { NoticesPage } from "./pages/public/NoticesPage";
 import { AboutPage } from "./pages/public/AboutPage";
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/auth/login" element={<LoginPage />} />
         <Route path="/auth/register" element={<RegisterPage />} />
+        <Route path="/auth/resend-verification" element={<ResendVerificationPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
