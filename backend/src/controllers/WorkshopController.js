@@ -104,7 +104,7 @@ class WorkshopController {
   });
 
   static addMaterial = asyncHandler(async (req, res) => {
-    const workshop = await WorkshopService.addMaterial(req.params.id, req.body);
+    const workshop = await WorkshopService.addMaterial(req.params.id, req.body, req.auth.userId);
     return ApiResponse.ok(res, workshop, 'Material added');
   });
 
@@ -116,6 +116,26 @@ class WorkshopController {
   static removeMaterial = asyncHandler(async (req, res) => {
     const workshop = await WorkshopService.removeMaterial(req.params.id, parseInt(req.params.index));
     return ApiResponse.ok(res, workshop, 'Material removed');
+  });
+
+  // ── Follow/Unfollow ────────────────────────────────────────────────────────
+
+  static followWorkshop = asyncHandler(async (req, res) => {
+    const result = await WorkshopService.followWorkshop(
+      req.params.id,
+      req.auth.userId,
+      req.requestMeta.requestId
+    );
+    return ApiResponse.ok(res, result, result.message);
+  });
+
+  static unfollowWorkshop = asyncHandler(async (req, res) => {
+    const result = await WorkshopService.unfollowWorkshop(
+      req.params.id,
+      req.auth.userId,
+      req.requestMeta.requestId
+    );
+    return ApiResponse.ok(res, result, result.message);
   });
 }
 

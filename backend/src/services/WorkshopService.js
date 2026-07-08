@@ -18,6 +18,32 @@ class WorkshopService {
 
   static async createWorkshop(data, userId) {
     const workshop = await Workshop.create({ ...data, createdBy: userId });
+    
+    // Notify users based on target audience (if specified)
+    if (workshop.targetAudience) {
+      const hasTargeting = 
+        (workshop.targetAudience.allowedYears && workshop.targetAudience.allowedYears.length > 0) ||
+        (workshop.targetAudience.allowedBatches && workshop.targetAudience.allowedBatches.length > 0) ||
+        (workshop.targetAudience.allowedRoles && workshop.targetAudience.allowedRoles.length > 0) ||
+        (workshop.targetAudience.invitedUsers && workshop.targetAudience.invitedUsers.length > 0);
+
+      if (hasTargeting) {
+        const { NotificationService } = require('./NotificationService');
+        await NotificationService.notifyWorkshopFollowers(workshop._id, {
+          title: 'New Workshop Available',
+          message: `${workshop.title} has been created`,
+          category: 'Workshop',
+          actionUrl: `/workshops/${workshop._id}`,
+          entityType: 'Workshop',
+          entityId: workshop._id.toString(),
+        }, { 
+          excludeUserIds: [userId],
+          notifyTargetAudience: true, // Notify users matching target audience
+          includeRegistered: false, // Don't include registered (workshop just created)
+        });
+      }
+    }
+    
     return workshop;
   }
 
@@ -35,17 +61,40 @@ class WorkshopService {
       .sort({ startDate: 1 })
       .populate('createdBy', 'firstName lastName avatarUrl');
 
-    // Annotate with audience relevance if we know the requesting user
+    // Apply audience relevance filtering if we know the requesting user
     if (requestingUserId) {
-      const member = await Member.findOne({ userId: requestingUserId }).select('batch currentYear');
-      if (member) {
-        return annotateAudienceRelevance(
+      const { UserRole } = require('../models/UserRole');
+      const { Role } = require('../models/Role');
+      
+      const [member, userRoleRecords] = await Promise.all([
+        Member.findOne({ userId: requestingUserId }).select('batch currentYear'),
+        UserRole.find({ userId: requestingUserId }).populate('roleId')
+      ]);
+
+      const userRoles = userRoleRecords.map(ur => ur.roleId?.roleName).filter(Boolean);
+
+      if (member || userRoles.length > 0) {
+        const { filterByAudience } = require('../utils/audienceUtils');
+        return filterByAudience(
           workshops.map(w => w.toObject()),
-          member
+          member,
+          requestingUserId,
+          userRoles
         );
       }
     }
-    return workshops;
+
+    // No user context - only show workshops without targeting
+    return workshops.filter(w => {
+      const ta = w.targetAudience || {};
+      const hasAnyFilter = 
+        (Array.isArray(ta.allowedYears) && ta.allowedYears.length > 0) ||
+        (Array.isArray(ta.allowedBatches) && ta.allowedBatches.length > 0) ||
+        (Array.isArray(ta.allowedRoles) && ta.allowedRoles.length > 0) ||
+        (Array.isArray(ta.invitedUsers) && ta.invitedUsers.length > 0);
+      
+      return !hasAnyFilter; // Show only public/open workshops
+    });
   }
 
   static async getWorkshopById(id) {
@@ -57,8 +106,28 @@ class WorkshopService {
   static async updateWorkshop(id, data, userId) {
     const w = await Workshop.findById(id);
     if (!w) throw new ApiError(404, 'Workshop not found');
+    
+    const changesRequireNotification = 
+      (data.startDate !== undefined && data.startDate !== w.startDate) ||
+      (data.venue !== undefined && data.venue !== w.venue) ||
+      (data.status !== undefined && data.status !== w.status);
+    
     Object.assign(w, data);
     await w.save();
+    
+    // Notify followers and participants of important changes
+    if (changesRequireNotification) {
+      const { NotificationService } = require('./NotificationService');
+      await NotificationService.notifyWorkshopFollowers(w._id, {
+        title: 'Workshop Updated',
+        message: `${w.title} has been updated. Please check the details.`,
+        category: 'Workshop',
+        actionUrl: `/workshops/${w._id}`,
+        entityType: 'Workshop',
+        entityId: w._id.toString(),
+      }, { excludeUserIds: [userId] });
+    }
+    
     return w;
   }
 
@@ -123,6 +192,17 @@ class WorkshopService {
 
     // Update stats
     await Workshop.findByIdAndUpdate(workshopId, { $inc: { 'stats.totalRegistrations': 1 } });
+
+    // Send confirmation notification
+    const { NotificationService } = require('./NotificationService');
+    await NotificationService.createForUser(userId, {
+      title: 'Workshop Registration Confirmed',
+      message: `You have successfully registered for ${workshop.title}`,
+      category: 'Workshop',
+      actionUrl: `/workshops/${workshopId}`,
+      entityType: 'WorkshopRegistration',
+      entityId: reg._id.toString(),
+    });
 
     return reg;
   }
@@ -295,11 +375,33 @@ class WorkshopService {
     reg.qrCodeData = await QRCode.toDataURL(qrData, { width: 300, margin: 2 });
   }
 
-  static async addMaterial(workshopId, material) {
-    const w = await Workshop.findById(workshopId);
+  static async addMaterial(workshopId, material, actorId) {
+    const w = await Workshop.findById(workshopId).select('_id title followers materials');
     if (!w) throw new ApiError(404, 'Workshop not found');
+    
     w.materials.push(material);
     await w.save();
+    
+    // Notify workshop followers (excluding the person who uploaded)
+    if (w.followers && w.followers.length > 0) {
+      await NotificationService.notifyWorkshopFollowers(
+        workshopId,
+        {
+          title: `📎 New material added to ${w.title}`,
+          message: `New ${material.type || 'learning material'}: ${material.title}`,
+          category: "Workshop",
+          actionUrl: `/dashboard/workshops/${workshopId}`,
+          entityType: "Workshop",
+          entityId: workshopId.toString(),
+          metadata: { materialTitle: material.title, materialType: material.type },
+        },
+        {
+          excludeUserIds: actorId ? [actorId] : [],
+          includeRegistered: true, // Notify registered participants too
+        }
+      );
+    }
+    
     return w;
   }
 
@@ -405,6 +507,66 @@ class WorkshopService {
     }
 
     throw new Error('No available seats in any assigned room');
+  }
+
+  static async followWorkshop(workshopId, userId, requestId) {
+    const workshop = await Workshop.findById(workshopId);
+    if (!workshop) {
+      throw new ApiError(404, "Workshop not found");
+    }
+
+    // Check if already following
+    if (workshop.followers && workshop.followers.includes(userId)) {
+      throw new ApiError(409, "You are already following this workshop");
+    }
+
+    workshop.followers = workshop.followers || [];
+    workshop.followers.push(userId);
+    await workshop.save();
+
+    const { AuditService } = require('./AuditService');
+    await AuditService.log({
+      actorId: userId,
+      action: "WORKSHOP_FOLLOWED",
+      resource: "Workshop",
+      resourceId: workshop._id.toString(),
+      requestId,
+      metadata: { workshopId: workshop._id.toString() },
+    });
+
+    return { message: "Workshop followed successfully", totalFollowers: workshop.followers.length };
+  }
+
+  static async unfollowWorkshop(workshopId, userId, requestId) {
+    const workshop = await Workshop.findById(workshopId);
+    if (!workshop) {
+      throw new ApiError(404, "Workshop not found");
+    }
+
+    // Check if following
+    if (!workshop.followers) {
+      workshop.followers = [];
+    }
+    
+    const index = workshop.followers.indexOf(userId);
+    if (index === -1) {
+      throw new ApiError(409, "You are not following this workshop");
+    }
+
+    workshop.followers.splice(index, 1);
+    await workshop.save();
+
+    const { AuditService } = require('./AuditService');
+    await AuditService.log({
+      actorId: userId,
+      action: "WORKSHOP_UNFOLLOWED",
+      resource: "Workshop",
+      resourceId: workshop._id.toString(),
+      requestId,
+      metadata: { workshopId: workshop._id.toString() },
+    });
+
+    return { message: "Workshop unfollowed successfully", totalFollowers: workshop.followers.length };
   }
 }
 

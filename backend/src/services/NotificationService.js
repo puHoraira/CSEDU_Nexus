@@ -2,6 +2,7 @@ const { Notification } = require("../models/Notification");
 const { Role } = require("../models/Role");
 const { UserRole } = require("../models/UserRole");
 const { User } = require("../models/User");
+const { Member } = require("../models/Member");
 const { ApiError } = require("../core/ApiError");
 
 class NotificationService {
@@ -70,7 +71,177 @@ class NotificationService {
     return this.createForUsers(userIds, payload);
   }
 
+  /**
+   * Get users who match the target audience criteria
+   * Used for events, workshops, meetings with targetAudience filtering
+   */
+  static async getUsersByTargetAudience(targetAudience = {}) {
+    const {
+      allowedYears = [],
+      allowedBatches = [],
+      allowedRoles = [],
+      invitedUsers = [],
+    } = targetAudience;
+
+    let userIds = [];
+
+    // Get explicitly invited users
+    if (invitedUsers.length > 0) {
+      userIds.push(...invitedUsers);
+    }
+
+    // Get users by role
+    if (allowedRoles.length > 0) {
+      const roleUserIds = await this.getUserIdsByRoleNames(allowedRoles);
+      userIds.push(...roleUserIds);
+    }
+
+    // Get users by year/batch
+    if (allowedYears.length > 0 || allowedBatches.length > 0) {
+      const memberQuery = {};
+      if (allowedYears.length > 0) {
+        memberQuery.currentYear = { $in: allowedYears };
+      }
+      if (allowedBatches.length > 0) {
+        memberQuery.batch = { $in: allowedBatches };
+      }
+
+      const members = await Member.find(memberQuery).select('userId');
+      userIds.push(...members.map(m => m.userId));
+    }
+
+    // If no filters specified, return empty (don't notify everyone)
+    if (userIds.length === 0) return [];
+
+    // Remove duplicates and ensure users are active
+    const normalized = this.normalizeUserIds(userIds);
+    const activeUsers = await User.find({ _id: { $in: normalized }, isActive: true }).select("_id");
+    return this.normalizeUserIds(activeUsers.map((user) => user._id));
+  }
+
+  /**
+   * Notify event followers and participants
+   * Used when event is updated or new post is created
+   * @param {string} eventId - Event ID
+   * @param {object} payload - Notification payload
+   * @param {object} options - Options: { excludeUserIds: [], includeRegistered: true }
+   */
+  static async notifyEventFollowers(eventId, payload = {}, options = {}) {
+    const { Event } = require('../models/Event');
+    const { EventRegistration } = require('../models/EventRegistration');
+
+    const event = await Event.findById(eventId).select('followers targetAudience');
+    if (!event) return [];
+
+    let userIds = [];
+
+    // Add followers
+    if (event.followers && event.followers.length > 0) {
+      userIds.push(...event.followers);
+    }
+
+    // Add registered participants (unless explicitly excluded)
+    const includeRegistered = options.includeRegistered !== false; // Default true
+    if (includeRegistered) {
+      const registrations = await EventRegistration.find({ eventId, status: { $ne: 'Cancelled' } }).select('userId');
+      userIds.push(...registrations.map(r => r.userId));
+    }
+
+    // If event has target audience, also notify them (only if event is new/created)
+    if (event.targetAudience && options.notifyTargetAudience) {
+      const targetedUsers = await this.getUsersByTargetAudience(event.targetAudience);
+      userIds.push(...targetedUsers);
+    }
+
+    // Exclude specific users if provided
+    if (options.excludeUserIds) {
+      const excluded = this.normalizeUserIds(options.excludeUserIds);
+      userIds = userIds.filter(id => !excluded.includes(id.toString()));
+    }
+
+    return this.createForUsers(userIds, payload);
+  }
+
+  /**
+   * Notify workshop followers and participants
+   * @param {string} workshopId - Workshop ID
+   * @param {object} payload - Notification payload
+   * @param {object} options - Options: { excludeUserIds: [], includeRegistered: true }
+   */
+  static async notifyWorkshopFollowers(workshopId, payload = {}, options = {}) {
+    const { Workshop } = require('../models/Workshop');
+    const { WorkshopRegistration } = require('../models/WorkshopRegistration');
+
+    const workshop = await Workshop.findById(workshopId).select('followers targetAudience');
+    if (!workshop) return [];
+
+    let userIds = [];
+
+    // Add followers (if workshop has followers field)
+    if (workshop.followers && workshop.followers.length > 0) {
+      userIds.push(...workshop.followers);
+    }
+
+    // Add registered participants (unless explicitly excluded)
+    const includeRegistered = options.includeRegistered !== false; // Default true
+    if (includeRegistered) {
+      const registrations = await WorkshopRegistration.find({ workshopId, status: { $ne: 'Cancelled' } }).select('userId');
+      userIds.push(...registrations.map(r => r.userId));
+    }
+
+    // If workshop has target audience, also notify them (only if workshop is new/created)
+    if (workshop.targetAudience && options.notifyTargetAudience) {
+      const targetedUsers = await this.getUsersByTargetAudience(workshop.targetAudience);
+      userIds.push(...targetedUsers);
+    }
+
+    // Exclude specific users if provided
+    if (options.excludeUserIds) {
+      const excluded = this.normalizeUserIds(options.excludeUserIds);
+      userIds = userIds.filter(id => !excluded.includes(id.toString()));
+    }
+
+    return this.createForUsers(userIds, payload);
+  }
+
+  /**
+   * Notify meeting participants based on target audience
+   */
+  static async notifyMeetingParticipants(meetingId, payload = {}, options = {}) {
+    const { Meeting } = require('../models/Meeting');
+
+    const meeting = await Meeting.findById(meetingId).select('targetAudience participants');
+    if (!meeting) return [];
+
+    let userIds = [];
+
+    // Add explicit participants
+    if (meeting.participants && meeting.participants.length > 0) {
+      userIds.push(...meeting.participants.map(p => p.userId));
+    }
+
+    // Add users based on target audience
+    if (meeting.targetAudience) {
+      const targetedUsers = await this.getUsersByTargetAudience(meeting.targetAudience);
+      userIds.push(...targetedUsers);
+    }
+
+    // Exclude specific users if provided
+    if (options.excludeUserIds) {
+      const excluded = this.normalizeUserIds(options.excludeUserIds);
+      userIds = userIds.filter(id => !excluded.includes(id.toString()));
+    }
+
+    return this.createForUsers(userIds, payload);
+  }
+
+  /**
+   * DEPRECATED: Use targeted methods instead
+   * Only use this for truly global announcements (rare)
+   */
   static async createForAllActiveUsers(payload = {}, options = {}) {
+    console.warn('[NotificationService] createForAllActiveUsers is deprecated. Use targeted notification methods instead.');
+    
     const exclude = this.normalizeUserIds(options.excludeUserIds || []);
     const query = { isActive: true };
     if (exclude.length > 0) {

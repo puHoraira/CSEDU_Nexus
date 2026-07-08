@@ -17,6 +17,13 @@ type EventRow = {
   venue: string;
   status: "Planned" | "Ongoing" | "Completed" | "Cancelled";
   budget?: number;
+  visibility?: string;
+  targetAudience?: {
+    allowedYears?: number[];
+    allowedBatches?: number[];
+    allowedRoles?: string[];
+    invitedUsers?: string[];
+  };
   volunteerEligibility?: {
     allowedYears?: number[];
     allowedBatches?: number[];
@@ -41,6 +48,13 @@ type EventForm = {
   venue: string;
   status: EventRow["status"];
   budget: number;
+  visibility: string;
+  targetAudience: {
+    allowedYears: number[];
+    allowedBatches: number[];
+    allowedRoles: string[];
+    invitedUsers: string[];
+  };
   volunteerEligibility: {
     allowedYears: number[];
     allowedBatches: number[];
@@ -71,6 +85,9 @@ export function EventEditPage() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [batchInput, setBatchInput] = useState("");
+  const [audienceBatchInput, setAudienceBatchInput] = useState("");
+  const [roleInput, setRoleInput] = useState("");
+  const [userSearchInput, setUserSearchInput] = useState("");
   const [form, setForm] = useState<EventForm | null>(null);
   const [positionDraft, setPositionDraft] = useState({
     name: "",
@@ -98,6 +115,13 @@ export function EventEditPage() {
       venue: event.venue,
       status: event.status,
       budget: event.budget ?? 0,
+      visibility: event.visibility || "Public",
+      targetAudience: {
+        allowedYears: [...(event.targetAudience?.allowedYears || [])].sort((a, b) => a - b),
+        allowedBatches: [...(event.targetAudience?.allowedBatches || [])].sort((a, b) => a - b),
+        allowedRoles: [...(event.targetAudience?.allowedRoles || [])],
+        invitedUsers: [...(event.targetAudience?.invitedUsers || [])],
+      },
       volunteerEligibility: {
         allowedYears: [...(event.volunteerEligibility?.allowedYears || [])].sort((a, b) => a - b),
         allowedBatches: [...(event.volunteerEligibility?.allowedBatches || [])].sort((a, b) => a - b),
@@ -125,6 +149,8 @@ export function EventEditPage() {
         body: JSON.stringify({
           ...form,
           eventDate: new Date(form.eventDate).toISOString(),
+          visibility: form.visibility,
+          targetAudience: form.targetAudience,
           volunteerProgram: {
             ...form.volunteerProgram,
             applicationDeadline: form.volunteerProgram.applicationDeadline
@@ -253,6 +279,120 @@ export function EventEditPage() {
     });
   }
 
+  // Target Audience functions
+  function toggleAudienceYear(year: number) {
+    if (!form) return;
+    const exists = form.targetAudience.allowedYears.includes(year);
+    setForm({
+      ...form,
+      targetAudience: {
+        ...form.targetAudience,
+        allowedYears: exists
+          ? form.targetAudience.allowedYears.filter((item) => item !== year)
+          : [...form.targetAudience.allowedYears, year].sort((a, b) => a - b),
+      },
+    });
+  }
+
+  function addAudienceBatch() {
+    if (!form) return;
+    const value = Number(audienceBatchInput);
+    if (!Number.isInteger(value) || value <= 0) {
+      setError("Batch must be a positive number.");
+      return;
+    }
+    setError(null);
+    if (form.targetAudience.allowedBatches.includes(value)) {
+      setAudienceBatchInput("");
+      return;
+    }
+    setForm({
+      ...form,
+      targetAudience: {
+        ...form.targetAudience,
+        allowedBatches: [...form.targetAudience.allowedBatches, value].sort((a, b) => a - b),
+      },
+    });
+    setAudienceBatchInput("");
+  }
+
+  function removeAudienceBatch(batch: number) {
+    if (!form) return;
+    setForm({
+      ...form,
+      targetAudience: {
+        ...form.targetAudience,
+        allowedBatches: form.targetAudience.allowedBatches.filter((item) => item !== batch),
+      },
+    });
+  }
+
+  function addRole() {
+    if (!form) return;
+    const role = roleInput.trim();
+    if (!role) {
+      setError("Role name cannot be empty.");
+      return;
+    }
+    setError(null);
+    if (form.targetAudience.allowedRoles.includes(role)) {
+      setRoleInput("");
+      return;
+    }
+    setForm({
+      ...form,
+      targetAudience: {
+        ...form.targetAudience,
+        allowedRoles: [...form.targetAudience.allowedRoles, role],
+      },
+    });
+    setRoleInput("");
+  }
+
+  function removeRole(role: string) {
+    if (!form) return;
+    setForm({
+      ...form,
+      targetAudience: {
+        ...form.targetAudience,
+        allowedRoles: form.targetAudience.allowedRoles.filter((item) => item !== role),
+      },
+    });
+  }
+
+  function addInvitedUser() {
+    if (!form) return;
+    const userId = userSearchInput.trim();
+    if (!userId) {
+      setError("User ID cannot be empty.");
+      return;
+    }
+    setError(null);
+    if (form.targetAudience.invitedUsers.includes(userId)) {
+      setUserSearchInput("");
+      return;
+    }
+    setForm({
+      ...form,
+      targetAudience: {
+        ...form.targetAudience,
+        invitedUsers: [...form.targetAudience.invitedUsers, userId],
+      },
+    });
+    setUserSearchInput("");
+  }
+
+  function removeInvitedUser(userId: string) {
+    if (!form) return;
+    setForm({
+      ...form,
+      targetAudience: {
+        ...form.targetAudience,
+        invitedUsers: form.targetAudience.invitedUsers.filter((item) => item !== userId),
+      },
+    });
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     mutation.mutate();
@@ -280,6 +420,121 @@ export function EventEditPage() {
                 ))}
               </select>
             </label>
+
+            <div className="card" style={{ gridColumn: "1 / -1", marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 8 }}>Target Audience & Visibility</h3>
+              <p style={{ marginBottom: 12, color: "var(--muted)", fontSize: "0.9rem" }}>
+                Control who can see this event. Use role-based for EC meetings, year/batch for academic targeting, or invite specific users.
+              </p>
+
+              <label className="field" style={{ marginBottom: 16 }}>
+                <span>Visibility Mode</span>
+                <select 
+                  value={form.visibility} 
+                  onChange={(e) => setForm((current) => current ? { ...current, visibility: e.target.value } : current)}
+                >
+                  <option value="Public">Public</option>
+                  <option value="Members_Only">Members Only</option>
+                  <option value="Year_Based">Year Based</option>
+                  <option value="Batch_Based">Batch Based</option>
+                  <option value="Role_Based">Role Based (EC, committees)</option>
+                  <option value="Invited_Only">Invited Only</option>
+                  <option value="Custom">Custom</option>
+                </select>
+              </label>
+
+              <label className="field" style={{ marginBottom: 12 }}>
+                <span>Year Filtering</span>
+                <div className="button-row" style={{ flexWrap: "wrap" }}>
+                  {SUPPORTED_YEARS.map((year) => {
+                    const selected = form.targetAudience.allowedYears.includes(year);
+                    return (
+                      <button
+                        key={year}
+                        type="button"
+                        className={selected ? "primary-button" : "secondary-button"}
+                        onClick={() => toggleAudienceYear(year)}
+                      >
+                        Year {year}
+                      </button>
+                    );
+                  })}
+                </div>
+              </label>
+
+              <label className="field" style={{ marginBottom: 12 }}>
+                <span>Batch Filtering</span>
+                <div className="button-row" style={{ alignItems: "center" }}>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="Add batch e.g. 29"
+                    value={audienceBatchInput}
+                    onChange={(e) => setAudienceBatchInput(e.target.value)}
+                    style={{ maxWidth: 180 }}
+                  />
+                  <button type="button" className="secondary-button" onClick={addAudienceBatch}>Add batch</button>
+                </div>
+              </label>
+
+              {form.targetAudience.allowedBatches.length > 0 && (
+                <div className="button-row" style={{ flexWrap: "wrap", marginBottom: 12 }}>
+                  {form.targetAudience.allowedBatches.map((batch) => (
+                    <button key={batch} type="button" className="chip chip--interactive" onClick={() => removeAudienceBatch(batch)}>
+                      Batch {batch} ×
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <label className="field" style={{ marginBottom: 12 }}>
+                <span>Role-Based Access (EC, committees)</span>
+                <div className="button-row" style={{ alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. President, EC Member"
+                    value={roleInput}
+                    onChange={(e) => setRoleInput(e.target.value)}
+                    style={{ flex: 1, maxWidth: 300 }}
+                  />
+                  <button type="button" className="secondary-button" onClick={addRole}>Add role</button>
+                </div>
+              </label>
+
+              {form.targetAudience.allowedRoles.length > 0 && (
+                <div className="button-row" style={{ flexWrap: "wrap", marginBottom: 12 }}>
+                  {form.targetAudience.allowedRoles.map((role) => (
+                    <button key={role} type="button" className="chip chip--interactive" onClick={() => removeRole(role)}>
+                      {role} ×
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <label className="field" style={{ marginBottom: 12 }}>
+                <span>Manually Invite Users</span>
+                <div className="button-row" style={{ alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder="User ID or email"
+                    value={userSearchInput}
+                    onChange={(e) => setUserSearchInput(e.target.value)}
+                    style={{ flex: 1, maxWidth: 300 }}
+                  />
+                  <button type="button" className="secondary-button" onClick={addInvitedUser}>Invite</button>
+                </div>
+              </label>
+
+              {form.targetAudience.invitedUsers.length > 0 && (
+                <div className="button-row" style={{ flexWrap: "wrap" }}>
+                  {form.targetAudience.invitedUsers.map((userId) => (
+                    <button key={userId} type="button" className="chip chip--interactive" onClick={() => removeInvitedUser(userId)}>
+                      {userId} ×
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="card" style={{ gridColumn: "1 / -1" }}>
               <h3 style={{ marginBottom: 8 }}>Volunteer Program</h3>

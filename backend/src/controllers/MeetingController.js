@@ -30,7 +30,8 @@ class MeetingController {
   });
 
   static list = asyncHandler(async (req, res) => {
-    const meetings = await MeetingService.listMeetings(req.query);
+    const userId = req.auth?.userId || req.user?._id || null;
+    const meetings = await MeetingService.listMeetings(req.query, userId);
     return ApiResponse.ok(res, meetings, "Meetings");
   });
 

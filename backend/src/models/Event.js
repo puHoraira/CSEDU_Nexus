@@ -104,7 +104,7 @@ const eventSchema = new mongoose.Schema(
     },
     visibility: {
       type: String,
-      enum: ["Public", "Members_Only", "Invited_Only", "Private"],
+      enum: ['Public', 'Members_Only', 'Role_Based', 'Year_Based', 'Batch_Based', 'Invited_Only', 'Custom'],
       default: "Public"
     },
     isFeatured: { type: Boolean, default: false },
@@ -120,6 +120,20 @@ const eventSchema = new mongoose.Schema(
       name: { type: String, default: "", trim: true },
       email: { type: String, default: "", trim: true },
       phone: { type: String, default: "", trim: true }
+    },
+    
+    // Target Audience (comprehensive filtering options)
+    targetAudience: {
+      // Year/Batch filtering
+      allowedYears: [{ type: Number, min: 1, max: 5 }],
+      allowedBatches: [{ type: Number }],
+      programType: { type: String, enum: ['undergrad', 'masters', 'all'], default: 'all' },
+      
+      // Role-based filtering (for EC meetings, specific roles, etc.)
+      allowedRoles: [{ type: String }], // e.g., ['President', 'Vice President', 'EC Member']
+      
+      // Manual user selection
+      invitedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     },
     
     // Volunteer Program

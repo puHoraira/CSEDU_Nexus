@@ -89,8 +89,18 @@ export function ModernCertificatesPage() {
   });
 
   const modMut = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'Approved' | 'Rejected' }) =>
-      apiRequest(`/certificates/${id}/moderator-review`, { method: 'PATCH', token, body: JSON.stringify({ action, comment: action === 'Rejected' ? 'Rejected by moderator' : '', signatureName: modSign.signatureName, signatureTitle: modSign.signatureTitle }) }),
+    mutationFn: ({ id, action, signatureImage }: { id: string; action: 'Approved' | 'Rejected'; signatureImage?: string }) =>
+      apiRequest(`/certificates/${id}/moderator-review`, { 
+        method: 'PATCH', 
+        token, 
+        body: JSON.stringify({ 
+          action, 
+          comment: action === 'Rejected' ? 'Rejected by moderator' : '', 
+          signatureName: modSign.signatureName, 
+          signatureTitle: modSign.signatureTitle,
+          signatureImage: signatureImage || ''
+        }) 
+      }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['cert-mod', token] });
       await qc.invalidateQueries({ queryKey: ['cert-chair', token] });
@@ -100,8 +110,18 @@ export function ModernCertificatesPage() {
   });
 
   const chairMut = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'Approved' | 'Rejected' }) =>
-      apiRequest(`/certificates/${id}/chairman-review`, { method: 'PATCH', token, body: JSON.stringify({ action, comment: action === 'Rejected' ? 'Rejected by chairman' : '', signatureName: chairSign.signatureName, signatureTitle: chairSign.signatureTitle }) }),
+    mutationFn: ({ id, action, signatureImage }: { id: string; action: 'Approved' | 'Rejected'; signatureImage?: string }) =>
+      apiRequest(`/certificates/${id}/chairman-review`, { 
+        method: 'PATCH', 
+        token, 
+        body: JSON.stringify({ 
+          action, 
+          comment: action === 'Rejected' ? 'Rejected by chairman' : '', 
+          signatureName: chairSign.signatureName, 
+          signatureTitle: chairSign.signatureTitle,
+          signatureImage: signatureImage || ''
+        }) 
+      }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['cert-chair', token] });
       await qc.invalidateQueries({ queryKey: ['cert-my', token] });
@@ -111,17 +131,22 @@ export function ModernCertificatesPage() {
   });
 
   async function downloadCert(id: string) {
+    // Show format selection dialog
+    const format = window.confirm('Choose download format:\n\nOK = HTML\nCancel = PDF') ? 'html' : 'pdf';
+    
     try {
-      const res = await fetch(`${env.apiBaseUrl}/certificates/${id}/download`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${env.apiBaseUrl}/certificates/${id}/download?format=${format}`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
       const match = (res.headers.get('content-disposition') ?? '').match(/filename="?([^"]+)"?/i);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = match?.[1] ?? 'certificate.txt';
+      a.href = url; a.download = match?.[1] ?? `certificate.${format}`;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(url);
-      toast.success('Downloaded');
+      toast.success(`Downloaded as ${format.toUpperCase()}`);
     } catch (e) { toast.error(normalizeApiError(e)); }
   }
 
@@ -320,7 +345,7 @@ export function ModernCertificatesPage() {
           title="Moderator Approval Desk" eyebrow="Moderator"
           items={modInbox} isLoading={loadMod}
           sign={modSign} onSignChange={setModSign}
-          onApprove={id => modMut.mutate({ id, action: 'Approved' })}
+          onApprove={(id, signatureImage) => modMut.mutate({ id, action: 'Approved', signatureImage })}
           onReject={id => modMut.mutate({ id, action: 'Rejected' })}
           isPending={modMut.isPending}
         />
@@ -332,7 +357,7 @@ export function ModernCertificatesPage() {
           title="Chairman Final Approval" eyebrow="Chairman"
           items={chairInbox} isLoading={loadChair}
           sign={chairSign} onSignChange={setChairSign}
-          onApprove={id => chairMut.mutate({ id, action: 'Approved' })}
+          onApprove={(id, signatureImage) => chairMut.mutate({ id, action: 'Approved', signatureImage })}
           onReject={id => chairMut.mutate({ id, action: 'Rejected' })}
           isPending={chairMut.isPending}
         />
@@ -346,8 +371,51 @@ function ReviewInbox({ title, eyebrow, items, isLoading, sign, onSignChange, onA
   title: string; eyebrow: string; items: CertReq[]; isLoading: boolean;
   sign: { signatureName: string; signatureTitle: string };
   onSignChange: (s: { signatureName: string; signatureTitle: string }) => void;
-  onApprove: (id: string) => void; onReject: (id: string) => void; isPending: boolean;
+  onApprove: (id: string, signatureImage?: string) => void; onReject: (id: string) => void; isPending: boolean;
 }) {
+  const [signatureImage, setSignatureImage] = useState('');
+  const [uploadingSignature, setUploadingSignature] = useState(false);
+  const { token } = useAuth();
+
+  async function handleSignatureUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size should be less than 2MB');
+      return;
+    }
+
+    try {
+      setUploadingSignature(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiRequest('/upload', {
+        method: 'POST',
+        token,
+        body: formData,
+        headers: {}, // Let browser set Content-Type for multipart/form-data
+      });
+
+      if (response && response.url) {
+        setSignatureImage(response.url);
+        toast.success('Signature uploaded');
+      }
+    } catch (error) {
+      toast.error(normalizeApiError(error));
+    } finally {
+      setUploadingSignature(false);
+    }
+  }
+
   return (
     <div className="ui-card">
       <div className="ui-card__header">
@@ -358,14 +426,45 @@ function ReviewInbox({ title, eyebrow, items, isLoading, sign, onSignChange, onA
       </div>
       <div className="ui-card__body">
         {/* Signature inputs */}
-        <div className="ui-grid-2" style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', marginBottom: 16 }}>
-          <div className="ui-input-wrap">
-            <label className="ui-input-label">Signature Name</label>
-            <input className="ui-input" value={sign.signatureName} onChange={e => onSignChange({ ...sign, signatureName: e.target.value })} placeholder="e.g. Dr. Jane Doe" />
+        <div style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', marginBottom: 16 }}>
+          <p style={{ margin: '0 0 12px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>Digital Signature</p>
+          <div className="ui-grid-2" style={{ marginBottom: 14 }}>
+            <div className="ui-input-wrap">
+              <label className="ui-input-label">Signature Name</label>
+              <input className="ui-input" value={sign.signatureName} onChange={e => onSignChange({ ...sign, signatureName: e.target.value })} placeholder="e.g. Dr. Jane Doe" />
+            </div>
+            <div className="ui-input-wrap">
+              <label className="ui-input-label">Signature Title</label>
+              <input className="ui-input" value={sign.signatureTitle} onChange={e => onSignChange({ ...sign, signatureTitle: e.target.value })} />
+            </div>
           </div>
+          
           <div className="ui-input-wrap">
-            <label className="ui-input-label">Signature Title</label>
-            <input className="ui-input" value={sign.signatureTitle} onChange={e => onSignChange({ ...sign, signatureTitle: e.target.value })} />
+            <label className="ui-input-label">Upload Signature Image (Optional)</label>
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={handleSignatureUpload}
+              disabled={uploadingSignature}
+              style={{ 
+                display: 'block',
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: 6,
+                border: '1px solid var(--border)',
+                background: 'var(--surface)',
+                cursor: 'pointer'
+              }}
+            />
+            {uploadingSignature && <p className="ui-text-xs ui-text-muted" style={{ marginTop: 6 }}>Uploading...</p>}
+            {signatureImage && (
+              <div style={{ marginTop: 10, padding: 10, border: '1px solid var(--border)', borderRadius: 8, background: '#fff' }}>
+                <img src={signatureImage} alt="Signature Preview" style={{ maxWidth: '200px', maxHeight: '80px', display: 'block' }} />
+              </div>
+            )}
+            <p className="ui-text-xs ui-text-muted" style={{ marginTop: 6 }}>
+              Upload your signature as an image (PNG, JPG recommended). Max 2MB.
+            </p>
           </div>
         </div>
 
@@ -390,7 +489,7 @@ function ReviewInbox({ title, eyebrow, items, isLoading, sign, onSignChange, onA
                     )}
                   </div>
                   <div className="ui-flex ui-flex-gap-2">
-                    <Button variant="success" size="sm" leftIcon={CheckCircle} isLoading={isPending} onClick={() => onApprove(item._id)}>Sign & Approve</Button>
+                    <Button variant="success" size="sm" leftIcon={CheckCircle} isLoading={isPending} onClick={() => onApprove(item._id, signatureImage)}>Sign & Approve</Button>
                     <Button variant="danger"  size="sm" leftIcon={XCircle}     isLoading={isPending} onClick={() => onReject(item._id)}>Reject</Button>
                   </div>
                 </div>

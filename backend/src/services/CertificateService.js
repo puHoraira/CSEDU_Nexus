@@ -4,6 +4,7 @@ const { Member } = require("../models/Member");
 const { User } = require("../models/User");
 const { AuditService } = require("./AuditService");
 const { NotificationService } = require("./NotificationService");
+const htmlPdf = require("html-pdf-node");
 
 const MODERATOR_ROLE = "Moderator";
 const CHAIRMAN_ROLES = ["Chief Patron", "Chairman"];
@@ -97,6 +98,7 @@ class CertificateService {
     request.moderatorReview.signatureTitle = payload.action === "Approved"
       ? (payload.signatureTitle || "Moderator")
       : "";
+    request.moderatorReview.signatureImage = payload.action === "Approved" ? (payload.signatureImage || "") : "";
     request.moderatorReview.actedBy = actorId;
     request.moderatorReview.actedAt = new Date();
 
@@ -162,6 +164,7 @@ class CertificateService {
     request.chairmanReview.signatureTitle = payload.action === "Approved"
       ? (payload.signatureTitle || "Chairman")
       : "";
+    request.chairmanReview.signatureImage = payload.action === "Approved" ? (payload.signatureImage || "") : "";
     request.chairmanReview.actedBy = actorId;
     request.chairmanReview.actedAt = new Date();
 
@@ -221,7 +224,7 @@ class CertificateService {
     return `${prefix}${String(serial).padStart(4, "0")}`;
   }
 
-  static async buildDownloadText(id, actorId, roles, requestId) {
+  static async buildDownloadText(id, actorId, roles, format, requestId) {
     const request = await CertificateRequest.findById(id)
       .populate("requesterUserId", "firstName lastName email")
       .populate("requesterMemberId", "studentId batch currentYear status");
@@ -245,7 +248,7 @@ class CertificateService {
       resource: "CertificateRequest",
       resourceId: request._id.toString(),
       requestId,
-      metadata: { certificateNo: request.certificateNo || "" },
+      metadata: { certificateNo: request.certificateNo || "", format: format || "html" },
     });
 
     const requesterName = `${request.requesterUserId?.firstName || ""} ${request.requesterUserId?.lastName || ""}`.trim();
@@ -258,6 +261,16 @@ class CertificateService {
       day: "numeric",
     });
 
+    // Get member's EC position (most recent)
+    let memberPosition = null;
+    if (request.ecPostHistory && request.ecPostHistory.length > 0) {
+      // Sort by start date descending and get the most recent position
+      const sortedPosts = [...request.ecPostHistory].sort((a, b) => 
+        new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+      );
+      memberPosition = sortedPosts[0].postTitle;
+    }
+
     // Generate HTML certificate
     const html = this.generateCertificateHTML({
       certificateNo: request.certificateNo,
@@ -266,6 +279,7 @@ class CertificateService {
       batch,
       currentYear,
       issueDate,
+      memberPosition,
       purpose: request.purpose,
       contributionSummary: request.contributionSummary,
       ecPostHistory: request.ecPostHistory || [],
@@ -274,10 +288,53 @@ class CertificateService {
       chairmanReview: request.chairmanReview,
     });
 
+    // If PDF format is requested, convert HTML to PDF
+    if (format === "pdf") {
+      try {
+        const pdfBuffer = await this.convertHTMLToPDF(html);
+        return {
+          buffer: pdfBuffer,
+          filename: `${request.certificateNo || "certificate"}.pdf`,
+          format: "pdf",
+          contentType: "application/pdf",
+        };
+      } catch (error) {
+        console.error("PDF generation error:", error);
+        throw new ApiError(500, "Failed to generate PDF certificate");
+      }
+    }
+
+    // Return HTML by default
     return {
       text: html,
       filename: `${request.certificateNo || "certificate"}.html`,
+      format: "html",
+      contentType: "text/html",
     };
+  }
+
+  static async convertHTMLToPDF(html) {
+    const options = {
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "20mm",
+        right: "15mm",
+        bottom: "20mm",
+        left: "15mm",
+      },
+      preferCSSPageSize: true,
+    };
+
+    const file = { content: html };
+    
+    try {
+      const pdfBuffer = await htmlPdf.generatePdf(file, options);
+      return pdfBuffer;
+    } catch (error) {
+      console.error("HTML to PDF conversion failed:", error);
+      throw error;
+    }
   }
 
   static generateCertificateHTML(data) {
@@ -323,6 +380,11 @@ class CertificateService {
         </div>
       </div>
     ` : '';
+
+    // Build main text with position if available
+    const positionText = data.memberPosition 
+      ? `has served as <strong>${data.memberPosition}</strong> and has been an active and valuable member of the CSEDU Students' Club, making significant contributions to the club's activities, events, and overall mission.`
+      : `has been an active and valuable member of the CSEDU Students' Club and has made significant contributions to the club's activities, events, and overall mission.`;
 
     return `
 <!DOCTYPE html>
@@ -515,28 +577,6 @@ class CertificateService {
             letter-spacing: 1px;
         }
         
-        .purpose-box {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border: 2px solid #e0e0e0;
-            margin: 20px 0;
-        }
-        
-        .purpose-label {
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 16px;
-            text-transform: uppercase;
-        }
-        
-        .purpose-text {
-            color: #444;
-            font-size: 15px;
-            line-height: 1.6;
-        }
-        
         .ec-post-item, .volunteer-item {
             background: white;
             padding: 15px;
@@ -557,16 +597,6 @@ class CertificateService {
             margin: 3px 0;
         }
         
-        .contribution-summary {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border: 2px solid #e0e0e0;
-            margin: 20px 0;
-            line-height: 1.6;
-            color: #444;
-        }
-        
         .signatures {
             display: flex;
             justify-content: space-around;
@@ -585,6 +615,21 @@ class CertificateService {
             border-top: 2px solid #2c3e50;
             width: 200px;
             margin: 40px auto 10px;
+        }
+        
+        .signature-image-container {
+            width: 200px;
+            height: 80px;
+            margin: 20px auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .signature-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }
         
         .signature-name {
@@ -612,14 +657,9 @@ class CertificateService {
             margin-top: 40px;
             padding-top: 20px;
             border-top: 2px solid #e0e0e0;
-            font-size: 12px;
-            color: #666;
-            line-height: 1.6;
-        }
-        
-        .footer-note {
-            font-style: italic;
-            margin-top: 10px;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.8;
         }
         
         @media print {
@@ -669,34 +709,31 @@ class CertificateService {
         </div>
         
         <div class="main-text">
-            has been an active and valuable member of the CSEDU Students' Club and has made
-            significant contributions to the club's activities, events, and overall mission.
-        </div>
-        
-        <div class="purpose-box">
-            <div class="purpose-label">Purpose of Certificate</div>
-            <div class="purpose-text">${data.purpose}</div>
+            ${positionText}
         </div>
         
         ${ecPostsHTML}
         
         ${volunteerHTML}
         
-        <div class="section">
-            <h3 class="section-title">Contribution Summary</h3>
-            <div class="contribution-summary">${data.contributionSummary}</div>
-        </div>
-        
         <div class="signatures">
             <div class="signature-block">
-                <div class="signature-line"></div>
+                ${data.moderatorReview.signatureImage ? `
+                <div class="signature-image-container">
+                    <img src="${data.moderatorReview.signatureImage}" alt="Moderator Signature" class="signature-image" />
+                </div>
+                ` : '<div class="signature-line"></div>'}
                 <div class="signature-name">${data.moderatorReview.signatureName}</div>
                 <div class="signature-title">${data.moderatorReview.signatureTitle || 'Moderator'}</div>
                 <div class="signature-date">${data.moderatorReview.actedAt ? new Date(data.moderatorReview.actedAt).toLocaleDateString() : ''}</div>
             </div>
             
             <div class="signature-block">
-                <div class="signature-line"></div>
+                ${data.chairmanReview.signatureImage ? `
+                <div class="signature-image-container">
+                    <img src="${data.chairmanReview.signatureImage}" alt="Chairman Signature" class="signature-image" />
+                </div>
+                ` : '<div class="signature-line"></div>'}
                 <div class="signature-name">${data.chairmanReview.signatureName}</div>
                 <div class="signature-title">${data.chairmanReview.signatureTitle || 'Chairman'}</div>
                 <div class="signature-date">${data.chairmanReview.actedAt ? new Date(data.chairmanReview.actedAt).toLocaleDateString() : ''}</div>
@@ -704,12 +741,8 @@ class CertificateService {
         </div>
         
         <div class="footer">
-            <div>This certificate is issued in accordance with <strong>Article XIX</strong> of the CSEDU Students' Club Constitution</div>
-            <div>and certifies the voluntary contributions made by the member.</div>
-            <div class="footer-note">
-                CSEDU Students' Club | Department of Computer Science and Engineering<br>
-                University of Dhaka, Dhaka-1000, Bangladesh
-            </div>
+            CSEDU Students' Club | Department of Computer Science and Engineering<br>
+            University of Dhaka, Dhaka-1000, Bangladesh
         </div>
     </div>
 </body>

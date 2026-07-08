@@ -55,16 +55,25 @@ class CertificateController {
   });
 
   static download = asyncHandler(async (req, res) => {
+    const format = req.query.format || "html"; // Default to HTML if not specified
     const data = await CertificateService.buildDownloadText(
       req.params.id,
       req.auth.userId,
       req.auth.roles || [],
+      format,
       req.requestMeta.requestId
     );
 
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename=\"${data.filename}\"`);
-    return res.status(200).send(data.text);
+    // Set content type and send appropriate response
+    res.setHeader("Content-Type", data.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${data.filename}"`);
+    
+    // For PDF, send buffer; for HTML, send text
+    if (data.buffer) {
+      return res.status(200).send(data.buffer);
+    } else {
+      return res.status(200).send(data.text);
+    }
   });
 }
 

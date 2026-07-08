@@ -24,6 +24,10 @@ router.post('/:id/register',       authenticate, WorkshopController.register);
 router.get('/:id/my-registration', authenticate, WorkshopController.myRegistration);
 router.get('/:id/registrations',   authenticate, WorkshopController.listRegistrations);
 
+// Follow/Unfollow workshops
+router.post('/:id/follow', authenticate, WorkshopController.followWorkshop);
+router.delete('/:id/follow', authenticate, WorkshopController.unfollowWorkshop);
+
 // Approval
 router.patch('/:id/registrations/:regId/approve', authenticate, WorkshopController.approveRegistration);
 router.patch('/:id/registrations/:regId/reject',  authenticate, WorkshopController.rejectRegistration);

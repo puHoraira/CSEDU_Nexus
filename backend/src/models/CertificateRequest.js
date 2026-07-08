@@ -32,6 +32,7 @@ const reviewStepSchema = new mongoose.Schema(
     comment: { type: String, default: "" },
     signatureName: { type: String, default: "" },
     signatureTitle: { type: String, default: "" },
+    signatureImage: { type: String, default: "" }, // URL to uploaded signature image
     actedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     actedAt: { type: Date, default: null },
   },

@@ -90,12 +90,38 @@ class EventService {
   }
 
   static async createEvent(payload, userId) {
-    return Event.create({
+    const event = await Event.create({
       ...payload,
       volunteerEligibility: this.normalizeVolunteerEligibility(payload.volunteerEligibility || {}),
       volunteerProgram: this.normalizeVolunteerProgram(payload.volunteerProgram || {}),
       createdBy: userId,
     });
+
+    // Notify users based on target audience (if specified)
+    if (event.targetAudience) {
+      const hasTargeting = 
+        (event.targetAudience.allowedYears && event.targetAudience.allowedYears.length > 0) ||
+        (event.targetAudience.allowedBatches && event.targetAudience.allowedBatches.length > 0) ||
+        (event.targetAudience.allowedRoles && event.targetAudience.allowedRoles.length > 0) ||
+        (event.targetAudience.invitedUsers && event.targetAudience.invitedUsers.length > 0);
+
+      if (hasTargeting) {
+        await NotificationService.notifyEventFollowers(event._id, {
+          title: 'New Event Created',
+          message: `${event.title} has been created`,
+          category: 'Event',
+          actionUrl: `/events/${event._id}`,
+          entityType: 'Event',
+          entityId: event._id.toString(),
+        }, { 
+          excludeUserIds: [userId], // Don't notify the creator
+          notifyTargetAudience: true, // Notify users matching target audience
+          includeRegistered: false, // Don't include registered (event just created)
+        });
+      }
+    }
+
+    return event;
   }
 
   static async updateEvent(eventId, payload, actorId, requestId) {
@@ -104,12 +130,19 @@ class EventService {
       throw new ApiError(404, "Event not found");
     }
 
+    const changesRequireNotification = 
+      (payload.eventDate !== undefined && payload.eventDate !== event.eventDate) ||
+      (payload.venue !== undefined && payload.venue !== event.venue) ||
+      (payload.status !== undefined && payload.status !== event.status);
+
     if (payload.title !== undefined) event.title = payload.title;
     if (payload.description !== undefined) event.description = payload.description;
     if (payload.eventDate !== undefined) event.eventDate = payload.eventDate;
     if (payload.venue !== undefined) event.venue = payload.venue;
     if (payload.budget !== undefined) event.budget = payload.budget;
     if (payload.status !== undefined) event.status = payload.status;
+    if (payload.visibility !== undefined) event.visibility = payload.visibility;
+    if (payload.targetAudience !== undefined) event.targetAudience = payload.targetAudience;
     if (payload.volunteerEligibility !== undefined) {
       event.volunteerEligibility = this.normalizeVolunteerEligibility(payload.volunteerEligibility);
     }
@@ -131,6 +164,18 @@ class EventService {
       },
     });
 
+    // Notify followers and participants of important changes
+    if (changesRequireNotification) {
+      await NotificationService.notifyEventFollowers(event._id, {
+        title: 'Event Updated',
+        message: `${event.title} has been updated. Please check the details.`,
+        category: 'Event',
+        actionUrl: `/events/${event._id}`,
+        entityType: 'Event',
+        entityId: event._id.toString(),
+      }, { excludeUserIds: [actorId] });
+    }
+
     return event;
   }
 
@@ -145,28 +190,58 @@ class EventService {
   static async listEvents(requestingUserId = null) {
     const events = await Event.find({}).sort({ eventDate: 1 });
 
-    if (requestingUserId) {
-      const member = await Member.findOne({ userId: requestingUserId }).select('batch currentYear academicYearLevel');
-      if (member) {
-        return events.filter(ev => {
-          const targetYears = ev.targetYears || [];
-          
-          // No target years or includes All_Years - show to everyone
-          if (targetYears.length === 0 || targetYears.includes("All_Years")) {
-            return true;
-          }
-          
-          // Check if user's year level is in target years
-          return targetYears.includes(member.academicYearLevel);
-        });
-      }
+    if (!requestingUserId) {
+      // No user context - only show events without any targeting
+      return events.filter(ev => {
+        const ta = ev.targetAudience || {};
+        const hasAnyFilter = 
+          (Array.isArray(ta.allowedYears) && ta.allowedYears.length > 0) ||
+          (Array.isArray(ta.allowedBatches) && ta.allowedBatches.length > 0) ||
+          (Array.isArray(ta.allowedRoles) && ta.allowedRoles.length > 0) ||
+          (Array.isArray(ta.invitedUsers) && ta.invitedUsers.length > 0) ||
+          (Array.isArray(ev.targetYears) && ev.targetYears.length > 0 && !ev.targetYears.includes("All_Years"));
+        
+        return !hasAnyFilter; // Show only public/open events
+      });
     }
+
+    // Get user's member info and roles
+    const { UserRole } = require('../models/UserRole');
+    const { Role } = require('../models/Role');
     
-    // No user context - only show All_Years events or events without targetYears
-    return events.filter(ev => {
-      const targetYears = ev.targetYears || [];
-      return targetYears.length === 0 || targetYears.includes("All_Years");
-    });
+    const [member, userRoleRecords] = await Promise.all([
+      Member.findOne({ userId: requestingUserId }).select('batch currentYear academicYearLevel'),
+      UserRole.find({ userId: requestingUserId }).populate('roleId')
+    ]);
+
+    const userRoles = userRoleRecords.map(ur => ur.roleId?.roleName).filter(Boolean);
+
+    // Filter events by targetAudience (comprehensive filtering)
+    const { filterByAudience } = require('../utils/audienceUtils');
+    
+    let filteredEvents = filterByAudience(
+      events.map(e => e.toObject()), 
+      member, 
+      requestingUserId, 
+      userRoles
+    );
+
+    // Also apply legacy targetYears filtering
+    if (member) {
+      filteredEvents = filteredEvents.filter(ev => {
+        const targetYears = ev.targetYears || [];
+        
+        // No target years or includes All_Years - show to everyone
+        if (targetYears.length === 0 || targetYears.includes("All_Years")) {
+          return true;
+        }
+        
+        // Check if user's year level is in target years
+        return targetYears.includes(member.academicYearLevel);
+      });
+    }
+
+    return filteredEvents;
   }
 
   static async listEventFeed(eventId) {
@@ -223,21 +298,30 @@ class EventService {
       metadata: { eventId, isAnnouncement: post.isAnnouncement },
     });
 
-    // Send notifications to all followers if it's an announcement
-    if (post.isAnnouncement && event.followers && event.followers.length > 0) {
-      const notificationPromises = event.followers.map(followerId =>
-        NotificationService.createForUser(followerId, {
-          title: `New announcement: ${event.title}`,
-          message: payload.content.substring(0, 100) + (payload.content.length > 100 ? '...' : ''),
+    // Notify event followers (excluding the author)
+    if (event.followers && event.followers.length > 0) {
+      const notifTitle = post.isAnnouncement 
+        ? `📢 Important announcement in ${event.title}`
+        : `New post in ${event.title}`;
+      
+      const notifMessage = payload.content.substring(0, 150) + (payload.content.length > 150 ? '...' : '');
+      
+      await NotificationService.notifyEventFollowers(
+        eventId,
+        {
+          title: notifTitle,
+          message: notifMessage,
           category: "Event",
           actionUrl: `/dashboard/events/${eventId}`,
           entityType: "EventPost",
           entityId: post._id.toString(),
-          metadata: { eventId: eventId.toString(), isAnnouncement: true },
-        })
+          metadata: { eventId: eventId.toString(), isAnnouncement: post.isAnnouncement },
+        },
+        {
+          excludeUserIds: [authorId], // Don't notify the post author
+          includeRegistered: false, // Only notify followers
+        }
       );
-      
-      await Promise.allSettled(notificationPromises);
     }
 
     return post.populate("authorId", "firstName lastName email avatarUrl");
@@ -245,8 +329,8 @@ class EventService {
 
   static async addEventComment(eventId, postId, payload, authorId, requestId) {
     const [event, post] = await Promise.all([
-      Event.findById(eventId).select("_id"),
-      EventPost.findOne({ _id: postId, eventId }).select("_id"),
+      Event.findById(eventId).select("_id title followers"),
+      EventPost.findOne({ _id: postId, eventId }).select("_id authorId"),
     ]);
 
     if (!event) {
@@ -278,6 +362,43 @@ class EventService {
       requestId,
       metadata: { eventId, postId },
     });
+
+    // Notify post author (if they didn't comment themselves)
+    const postAuthorId = post.authorId?.toString();
+    if (postAuthorId && postAuthorId !== authorId.toString()) {
+      await NotificationService.createForUser(postAuthorId, {
+        title: `💬 New comment on your post`,
+        message: payload.content.substring(0, 150) + (payload.content.length > 150 ? '...' : ''),
+        category: "Event",
+        actionUrl: `/dashboard/events/${eventId}`,
+        entityType: "EventComment",
+        entityId: comment._id.toString(),
+        metadata: { eventId: eventId.toString(), postId: postId.toString() },
+      });
+    }
+
+    // Notify event followers (excluding the commenter and post author who already got notified)
+    if (event.followers && event.followers.length > 0) {
+      const excludeIds = [authorId];
+      if (postAuthorId) excludeIds.push(postAuthorId);
+
+      await NotificationService.notifyEventFollowers(
+        eventId,
+        {
+          title: `💬 New comment in ${event.title}`,
+          message: payload.content.substring(0, 150) + (payload.content.length > 150 ? '...' : ''),
+          category: "Event",
+          actionUrl: `/dashboard/events/${eventId}`,
+          entityType: "EventComment",
+          entityId: comment._id.toString(),
+          metadata: { eventId: eventId.toString(), postId: postId.toString() },
+        },
+        {
+          excludeUserIds: excludeIds,
+          includeRegistered: false, // Only notify followers for comments
+        }
+      );
+    }
 
     return comment.populate("authorId", "firstName lastName email avatarUrl");
   }

@@ -88,6 +88,9 @@ const workshopSchema = new mongoose.Schema({
     totalAttendees:     { type: Number, default: 0 },
     totalApproved:      { type: Number, default: 0 },
   },
+
+  // Followers (users following this workshop for updates)
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
 
 module.exports = { Workshop: mongoose.model('Workshop', workshopSchema) };

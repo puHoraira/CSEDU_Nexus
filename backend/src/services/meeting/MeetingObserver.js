@@ -18,28 +18,20 @@ class MeetingCreatedObserver extends MeetingObserver {
   async notify(event, data) {
     const { meeting, excludeUserIds = [] } = data;
     
-    // Notify all participants
-    const participantIds = meeting.participants
-      .map(p => p.userId.toString())
-      .filter(id => !excludeUserIds.includes(id));
-
-    const notificationPromises = participantIds.map(userId =>
-      NotificationService.createForUser(userId, {
-        title: `New ${meeting.meetingMode} meeting scheduled`,
-        message: `${meeting.title} is scheduled for ${new Date(meeting.startTime).toLocaleString()}`,
-        category: "Meeting",
-        actionUrl: `/dashboard/meetings/${meeting._id}`,
-        entityType: "Meeting",
-        entityId: meeting._id.toString(),
-        metadata: {
-          meetingId: meeting._id.toString(),
-          meetingType: meeting.meetingType,
-          meetingMode: meeting.meetingMode
-        }
-      })
-    );
-
-    await Promise.allSettled(notificationPromises);
+    // Use targeted notification for meetings with target audience
+    await NotificationService.notifyMeetingParticipants(meeting._id, {
+      title: `New ${meeting.meetingMode} meeting scheduled`,
+      message: `${meeting.title} is scheduled for ${new Date(meeting.startTime).toLocaleString()}`,
+      category: "Meeting",
+      actionUrl: `/dashboard/meetings/${meeting._id}`,
+      entityType: "Meeting",
+      entityId: meeting._id.toString(),
+      metadata: {
+        meetingId: meeting._id.toString(),
+        meetingType: meeting.meetingType,
+        meetingMode: meeting.meetingMode
+      }
+    }, { excludeUserIds });
   }
 }
 

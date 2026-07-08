@@ -137,7 +137,7 @@ class MeetingService {
   /**
    * List meetings with filters
    */
-  static async listMeetings(filters = {}) {
+  static async listMeetings(filters = {}, requestingUserId = null) {
     const query = {};
 
     if (filters.status) {
@@ -162,9 +162,45 @@ class MeetingService {
       query["participants.userId"] = filters.userId;
     }
 
-    return Meeting.find(query)
+    const meetings = await Meeting.find(query)
       .populate("calledBy", "firstName lastName email")
       .sort({ meetingDate: -1 });
+
+    // Apply audience filtering if requesting user is provided
+    if (requestingUserId) {
+      const { UserRole } = require('../models/UserRole');
+      const { Role } = require('../models/Role');
+      const { Member } = require('../models/Member');
+      
+      const [member, userRoleRecords] = await Promise.all([
+        Member.findOne({ userId: requestingUserId }).select('batch currentYear'),
+        UserRole.find({ userId: requestingUserId }).populate('roleId')
+      ]);
+
+      const userRoles = userRoleRecords.map(ur => ur.roleId?.roleName).filter(Boolean);
+
+      if (member || userRoles.length > 0) {
+        const { filterByAudience } = require('../utils/audienceUtils');
+        return filterByAudience(
+          meetings.map(m => m.toObject()),
+          member,
+          requestingUserId,
+          userRoles
+        );
+      }
+    }
+
+    // No user context - only show meetings without targeting
+    return meetings.filter(m => {
+      const ta = m.targetAudience || {};
+      const hasAnyFilter = 
+        (Array.isArray(ta.allowedYears) && ta.allowedYears.length > 0) ||
+        (Array.isArray(ta.allowedBatches) && ta.allowedBatches.length > 0) ||
+        (Array.isArray(ta.allowedRoles) && ta.allowedRoles.length > 0) ||
+        (Array.isArray(ta.invitedUsers) && ta.invitedUsers.length > 0);
+      
+      return !hasAnyFilter; // Show only public/open meetings
+    });
   }
 
   /**

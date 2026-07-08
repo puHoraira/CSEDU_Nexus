@@ -102,11 +102,25 @@ const meetingSchema = new mongoose.Schema(
       default: "EC_Meeting"
     },
 
-    // Audience Targeting (batch/year based)
+    // Visibility & Access Control
+    visibility: {
+      type: String,
+      enum: ['Public', 'Members_Only', 'Role_Based', 'Year_Based', 'Batch_Based', 'Invited_Only', 'Custom'],
+      default: 'Members_Only'
+    },
+    
+    // Audience Targeting (multiple filtering options)
     targetAudience: {
+      // Year/Batch filtering
       allowedYears:   [{ type: Number, min: 1, max: 5 }],
       allowedBatches: [{ type: Number }],
       programType:    { type: String, enum: ['undergrad', 'masters', 'all'], default: 'all' },
+      
+      // Role-based filtering (for EC meetings, committee meetings, etc.)
+      allowedRoles: [{ type: String }], // e.g., ['President', 'Vice President', 'EC Member']
+      
+      // Manual user selection
+      invitedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     },
     
     // Status & Lifecycle

@@ -22,6 +22,13 @@ type EventForm = {
   eventDate: string;
   venue: string;
   budget: number;
+  visibility: string;
+  targetAudience: {
+    allowedYears: number[];
+    allowedBatches: number[];
+    allowedRoles: string[];
+    invitedUsers: string[];
+  };
   volunteerEligibility: {
     allowedYears: number[];
     allowedBatches: number[];
@@ -48,6 +55,13 @@ export function EventCreatePage() {
     eventDate: "",
     venue: "",
     budget: 0,
+    visibility: "Public",
+    targetAudience: {
+      allowedYears: [],
+      allowedBatches: [],
+      allowedRoles: [],
+      invitedUsers: [],
+    },
     volunteerEligibility: {
       allowedYears: [],
       allowedBatches: [],
@@ -64,6 +78,9 @@ export function EventCreatePage() {
     },
   });
   const [batchInput, setBatchInput] = useState("");
+  const [audienceBatchInput, setAudienceBatchInput] = useState("");
+  const [roleInput, setRoleInput] = useState("");
+  const [userSearchInput, setUserSearchInput] = useState("");
   const [positionDraft, setPositionDraft] = useState<VolunteerPositionDraft>({
     name: "",
     slots: 1,
@@ -101,6 +118,8 @@ export function EventCreatePage() {
         body: JSON.stringify({
           ...form,
           eventDate: new Date(form.eventDate).toISOString(),
+          visibility: form.visibility,
+          targetAudience: form.targetAudience,
           volunteerProgram: {
             ...form.volunteerProgram,
             applicationDeadline: form.volunteerProgram.applicationDeadline
@@ -166,6 +185,121 @@ export function EventCreatePage() {
       volunteerEligibility: {
         ...current.volunteerEligibility,
         allowedBatches: current.volunteerEligibility.allowedBatches.filter((item) => item !== batch),
+      },
+    }));
+  }
+
+  // Target Audience functions
+  function toggleAudienceYear(year: number) {
+    setForm((current) => {
+      const exists = current.targetAudience.allowedYears.includes(year);
+      return {
+        ...current,
+        targetAudience: {
+          ...current.targetAudience,
+          allowedYears: exists
+            ? current.targetAudience.allowedYears.filter((item) => item !== year)
+            : [...current.targetAudience.allowedYears, year].sort((a, b) => a - b),
+        },
+      };
+    });
+  }
+
+  function addAudienceBatch() {
+    const value = Number(audienceBatchInput);
+    if (!Number.isInteger(value) || value <= 0) {
+      setError("Batch must be a positive number.");
+      return;
+    }
+
+    setError(null);
+    setForm((current) => {
+      if (current.targetAudience.allowedBatches.includes(value)) {
+        return current;
+      }
+      return {
+        ...current,
+        targetAudience: {
+          ...current.targetAudience,
+          allowedBatches: [...current.targetAudience.allowedBatches, value].sort((a, b) => a - b),
+        },
+      };
+    });
+    setAudienceBatchInput("");
+  }
+
+  function removeAudienceBatch(batch: number) {
+    setForm((current) => ({
+      ...current,
+      targetAudience: {
+        ...current.targetAudience,
+        allowedBatches: current.targetAudience.allowedBatches.filter((item) => item !== batch),
+      },
+    }));
+  }
+
+  function addRole() {
+    const role = roleInput.trim();
+    if (!role) {
+      setError("Role name cannot be empty.");
+      return;
+    }
+
+    setError(null);
+    setForm((current) => {
+      if (current.targetAudience.allowedRoles.includes(role)) {
+        return current;
+      }
+      return {
+        ...current,
+        targetAudience: {
+          ...current.targetAudience,
+          allowedRoles: [...current.targetAudience.allowedRoles, role],
+        },
+      };
+    });
+    setRoleInput("");
+  }
+
+  function removeRole(role: string) {
+    setForm((current) => ({
+      ...current,
+      targetAudience: {
+        ...current.targetAudience,
+        allowedRoles: current.targetAudience.allowedRoles.filter((item) => item !== role),
+      },
+    }));
+  }
+
+  function addInvitedUser() {
+    const userId = userSearchInput.trim();
+    if (!userId) {
+      setError("User ID cannot be empty.");
+      return;
+    }
+
+    setError(null);
+    setForm((current) => {
+      if (current.targetAudience.invitedUsers.includes(userId)) {
+        return current;
+      }
+      return {
+        ...current,
+        targetAudience: {
+          ...current.targetAudience,
+          invitedUsers: [...current.targetAudience.invitedUsers, userId],
+        },
+      };
+    });
+    setUserSearchInput("");
+  }
+
+  function removeInvitedUser(userId: string) {
+    setForm((current) => ({
+      ...current,
+      targetAudience: {
+        ...current.targetAudience,
+        invitedUsers: current.targetAudience.invitedUsers.filter((item) => item !== userId),
       },
     }));
   }
@@ -318,6 +452,146 @@ export function EventCreatePage() {
             <label className="field"><span>Venue</span><input value={form.venue} onChange={(e) => setForm((current) => ({ ...current, venue: e.target.value }))} required placeholder="Auditorium, seminar room, or outdoor venue" /></label>
             <label className="field"><span>Budget</span><input type="number" min={0} value={form.budget} onChange={(e) => setForm((current) => ({ ...current, budget: Number(e.target.value) }))} /></label>
           </div>
+
+          <section className="event-create-section card">
+            <div className="section-head">
+              <div>
+                <p className="eyebrow">Visibility & Access</p>
+                <h3>Who can see this event?</h3>
+              </div>
+              <span className="chip">Target Audience</span>
+            </div>
+            <p className="muted-inline">
+              Control who can see and access this event. Leave all filters empty to make it public. 
+              Use year/batch filtering for academic targeting, role-based for EC/committee meetings, or manually invite specific users.
+            </p>
+
+            <label className="field">
+              <span>Visibility Mode</span>
+              <select 
+                value={form.visibility} 
+                onChange={(e) => setForm((current) => ({ ...current, visibility: e.target.value }))}
+                style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd' }}
+              >
+                <option value="Public">Public - Everyone can see</option>
+                <option value="Members_Only">Members Only - Active members only</option>
+                <option value="Year_Based">Year Based - Specific academic years</option>
+                <option value="Batch_Based">Batch Based - Specific batches</option>
+                <option value="Role_Based">Role Based - Specific roles (EC, committees)</option>
+                <option value="Invited_Only">Invited Only - Manually selected users</option>
+                <option value="Custom">Custom - Combine multiple filters</option>
+              </select>
+            </label>
+
+            <div style={{ marginTop: 20 }}>
+              <p style={{ fontWeight: 600, marginBottom: 10 }}>Year Filtering</p>
+              <div className="event-create-chip-grid">
+                {SUPPORTED_YEARS.map((year) => {
+                  const selected = form.targetAudience.allowedYears.includes(year);
+                  return (
+                    <button
+                      key={year}
+                      type="button"
+                      className={selected ? "primary-button" : "secondary-button"}
+                      onClick={() => toggleAudienceYear(year)}
+                    >
+                      Year {year}
+                    </button>
+                  );
+                })}
+              </div>
+              {form.targetAudience.allowedYears.length > 0 && (
+                <p className="muted-inline" style={{ marginTop: 8, fontSize: '0.85rem' }}>
+                  Only Year {form.targetAudience.allowedYears.join(', ')} students will see this event.
+                </p>
+              )}
+            </div>
+
+            <div style={{ marginTop: 20 }}>
+              <p style={{ fontWeight: 600, marginBottom: 10 }}>Batch Filtering</p>
+              <div className="event-inline-input-row">
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="Add batch e.g. 29"
+                  value={audienceBatchInput}
+                  onChange={(e) => setAudienceBatchInput(e.target.value)}
+                />
+                <button type="button" className="secondary-button" onClick={addAudienceBatch}>Add batch</button>
+              </div>
+
+              {form.targetAudience.allowedBatches.length > 0 ? (
+                <div className="chip-cloud" style={{ marginTop: 10 }}>
+                  {form.targetAudience.allowedBatches.map((batch) => (
+                    <button key={batch} type="button" className="chip chip--interactive" onClick={() => removeAudienceBatch(batch)}>
+                      Batch {batch} ×
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted-inline" style={{ marginTop: 8, fontSize: '0.85rem' }}>No batch restriction. All batches can see this.</p>
+              )}
+            </div>
+
+            <div style={{ marginTop: 20 }}>
+              <p style={{ fontWeight: 600, marginBottom: 10 }}>Role-Based Access (EC, Committees)</p>
+              <div className="event-inline-input-row">
+                <input
+                  type="text"
+                  placeholder="e.g. President, Vice President, EC Member, Treasurer"
+                  value={roleInput}
+                  onChange={(e) => setRoleInput(e.target.value)}
+                />
+                <button type="button" className="secondary-button" onClick={addRole}>Add role</button>
+              </div>
+
+              {form.targetAudience.allowedRoles.length > 0 ? (
+                <div className="chip-cloud" style={{ marginTop: 10 }}>
+                  {form.targetAudience.allowedRoles.map((role) => (
+                    <button key={role} type="button" className="chip chip--interactive" onClick={() => removeRole(role)}>
+                      {role} ×
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted-inline" style={{ marginTop: 8, fontSize: '0.85rem' }}>
+                  No role restriction. Perfect for EC-only or committee-specific meetings.
+                </p>
+              )}
+            </div>
+
+            <div style={{ marginTop: 20 }}>
+              <p style={{ fontWeight: 600, marginBottom: 10 }}>Manually Invite Specific Users</p>
+              <div className="event-inline-input-row">
+                <input
+                  type="text"
+                  placeholder="Enter user ID or email to invite"
+                  value={userSearchInput}
+                  onChange={(e) => setUserSearchInput(e.target.value)}
+                />
+                <button type="button" className="secondary-button" onClick={addInvitedUser}>Invite user</button>
+              </div>
+
+              {form.targetAudience.invitedUsers.length > 0 ? (
+                <div className="chip-cloud" style={{ marginTop: 10 }}>
+                  {form.targetAudience.invitedUsers.map((userId) => (
+                    <button key={userId} type="button" className="chip chip--interactive" onClick={() => removeInvitedUser(userId)}>
+                      {userId} ×
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted-inline" style={{ marginTop: 8, fontSize: '0.85rem' }}>
+                  No users manually invited. Use this for private/exclusive events.
+                </p>
+              )}
+            </div>
+
+            <div className="alert" style={{ marginTop: 20, background: '#fff3cd', borderColor: '#ffc107', color: '#856404' }}>
+              <strong>🔐 How filtering works:</strong> If you use multiple filters, users need to match at least one criterion. 
+              Invited users always have access regardless of other filters.
+            </div>
+          </section>
 
           <section className="event-create-section card">
             <div className="section-head">
