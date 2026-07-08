@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Plus, X, BookOpen } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
@@ -24,6 +24,11 @@ export function WorkshopCreatePage() {
     isFree: true, fee: 0,
     prerequisites: [] as string[], learningOutcomes: [] as string[],
     status: 'Draft',
+    roomAssignment: {
+      enabled: false,
+      rooms: [] as { roomId: string; priority: number }[],
+      autoAssignSeats: true,
+    },
   });
 
   const [tagInput, setTagInput]     = useState('');
@@ -31,9 +36,23 @@ export function WorkshopCreatePage() {
   const [outcomeInput, setOutcome]  = useState('');
   const [speakers, setSpeakers]     = useState<Array<{ name: string; designation: string; organization: string; bio: string }>>([]);
   const [newSpeaker, setNewSpeaker] = useState({ name: '', designation: '', organization: '', bio: '' });
+  const [selectedRoomId, setSelectedRoomId] = useState('');
+
+  // Fetch available rooms
+  const { data: roomsData } = useQuery({
+    queryKey: ['rooms'],
+    queryFn: () => apiRequest('/rooms', { method: 'GET', token }),
+  });
 
   const createMut = useMutation({
-    mutationFn: () => apiRequest('/workshops', { method: 'POST', token, body: JSON.stringify({ ...form, speakers }) }),
+    mutationFn: () => {
+      const payload = { 
+        ...form, 
+        speakers,
+        roomAssignment: form.roomAssignment.enabled ? form.roomAssignment : undefined,
+      };
+      return apiRequest('/workshops', { method: 'POST', token, body: JSON.stringify(payload) });
+    },
     onSuccess: (data: any) => {
       toast.success('Workshop created!');
       navigate(`/dashboard/workshops/${data._id}`);
@@ -45,6 +64,72 @@ export function WorkshopCreatePage() {
   const addPrereq = () => { if (prereqInput.trim()) { setForm(f => ({ ...f, prerequisites: [...f.prerequisites, prereqInput.trim()] })); setPrereq(''); } };
   const addOutcome = () => { if (outcomeInput.trim()) { setForm(f => ({ ...f, learningOutcomes: [...f.learningOutcomes, outcomeInput.trim()] })); setOutcome(''); } };
   const addSpeaker = () => { if (newSpeaker.name.trim()) { setSpeakers(s => [...s, { ...newSpeaker }]); setNewSpeaker({ name: '', designation: '', organization: '', bio: '' }); } };
+
+  const addRoomToAssignment = () => {
+    if (!selectedRoomId) {
+      toast.error("Please select a room.");
+      return;
+    }
+
+    if (form.roomAssignment.rooms.some(r => r.roomId === selectedRoomId)) {
+      toast.error("Room already added.");
+      return;
+    }
+
+    setForm(f => ({
+      ...f,
+      roomAssignment: {
+        ...f.roomAssignment,
+        rooms: [
+          ...f.roomAssignment.rooms,
+          { roomId: selectedRoomId, priority: f.roomAssignment.rooms.length + 1 },
+        ],
+      },
+    }));
+    setSelectedRoomId("");
+  };
+
+  const removeRoomFromAssignment = (roomId: string) => {
+    setForm(f => ({
+      ...f,
+      roomAssignment: {
+        ...f.roomAssignment,
+        rooms: f.roomAssignment.rooms
+          .filter(r => r.roomId !== roomId)
+          .map((r, idx) => ({ ...r, priority: idx + 1 })),
+      },
+    }));
+  };
+
+  const updateRoomPriority = (roomId: string, direction: 'up' | 'down') => {
+    setForm(f => {
+      const rooms = [...f.roomAssignment.rooms];
+      const index = rooms.findIndex(r => r.roomId === roomId);
+      
+      if (index === -1) return f;
+      if (direction === 'up' && index === 0) return f;
+      if (direction === 'down' && index === rooms.length - 1) return f;
+
+      const swapIndex = direction === 'up' ? index - 1 : index + 1;
+      [rooms[index], rooms[swapIndex]] = [rooms[swapIndex], rooms[index]];
+      
+      rooms.forEach((r, idx) => { r.priority = idx + 1; });
+
+      return {
+        ...f,
+        roomAssignment: {
+          ...f.roomAssignment,
+          rooms,
+        },
+      };
+    });
+  };
+
+  const rooms = roomsData?.data || [];
+  const totalRoomCapacity = form.roomAssignment.rooms.reduce((sum, assignment) => {
+    const room = rooms.find((r: any) => r._id === assignment.roomId);
+    return sum + (room?.capacity || 0);
+  }, 0);
 
   const field = (label: string, key: keyof typeof form, type = 'text', placeholder = '') => (
     <div className="ui-input-wrap">
@@ -219,6 +304,154 @@ export function WorkshopCreatePage() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Room Assignment */}
+        <div className="ui-card" style={{ marginBottom: 20 }}>
+          <div className="ui-card__header">
+            <h3 className="ui-card__title">Room Assignment</h3>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.88rem' }}>
+              <input 
+                type="checkbox" 
+                checked={form.roomAssignment.enabled}
+                onChange={(e) => setForm(f => ({ ...f, roomAssignment: { ...f.roomAssignment, enabled: e.target.checked } }))}
+              />
+              Enable room assignment
+            </label>
+          </div>
+          {form.roomAssignment.enabled && (
+            <div className="ui-card__body">
+              <p className="ui-text-sm ui-text-muted" style={{ marginBottom: 16 }}>
+                Assign rooms to this workshop. Participants will be automatically assigned seats based on room priority.
+              </p>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 16, fontSize: '0.88rem' }}>
+                <input 
+                  type="checkbox" 
+                  checked={form.roomAssignment.autoAssignSeats}
+                  onChange={(e) => setForm(f => ({ ...f, roomAssignment: { ...f.roomAssignment, autoAssignSeats: e.target.checked } }))}
+                />
+                Auto-assign seats on registration
+              </label>
+
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <select 
+                  className="ui-select"
+                  style={{ flex: 1 }}
+                  value={selectedRoomId}
+                  onChange={(e) => setSelectedRoomId(e.target.value)}
+                >
+                  <option value="">Select a room...</option>
+                  {rooms.map((room: any) => (
+                    <option key={room._id} value={room._id}>
+                      {room.roomNumber} - {room.roomName} (Capacity: {room.capacity}, Mode: {room.seatManagementMode})
+                    </option>
+                  ))}
+                </select>
+                <Button variant="outline" type="button" onClick={addRoomToAssignment}>Add Room</Button>
+              </div>
+
+              {form.roomAssignment.rooms.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {form.roomAssignment.rooms.map((assignment, index) => {
+                    const room = rooms.find((r: any) => r._id === assignment.roomId);
+                    if (!room) return null;
+
+                    return (
+                      <div 
+                        key={assignment.roomId}
+                        style={{ 
+                          padding: '12px 16px', 
+                          borderRadius: 12, 
+                          border: '1px solid var(--border)', 
+                          background: 'var(--surface)' 
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.92rem', color: 'var(--text)' }}>
+                              {room.roomNumber} - {room.roomName}
+                            </p>
+                            <p className="ui-text-xs ui-text-muted" style={{ margin: '4px 0 0' }}>
+                              Capacity: {room.capacity} | Mode: {room.seatManagementMode} | Priority: {assignment.priority}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button 
+                              type="button"
+                              onClick={() => updateRoomPriority(assignment.roomId, 'up')}
+                              disabled={index === 0}
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: '0.8rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 6,
+                                background: 'var(--surface)',
+                                cursor: index === 0 ? 'not-allowed' : 'pointer',
+                                opacity: index === 0 ? 0.5 : 1,
+                              }}
+                            >
+                              ↑
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => updateRoomPriority(assignment.roomId, 'down')}
+                              disabled={index === form.roomAssignment.rooms.length - 1}
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: '0.8rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: 6,
+                                background: 'var(--surface)',
+                                cursor: index === form.roomAssignment.rooms.length - 1 ? 'not-allowed' : 'pointer',
+                                opacity: index === form.roomAssignment.rooms.length - 1 ? 0.5 : 1,
+                              }}
+                            >
+                              ↓
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => removeRoomFromAssignment(assignment.roomId)}
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: '0.8rem',
+                                border: '1px solid #ef4444',
+                                borderRadius: 6,
+                                background: 'var(--surface)',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                        {room.features && Object.keys(room.features).some((k: string) => (room.features as any)[k]) && (
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                            {room.features.projector && <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', background: 'rgba(107,163,255,0.1)', color: 'var(--accent)' }}>🎥 Projector</span>}
+                            {room.features.whiteboard && <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', background: 'rgba(107,163,255,0.1)', color: 'var(--accent)' }}>📝 Whiteboard</span>}
+                            {room.features.AC && <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', background: 'rgba(107,163,255,0.1)', color: 'var(--accent)' }}>❄️ AC</span>}
+                            {room.features.WiFi && <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', background: 'rgba(107,163,255,0.1)', color: 'var(--accent)' }}>📶 WiFi</span>}
+                            {room.features.desktops && <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', background: 'rgba(107,163,255,0.1)', color: 'var(--accent)' }}>💻 Desktops</span>}
+                            {room.features.soundSystem && <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', background: 'rgba(107,163,255,0.1)', color: 'var(--accent)' }}>🔊 Sound</span>}
+                            {room.features.accessibility && <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', background: 'rgba(107,163,255,0.1)', color: 'var(--accent)' }}>♿ Accessible</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  <Alert variant="info" style={{ marginTop: 8 }}>
+                    <strong>Total Capacity:</strong> {totalRoomCapacity} seats across {form.roomAssignment.rooms.length} room(s)
+                  </Alert>
+                </div>
+              ) : (
+                <p className="ui-text-sm ui-text-muted" style={{ textAlign: 'center', padding: '20px 0' }}>
+                  No rooms assigned yet. Add rooms to enable seat allocation.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Speakers */}

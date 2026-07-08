@@ -70,17 +70,28 @@ export function EventRegistrationPage() {
       });
     },
     onSuccess: (data) => {
-      setMessage({ type: "success", text: "Registration successful!" });
+      // Show success message with seat assignment if available
+      let successMsg = "Registration successful!";
+      if (data?.seatAssignment?.roomId) {
+        const roomInfo = data.seatAssignment;
+        successMsg += ` You have been assigned to ${roomInfo.roomId.roomName} (Room ${roomInfo.roomId.roomNumber})`;
+        if (roomInfo.seatNumber) {
+          successMsg += `, Seat ${roomInfo.seatNumber}`;
+        }
+        successMsg += ".";
+      }
+      
+      setMessage({ type: "success", text: successMsg });
       
       // If payment required, redirect to payment page
       if (requiresPayment && form.paymentMethod !== "Cash") {
         setTimeout(() => {
           navigate(`/dashboard/events/${eventId}/registration/${data._id}/payment`);
-        }, 1500);
+        }, 2500);
       } else {
         setTimeout(() => {
           navigate(`/dashboard/events/${eventId}`);
-        }, 2000);
+        }, 3000);
       }
     },
     onError: (error) => {

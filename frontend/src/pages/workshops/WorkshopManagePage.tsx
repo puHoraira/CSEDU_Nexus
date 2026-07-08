@@ -102,6 +102,55 @@ export function WorkshopManagePage() {
     attended:  registrations.filter(r => r.status === 'Attended').length,
   };
 
+  const downloadCSV = () => {
+    const headers = ['Name', 'Email', 'Phone', 'Status', 'Payment Status', 'Amount', 'Room', 'Seat', 'Check-in Time', 'Registered At'];
+    const rows = filtered.map(r => [
+      r.participantName,
+      r.participantEmail,
+      r.participantPhone || '',
+      r.status,
+      r.paymentStatus,
+      r.paymentAmount || 0,
+      (r as any).seatAssignment?.roomId?.roomName || '',
+      (r as any).seatAssignment?.seatNumber || '',
+      r.checkedInAt ? formatDateTime(r.checkedInAt) : '',
+      formatDateTime(r.createdAt),
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + 
+      [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+    
+    const link = document.createElement('a');
+    link.href = encodeURI(csvContent);
+    link.download = `workshop-${id}-registrations-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const downloadJSON = () => {
+    const data = filtered.map(r => ({
+      name: r.participantName,
+      email: r.participantEmail,
+      phone: r.participantPhone,
+      status: r.status,
+      paymentStatus: r.paymentStatus,
+      paymentAmount: r.paymentAmount,
+      room: (r as any).seatAssignment?.roomId?.roomName,
+      roomNumber: (r as any).seatAssignment?.roomId?.roomNumber,
+      seat: (r as any).seatAssignment?.seatNumber,
+      checkedIn: r.checkedIn,
+      checkedInAt: r.checkedInAt,
+      registeredAt: r.createdAt,
+    }));
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `workshop-${id}-registrations-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="ui-page">
       <PageHeader
@@ -113,7 +162,13 @@ export function WorkshopManagePage() {
           { label: 'Workshop', href: `/dashboard/workshops/${id}` },
           { label: 'Manage' },
         ]}
-        actions={<Button variant="outline" leftIcon={QrCode} href={`/dashboard/workshops/${id}/checkin`}>QR Check-in</Button>}
+        actions={
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button variant="outline" leftIcon={Download} onClick={downloadCSV}>CSV</Button>
+            <Button variant="outline" leftIcon={Download} onClick={downloadJSON}>JSON</Button>
+            <Button variant="outline" leftIcon={QrCode} href={`/dashboard/workshops/${id}/checkin`}>QR Check-in</Button>
+          </div>
+        }
       />
 
       {/* Stats */}
@@ -231,7 +286,25 @@ export function WorkshopManagePage() {
                   {reg.checkedIn && <Badge variant="success" icon={CheckCircle}>Checked In</Badge>}
                 </div>
                 <p className="ui-text-xs ui-text-muted">{reg.participantEmail} {reg.participantPhone && `· ${reg.participantPhone}`}</p>
-                <p className="ui-text-xs ui-text-muted" style={{ opacity: 0.7 }}>Registered: {formatDateTime(reg.createdAt)}</p>
+                
+                {/* Seat Assignment */}
+                {(reg as any).seatAssignment?.roomId && (
+                  <div style={{ 
+                    marginTop: '6px', 
+                    padding: '6px 10px', 
+                    borderRadius: '6px', 
+                    background: 'var(--surface)', 
+                    border: '1px solid var(--border)',
+                    display: 'inline-block',
+                  }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>
+                      🪑 Room {(reg as any).seatAssignment.roomId.roomNumber} - {(reg as any).seatAssignment.roomId.roomName}
+                      {(reg as any).seatAssignment.seatNumber && ` · Seat ${(reg as any).seatAssignment.seatNumber}`}
+                    </span>
+                  </div>
+                )}
+                
+                <p className="ui-text-xs ui-text-muted" style={{ opacity: 0.7, marginTop: '6px' }}>Registered: {formatDateTime(reg.createdAt)}</p>
               </div>
 
               {/* QR preview */}

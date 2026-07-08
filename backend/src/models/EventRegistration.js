@@ -30,6 +30,16 @@ const eventRegistrationSchema = new mongoose.Schema(
       default: "Pending"
     },
     
+    // Seat Assignment
+    seatAssignment: {
+      roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room" },
+      seatNumber: { type: String }, // e.g., "A1", "B3"
+      row: { type: Number },
+      position: { type: Number },
+      assignedAt: { type: Date },
+      autoAssigned: { type: Boolean, default: true }
+    },
+    
     // Payment Information
     paymentRequired: { type: Boolean, default: false },
     paymentStatus: {

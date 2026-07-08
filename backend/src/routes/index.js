@@ -19,6 +19,7 @@ const { workshopRoutes } = require("./workshopRoutes");
 const { yearPromotionRoutes } = require("./yearPromotionRoutes");
 const { adminMemberRoutes } = require("./adminMemberRoutes");
 const { ecMemberRoutes } = require("./ecMemberRoutes");
+const { roomRoutes } = require("./roomRoutes");
 
 const apiRouter = express.Router();
 
@@ -42,6 +43,7 @@ apiRouter.use("/upload", uploadRoutes);
 apiRouter.use("/workshops", workshopRoutes);
 apiRouter.use("/year-promotion", yearPromotionRoutes);
 apiRouter.use("/ec-members", ecMemberRoutes);
+apiRouter.use("/", roomRoutes);
 apiRouter.use("/", eventRegistrationRoutes);
 
 module.exports = { apiRouter };

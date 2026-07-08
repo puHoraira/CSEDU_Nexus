@@ -18,6 +18,16 @@ const workshopRegistrationSchema = new mongoose.Schema({
   },
   rejectionReason: { type: String },
 
+  // Seat Assignment
+  seatAssignment: {
+    roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room" },
+    seatNumber: { type: String }, // e.g., "A1", "B3"
+    row: { type: Number },
+    position: { type: Number },
+    assignedAt: { type: Date },
+    autoAssigned: { type: Boolean, default: true }
+  },
+
   // Payment
   paymentRequired: { type: Boolean, default: false },
   paymentStatus:   { type: String, enum: ['Not_Required', 'Pending', 'Paid', 'Failed', 'Cancelled', 'Refunded'], default: 'Not_Required' },

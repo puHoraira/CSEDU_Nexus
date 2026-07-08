@@ -607,6 +607,17 @@ export function EventDetailPage() {
 
           {/* Action Buttons */}
           <div className="sidebar-actions">
+            {/* Manager: Manage Registrations link */}
+            {canPost && event.registrationRequired && (
+              <button
+                className="primary-button full-width"
+                onClick={() => navigate(`/dashboard/events/${event._id}/registrations`)}
+                style={{ background: '#8b5cf6', borderColor: '#8b5cf6', marginBottom: '0.75rem' }}
+              >
+                👥 Manage Registrations
+              </button>
+            )}
+
             {/* Registration Button */}
             {event.registrationRequired && (
               <button

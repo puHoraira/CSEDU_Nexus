@@ -45,6 +45,19 @@ const eventSchema = new mongoose.Schema(
       directions: { type: String, default: "", trim: true }
     },
     
+    // Room Assignment (for physical events)
+    roomAssignment: {
+      enabled: { type: Boolean, default: false },
+      rooms: [{
+        roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room" },
+        priority: { type: Number, default: 1 }, // 1 = primary, 2 = overflow, etc.
+        addedAt: { type: Date, default: Date.now }
+      }],
+      autoAssignSeats: { type: Boolean, default: true },
+      totalSeatsAvailable: { type: Number, default: 0 },
+      totalSeatsOccupied: { type: Number, default: 0 }
+    },
+    
     // Categorization & Tags
     category: {
       type: String,

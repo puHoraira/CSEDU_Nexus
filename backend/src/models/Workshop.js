@@ -30,6 +30,19 @@ const workshopSchema = new mongoose.Schema({
   isOnline:         { type: Boolean, default: false },
   onlineLink:       { type: String },
 
+  // Room Assignment (for physical workshops)
+  roomAssignment: {
+    enabled: { type: Boolean, default: false },
+    rooms: [{
+      roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room" },
+      priority: { type: Number, default: 1 }, // 1 = primary, 2 = overflow, etc.
+      addedAt: { type: Date, default: Date.now }
+    }],
+    autoAssignSeats: { type: Boolean, default: true },
+    totalSeatsAvailable: { type: Number, default: 0 },
+    totalSeatsOccupied: { type: Number, default: 0 }
+  },
+
   // Category & tags
   category:         { type: String, enum: ['Technical', 'Soft Skills', 'Research', 'Career', 'Creative', 'Other'], default: 'Technical' },
   tags:             [{ type: String }],

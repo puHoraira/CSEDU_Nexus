@@ -1,10 +1,12 @@
 const { EventRegistration } = require("../models/EventRegistration");
 const { Event } = require("../models/Event");
 const { Member } = require("../models/Member");
+const { Room } = require("../models/Room");
 const { ApiError } = require("../core/ApiError");
 const { AuditService } = require("./AuditService");
 const { NotificationService } = require("./NotificationService");
 const { PaymentFactory } = require("./payment/PaymentFactory");
+const { RoomService } = require("./RoomService");
 
 class EventRegistrationService {
   /**
@@ -111,6 +113,18 @@ class EventRegistrationService {
       },
       registeredBy: userId,
     });
+
+    // Auto-assign seat if room assignment is enabled and auto-assign is true
+    if (event.roomAssignment?.enabled && event.roomAssignment?.autoAssignSeats && status === "Confirmed") {
+      try {
+        const seatAssignment = await this.assignSeatToRegistration(registration._id, event);
+        registration.seatAssignment = seatAssignment;
+        await registration.save();
+      } catch (error) {
+        console.error('Failed to auto-assign seat:', error);
+        // Don't fail registration if seat assignment fails
+      }
+    }
 
     // Update event stats
     await Event.findByIdAndUpdate(eventId, {
@@ -336,6 +350,13 @@ class EventRegistrationService {
     registration.cancellationReason = reason || "";
     await registration.save();
 
+    // Release seat if assigned
+    try {
+      await this.releaseSeatFromRegistration(registrationId);
+    } catch (error) {
+      console.error('Failed to release seat:', error);
+    }
+
     // Update event stats
     await Event.findByIdAndUpdate(registration.eventId._id, {
       $inc: { "stats.totalRegistrations": -1 },
@@ -390,7 +411,105 @@ class EventRegistrationService {
     return EventRegistration.find({ eventId })
       .populate("userId", "firstName lastName email avatarUrl phone")
       .populate("memberId", "studentId batch currentYear")
+      .populate("seatAssignment.roomId", "roomNumber roomName building floor")
       .sort({ createdAt: -1 });
+  }
+
+  /**
+   * Assign seat to registration
+   * @private
+   */
+  static async assignSeatToRegistration(registrationId, event) {
+    const { Room } = require('../models/Room');
+    
+    if (!event.roomAssignment?.rooms || event.roomAssignment.rooms.length === 0) {
+      throw new Error('No rooms assigned to this event');
+    }
+
+    // Sort rooms by priority
+    const sortedRooms = event.roomAssignment.rooms.sort((a, b) => a.priority - b.priority);
+
+    // Try to assign seat in each room (by priority)
+    for (const roomAssignment of sortedRooms) {
+      try {
+        const room = await Room.findById(roomAssignment.roomId);
+        
+        if (!room || !room.isActive) continue;
+
+        // Check if room has available capacity
+        const availableCapacity = room.getAvailableCapacity();
+        if (availableCapacity <= 0) continue;
+
+        // Assign seat/capacity
+        const seatResult = await room.assignSeat(
+          null, // userId - will be populated from registration
+          registrationId,
+          event._id,
+          null // workshopId
+        );
+
+        // Update event room assignment stats
+        await Event.findByIdAndUpdate(event._id, {
+          $inc: { 
+            'roomAssignment.totalSeatsOccupied': 1 
+          }
+        });
+
+        // Return seat assignment info
+        if (room.seatManagementMode === 'Individual') {
+          return {
+            roomId: room._id,
+            seatNumber: seatResult.seatNumber,
+            row: seatResult.row,
+            position: seatResult.position,
+            assignedAt: new Date(),
+            autoAssigned: true
+          };
+        } else {
+          // Capacity_Only mode
+          return {
+            roomId: room._id,
+            seatNumber: `General-${seatResult.registeredCount}`,
+            assignedAt: new Date(),
+            autoAssigned: true
+          };
+        }
+      } catch (error) {
+        console.error(`Failed to assign seat in room ${roomAssignment.roomId}:`, error.message);
+        continue; // Try next room
+      }
+    }
+
+    throw new Error('No available seats in any assigned room');
+  }
+
+  /**
+   * Release seat from cancelled registration
+   */
+  static async releaseSeatFromRegistration(registrationId) {
+    const registration = await EventRegistration.findById(registrationId)
+      .populate('eventId', 'roomAssignment');
+    
+    if (!registration || !registration.seatAssignment?.roomId) {
+      return; // No seat to release
+    }
+
+    const { Room } = require('../models/Room');
+    const room = await Room.findById(registration.seatAssignment.roomId);
+    
+    if (room) {
+      await room.releaseSeat(
+        registration.seatAssignment.seatNumber,
+        registrationId
+      );
+
+      // Update event stats
+      await Event.findByIdAndUpdate(registration.eventId._id, {
+        $inc: { 
+          'roomAssignment.totalSeatsOccupied': -1 
+        }
+      });
+    }
   }
 }
 

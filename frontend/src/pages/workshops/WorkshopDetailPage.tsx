@@ -67,10 +67,20 @@ export function WorkshopDetailPage() {
 
   const registerMut = useMutation({
     mutationFn: () => apiRequest(`/workshops/${id}/register`, { method: 'POST', token, body: JSON.stringify(regForm) }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       Promise.all(invalidateQueries.workshops.detail(qc, id!, token));
       setShowRegForm(false);
-      toast.success('Registered successfully!');
+      
+      // Show success message with seat assignment if available
+      let successMsg = 'Registered successfully!';
+      if (data?.seatAssignment?.roomId) {
+        const roomInfo = data.seatAssignment;
+        successMsg += ` Seat assigned: ${roomInfo.roomId.roomName} (Room ${roomInfo.roomId.roomNumber})`;
+        if (roomInfo.seatNumber) {
+          successMsg += `, Seat ${roomInfo.seatNumber}`;
+        }
+      }
+      toast.success(successMsg, { duration: 5000 });
     },
     onError: e => toast.error(normalizeApiError(e)),
   });
@@ -101,8 +111,16 @@ export function WorkshopDetailPage() {
   const spotsLeft = workshop.capacity - workshop.stats.totalRegistrations;
   const isFull    = spotsLeft <= 0;
   const isUpcoming = new Date(workshop.startDate) > new Date();
+  
+  // Check if registration deadline has passed
+  const registrationDeadlinePassed = workshop.registrationDeadline 
+    ? new Date() > new Date(workshop.registrationDeadline)
+    : false;
+  
   // Allow registration for Published, Registration_Open, and also Draft (for testing/preview)
-  const canRegister = !['Cancelled', 'Completed', 'Registration_Closed'].includes(workshop.status) && !isFull;
+  const canRegister = !['Cancelled', 'Completed', 'Registration_Closed'].includes(workshop.status) 
+    && !isFull 
+    && !registrationDeadlinePassed;
   const isManager = user?.roles.some(r => ['President', 'Vice President', 'General Secretary', 'AGS (Organization)', 'Moderator'].includes(r));
   const canEdit = isManager || workshop.createdBy._id === user?.id;
 
@@ -355,6 +373,35 @@ export function WorkshopDetailPage() {
                     </Badge>
                   </div>
                 )}
+
+                {/* Seat Assignment Display */}
+                {(myReg as any).seatAssignment?.roomId && (
+                  <div style={{ padding: '12px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <p style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent)' }}>
+                      🪑 Your Seat Assignment
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div className="ui-flex ui-flex-between">
+                        <span className="ui-text-xs ui-text-muted">Room:</span>
+                        <span className="ui-text-sm" style={{ fontWeight: 600 }}>
+                          {(myReg as any).seatAssignment.roomId.roomNumber} - {(myReg as any).seatAssignment.roomId.roomName}
+                        </span>
+                      </div>
+                      {(myReg as any).seatAssignment.seatNumber && (
+                        <div className="ui-flex ui-flex-between">
+                          <span className="ui-text-xs ui-text-muted">Seat:</span>
+                          <span className="ui-text-sm" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                            {(myReg as any).seatAssignment.seatNumber}
+                          </span>
+                        </div>
+                      )}
+                      <p className="ui-text-xs ui-text-muted" style={{ marginTop: 6, fontStyle: 'italic' }}>
+                        Please remember your seat location for the workshop day.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {myReg.rejectionReason && (
                   <Alert variant="error">{myReg.rejectionReason}</Alert>
                 )}
@@ -427,7 +474,12 @@ export function WorkshopDetailPage() {
                   </>
                 ) : (
                   <Alert variant="warning">
-                    {isFull ? 'Workshop is full' : `Registration is ${workshop.status.replace('_', ' ')}`}
+                    {isFull 
+                      ? 'Workshop is full' 
+                      : registrationDeadlinePassed 
+                      ? `Registration deadline passed (${workshop.registrationDeadline ? formatDateTime(workshop.registrationDeadline) : ''})`
+                      : `Registration is ${workshop.status.replace('_', ' ')}`
+                    }
                   </Alert>
                 )}
               </div>
@@ -436,16 +488,14 @@ export function WorkshopDetailPage() {
 
           {/* Manager: QR Scanner link */}
           {isManager && (
-            <Button variant="outline" fullWidth leftIcon={QrCode} href={`/dashboard/workshops/${id}/checkin`}>
-              Open QR Check-in Scanner
-            </Button>
-          )}
-
-          {/* Manager: Manage link */}
-          {isManager && (
-            <Button variant="ghost" fullWidth href={`/dashboard/workshops/${id}/manage`}>
-              Manage Registrations
-            </Button>
+            <>
+              <Button variant="primary" fullWidth href={`/dashboard/workshops/${id}/manage`}>
+                👥 Manage Registrations
+              </Button>
+              <Button variant="outline" fullWidth leftIcon={QrCode} href={`/dashboard/workshops/${id}/checkin`}>
+                Open QR Check-in Scanner
+              </Button>
+            </>
           )}
 
           {/* Generate Poster */}
@@ -475,55 +525,180 @@ export function WorkshopDetailPage() {
       <AnimatePresence>
         {showRegForm && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', zIndex: 1040 }}
-              onClick={() => setShowRegForm(false)} />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              style={{
-                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-                width: '90%', maxWidth: 480, zIndex: 1050,
-                background: 'var(--panel-strong)', borderRadius: 24, border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-lg)', overflow: 'hidden',
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              style={{ 
+                position: 'fixed', 
+                inset: 0, 
+                background: 'rgba(0,0,0,0.7)', 
+                backdropFilter: 'blur(8px)', 
+                zIndex: 9998,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px',
+                overflowY: 'auto',
               }}
+              onClick={() => setShowRegForm(false)} 
             >
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontWeight: 700, color: 'var(--text)' }}>Register for Workshop</h3>
-                <button onClick={() => setShowRegForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: '1.2rem' }}>×</button>
-              </div>
-              <div style={{ padding: '20px 24px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div className="ui-input-wrap">
-                    <label className="ui-input-label">Full Name *</label>
-                    <input className="ui-input" value={regForm.name} onChange={e => setRegForm(f => ({ ...f, name: e.target.value }))} required />
-                  </div>
-                  <div className="ui-input-wrap">
-                    <label className="ui-input-label">Email *</label>
-                    <input type="email" className="ui-input" value={regForm.email} onChange={e => setRegForm(f => ({ ...f, email: e.target.value }))} required />
-                  </div>
-                  <div className="ui-input-wrap">
-                    <label className="ui-input-label">Phone</label>
-                    <input className="ui-input" value={regForm.phone} onChange={e => setRegForm(f => ({ ...f, phone: e.target.value }))} placeholder="+8801XXXXXXXXX" />
-                  </div>
-                  {!workshop.isFree && (
-                    <Alert variant="warning">
-                      After registration, you'll need to pay ৳{workshop.fee} to confirm your spot.
+              {/* Modal Content */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: '100%',
+                  maxWidth: '500px',
+                  background: 'var(--panel-strong)',
+                  borderRadius: '24px',
+                  border: '1px solid var(--border)',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                  overflow: 'hidden',
+                  margin: 'auto',
+                }}
+              >
+                {/* Modal Header */}
+                <div style={{ 
+                  padding: '24px', 
+                  borderBottom: '1px solid var(--border)', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  background: 'var(--surface)',
+                }}>
+                  <h3 style={{ 
+                    margin: 0, 
+                    fontWeight: 700, 
+                    fontSize: '1.25rem',
+                    color: 'var(--text)' 
+                  }}>
+                    Register for Workshop
+                  </h3>
+                  <button 
+                    onClick={() => setShowRegForm(false)} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      color: 'var(--muted)', 
+                      fontSize: '1.5rem',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '8px',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--surface)';
+                      e.currentTarget.style.color = 'var(--text)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'none';
+                      e.currentTarget.style.color = 'var(--muted)';
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div style={{ padding: '24px' }}>
+                  {/* Registration deadline warning */}
+                  {registrationDeadlinePassed && (
+                    <Alert variant="error" style={{ marginBottom: '16px' }}>
+                      Registration deadline has passed ({workshop.registrationDeadline ? formatDateTime(workshop.registrationDeadline) : ''})
                     </Alert>
                   )}
-                  {workshop.requiresApproval && (
-                    <Alert variant="info">Your registration will be reviewed by organizers.</Alert>
-                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="ui-input-wrap">
+                      <label className="ui-input-label" style={{ fontWeight: 600 }}>Full Name *</label>
+                      <input 
+                        className="ui-input" 
+                        value={regForm.name} 
+                        onChange={e => setRegForm(f => ({ ...f, name: e.target.value }))} 
+                        placeholder="Enter your full name"
+                        required 
+                        style={{ fontSize: '0.95rem' }}
+                      />
+                    </div>
+                    
+                    <div className="ui-input-wrap">
+                      <label className="ui-input-label" style={{ fontWeight: 600 }}>Email *</label>
+                      <input 
+                        type="email" 
+                        className="ui-input" 
+                        value={regForm.email} 
+                        onChange={e => setRegForm(f => ({ ...f, email: e.target.value }))} 
+                        placeholder="your.email@example.com"
+                        required 
+                        style={{ fontSize: '0.95rem' }}
+                      />
+                    </div>
+                    
+                    <div className="ui-input-wrap">
+                      <label className="ui-input-label" style={{ fontWeight: 600 }}>Phone</label>
+                      <input 
+                        className="ui-input" 
+                        value={regForm.phone} 
+                        onChange={e => setRegForm(f => ({ ...f, phone: e.target.value }))} 
+                        placeholder="+8801XXXXXXXXX" 
+                        style={{ fontSize: '0.95rem' }}
+                      />
+                    </div>
+                    
+                    {!workshop.isFree && (
+                      <Alert variant="warning">
+                        After registration, you'll need to pay ৳{workshop.fee} to confirm your spot.
+                      </Alert>
+                    )}
+                    
+                    {workshop.requiresApproval && (
+                      <Alert variant="info">
+                        Your registration will be reviewed by organizers.
+                      </Alert>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '12px', 
+                    marginTop: '24px', 
+                    justifyContent: 'flex-end',
+                    flexWrap: 'wrap',
+                  }}>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowRegForm(false)}
+                      style={{ minWidth: '100px' }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      isLoading={registerMut.isPending}
+                      disabled={registrationDeadlinePassed}
+                      onClick={() => { 
+                        if (regForm.name && regForm.email) {
+                          registerMut.mutate(); 
+                        } else {
+                          toast.error('Name and email are required'); 
+                        }
+                      }}
+                      style={{ minWidth: '150px' }}
+                    >
+                      {registerMut.isPending ? 'Registering...' : 'Confirm Registration'}
+                    </Button>
+                  </div>
                 </div>
-                <div className="ui-flex ui-flex-gap-2" style={{ marginTop: 20, justifyContent: 'flex-end' }}>
-                  <Button variant="outline" onClick={() => setShowRegForm(false)}>Cancel</Button>
-                  <Button isLoading={registerMut.isPending}
-                    onClick={() => { if (regForm.name && regForm.email) registerMut.mutate(); else toast.error('Name and email required'); }}>
-                    Confirm Registration
-                  </Button>
-                </div>
-              </div>
+              </motion.div>
             </motion.div>
           </>
         )}

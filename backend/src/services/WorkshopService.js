@@ -108,6 +108,17 @@ class WorkshopService {
     // If free and auto-approved, generate QR immediately
     if (status === 'Approved' && workshop.isFree) {
       await WorkshopService._generateQR(reg);
+      
+      // Auto-assign seat if room assignment is enabled
+      if (workshop.roomAssignment?.enabled && workshop.roomAssignment?.autoAssignSeats) {
+        try {
+          const seatAssignment = await WorkshopService.assignSeatToRegistration(reg._id, workshop);
+          reg.seatAssignment = seatAssignment;
+          await reg.save();
+        } catch (error) {
+          console.error('Failed to auto-assign seat:', error);
+        }
+      }
     }
 
     // Update stats
@@ -186,6 +197,16 @@ class WorkshopService {
       reg.status = 'Approved';
       await WorkshopService._generateQR(reg);
       await Workshop.findByIdAndUpdate(reg.workshopId, { $inc: { 'stats.totalApproved': 1 } });
+      
+      // Auto-assign seat if room assignment is enabled
+      if (workshop.roomAssignment?.enabled && workshop.roomAssignment?.autoAssignSeats) {
+        try {
+          const seatAssignment = await WorkshopService.assignSeatToRegistration(reg._id, workshop);
+          reg.seatAssignment = seatAssignment;
+        } catch (error) {
+          console.error('Failed to auto-assign seat:', error);
+        }
+      }
     }
 
     await reg.save();
@@ -204,7 +225,7 @@ class WorkshopService {
   // ── APPROVAL ──────────────────────────────────────────────────────────────
 
   static async approveRegistration(registrationId) {
-    const reg = await WorkshopRegistration.findById(registrationId);
+    const reg = await WorkshopRegistration.findById(registrationId).populate('workshopId');
     if (!reg) throw new ApiError(404, 'Registration not found');
 
     // If paid workshop, must be paid first
@@ -214,6 +235,18 @@ class WorkshopService {
 
     reg.status = 'Approved';
     await WorkshopService._generateQR(reg);
+    
+    // Auto-assign seat if room assignment is enabled
+    const workshop = reg.workshopId;
+    if (workshop.roomAssignment?.enabled && workshop.roomAssignment?.autoAssignSeats) {
+      try {
+        const seatAssignment = await WorkshopService.assignSeatToRegistration(reg._id, workshop);
+        reg.seatAssignment = seatAssignment;
+      } catch (error) {
+        console.error('Failed to auto-assign seat:', error);
+      }
+    }
+    
     await reg.save();
     await Workshop.findByIdAndUpdate(reg.workshopId, { $inc: { 'stats.totalApproved': 1 } });
     return reg;
@@ -300,7 +333,78 @@ class WorkshopService {
   }
 
   static async getRegistrationById(id) {
-    return WorkshopRegistration.findById(id).populate('workshopId').populate('userId', 'firstName lastName email avatarUrl');
+    return WorkshopRegistration.findById(id)
+      .populate('workshopId')
+      .populate('userId', 'firstName lastName email avatarUrl')
+      .populate('seatAssignment.roomId', 'roomNumber roomName building floor');
+  }
+
+  /**
+   * Assign seat to workshop registration
+   * @private
+   */
+  static async assignSeatToRegistration(registrationId, workshop) {
+    const { Room } = require('../models/Room');
+    
+    if (!workshop.roomAssignment?.rooms || workshop.roomAssignment.rooms.length === 0) {
+      throw new Error('No rooms assigned to this workshop');
+    }
+
+    // Sort rooms by priority
+    const sortedRooms = workshop.roomAssignment.rooms.sort((a, b) => a.priority - b.priority);
+
+    // Try to assign seat in each room (by priority)
+    for (const roomAssignment of sortedRooms) {
+      try {
+        const room = await Room.findById(roomAssignment.roomId);
+        
+        if (!room || !room.isActive) continue;
+
+        // Check if room has available capacity
+        const availableCapacity = room.getAvailableCapacity();
+        if (availableCapacity <= 0) continue;
+
+        // Assign seat/capacity
+        const seatResult = await room.assignSeat(
+          null, // userId
+          registrationId,
+          null, // eventId
+          workshop._id
+        );
+
+        // Update workshop room assignment stats
+        await Workshop.findByIdAndUpdate(workshop._id, {
+          $inc: { 
+            'roomAssignment.totalSeatsOccupied': 1 
+          }
+        });
+
+        // Return seat assignment info
+        if (room.seatManagementMode === 'Individual') {
+          return {
+            roomId: room._id,
+            seatNumber: seatResult.seatNumber,
+            row: seatResult.row,
+            position: seatResult.position,
+            assignedAt: new Date(),
+            autoAssigned: true
+          };
+        } else {
+          // Capacity_Only mode
+          return {
+            roomId: room._id,
+            seatNumber: `General-${seatResult.registeredCount}`,
+            assignedAt: new Date(),
+            autoAssigned: true
+          };
+        }
+      } catch (error) {
+        console.error(`Failed to assign seat in room ${roomAssignment.roomId}:`, error.message);
+        continue; // Try next room
+      }
+    }
+
+    throw new Error('No available seats in any assigned room');
   }
 }
 

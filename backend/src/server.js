@@ -3,6 +3,7 @@ const { connectDB } = require("./config/db");
 const { app } = require("./app");
 
 const { EmailService } = require("./services/EmailService");
+const { SchedulerService } = require("./services/SchedulerService");
 
 async function bootstrap() {
   await connectDB();
@@ -15,6 +16,9 @@ async function bootstrap() {
     console.warn("⚠ Email service initialization failed:", error.message);
     console.warn("  Emails will not be sent. Check SMTP configuration.");
   }
+  
+  // Start scheduler for auto-closing registrations
+  SchedulerService.startScheduler();
   
   app.listen(env.PORT, () => {
     console.log(`API listening on port ${env.PORT}`);

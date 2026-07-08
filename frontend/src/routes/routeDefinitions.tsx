@@ -33,6 +33,7 @@ import { EventPaymentPage } from "../pages/events/EventPaymentPage";
 import { EventCreatePage } from "../pages/events/EventCreatePage";
 import { EventEditPage } from "../pages/events/EventEditPage";
 import { EventVolunteersPage } from "../pages/events/EventVolunteersPage";
+import { EventRegistrationsManagePage } from "../pages/events/EventRegistrationsManagePage";
 import { ModernFinancePage } from "../pages/finance/ModernFinancePage";
 import { TransactionEntryPage } from "../pages/finance/TransactionEntryPage";
 import { LedgerPage } from "../pages/finance/LedgerPage";
@@ -53,7 +54,9 @@ import { ChiefPatronDetailsPage } from "../pages/dashboard/ChiefPatronDetailsPag
 import { ElectionCommissionPage } from "../pages/dashboard/ElectionCommissionPage";
 import { AlumniPortalPage } from "../pages/dashboard/AlumniPortalPage";
 import { AdminRoleManagementPage } from "../pages/dashboard/AdminRoleManagementPage";
-import YearPromotionPage from "../pages/admin/YearPromotionPage";
+import  YearPromotionPage  from "../pages/admin/YearPromotionPage";
+import { RoomManagementPage } from "../pages/admin/RoomManagementPage";
+import { RoomDetailsPage } from "../pages/admin/RoomDetailsPage";
 
 type RouteDef = {
   path: string;
@@ -95,6 +98,16 @@ export const routeDefinitions: RouteDef[] = [
   {
     path: "/dashboard/admin/year-promotion",
     element: <YearPromotionPage />,
+    requiredRoles: ["Moderator", "Chief Patron"],
+  },
+  {
+    path: "/dashboard/admin/rooms",
+    element: <RoomManagementPage />,
+    requiredRoles: ["Moderator", "Chief Patron"],
+  },
+  {
+    path: "/dashboard/admin/rooms/:roomId",
+    element: <RoomDetailsPage />,
     requiredRoles: ["Moderator", "Chief Patron"],
   },
   { path: "/dashboard/membership", element: <MembershipOverviewPage /> },
@@ -196,6 +209,11 @@ export const routeDefinitions: RouteDef[] = [
   {
     path: "/dashboard/events/:id/volunteers",
     element: <EventVolunteersPage />,
+    requiredRoles: ["President", "Vice President", "General Secretary", "AGS (Organization)", "Moderator"],
+  },
+  {
+    path: "/dashboard/events/:eventId/registrations",
+    element: <EventRegistrationsManagePage />,
     requiredRoles: ["President", "Vice President", "General Secretary", "AGS (Organization)", "Moderator"],
   },
   { path: "/dashboard/finance", element: <ModernFinancePage /> },
