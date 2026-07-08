@@ -1,6 +1,5 @@
 import React from 'react';
-import { Box, Paper, Typography, Grid, Tooltip, Alert, Progress } from '@mantine/core';
-import { IconArmchair, IconX, IconCheck, IconClock } from '@tabler/icons-react';
+import { Armchair, X, Check, Clock } from 'lucide-react';
 
 interface Seat {
   seatNumber: string;
@@ -53,63 +52,71 @@ const SeatMapVisualization: React.FC<SeatMapVisualizationProps> = ({
     const usedPercentage = ((occupiedCount + reservedCount) / room.capacity) * 100;
 
     return (
-      <Paper p="lg" withBorder>
-        <Typography size="lg" weight={600} mb="md">
-          Capacity Overview
-        </Typography>
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h3 className="text-lg font-semibold mb-4">Capacity Overview</h3>
         
-        <Box mb="xl">
-          <Progress
-            size="xl"
-            sections={[
-              { value: (occupiedCount / room.capacity) * 100, color: 'red', label: 'Occupied' },
-              { value: (reservedCount / room.capacity) * 100, color: 'yellow', label: 'Reserved' },
-              { value: (blockedCount / room.capacity) * 100, color: 'gray', label: 'Blocked' },
-              { value: (availableCount / room.capacity) * 100, color: 'green', label: 'Available' },
-            ]}
-          />
-        </Box>
+        <div className="mb-6">
+          <div className="h-8 bg-gray-100 rounded-full overflow-hidden flex">
+            <div 
+              className="bg-red-500 h-full flex items-center justify-center text-white text-xs font-medium"
+              style={{ width: `${(occupiedCount / room.capacity) * 100}%` }}
+            >
+              {occupiedCount > 0 && 'Occupied'}
+            </div>
+            <div 
+              className="bg-yellow-500 h-full flex items-center justify-center text-white text-xs font-medium"
+              style={{ width: `${(reservedCount / room.capacity) * 100}%` }}
+            >
+              {reservedCount > 0 && 'Reserved'}
+            </div>
+            <div 
+              className="bg-gray-500 h-full flex items-center justify-center text-white text-xs font-medium"
+              style={{ width: `${(blockedCount / room.capacity) * 100}%` }}
+            >
+              {blockedCount > 0 && 'Blocked'}
+            </div>
+            <div 
+              className="bg-green-500 h-full flex items-center justify-center text-white text-xs font-medium"
+              style={{ width: `${(availableCount / room.capacity) * 100}%` }}
+            >
+              {availableCount > 0 && 'Available'}
+            </div>
+          </div>
+        </div>
 
-        <Grid>
-          <Grid.Col span={6}>
-            <Paper p="md" withBorder bg="green.0">
-              <Typography color="green" weight={600}>Available</Typography>
-              <Typography size="xl" weight={700}>{availableCount}</Typography>
-            </Paper>
-          </Grid.Col>
-          <Grid.Col span={6}>
-            <Paper p="md" withBorder bg="red.0">
-              <Typography color="red" weight={600}>Occupied</Typography>
-              <Typography size="xl" weight={700}>{occupiedCount}</Typography>
-            </Paper>
-          </Grid.Col>
-          <Grid.Col span={6}>
-            <Paper p="md" withBorder bg="yellow.0">
-              <Typography color="orange" weight={600}>Reserved</Typography>
-              <Typography size="xl" weight={700}>{reservedCount}</Typography>
-            </Paper>
-          </Grid.Col>
-          <Grid.Col span={6}>
-            <Paper p="md" withBorder bg="gray.0">
-              <Typography color="gray" weight={600}>Blocked</Typography>
-              <Typography size="xl" weight={700}>{blockedCount}</Typography>
-            </Paper>
-          </Grid.Col>
-        </Grid>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <p className="text-green-700 font-semibold text-sm">Available</p>
+            <p className="text-2xl font-bold text-green-900">{availableCount}</p>
+          </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-700 font-semibold text-sm">Occupied</p>
+            <p className="text-2xl font-bold text-red-900">{occupiedCount}</p>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-orange-700 font-semibold text-sm">Reserved</p>
+            <p className="text-2xl font-bold text-orange-900">{reservedCount}</p>
+          </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p className="text-gray-700 font-semibold text-sm">Blocked</p>
+            <p className="text-2xl font-bold text-gray-900">{blockedCount}</p>
+          </div>
+        </div>
 
-        <Alert mt="lg" icon={<IconArmchair size={16} />}>
-          Total Capacity: {room.capacity} seats
-        </Alert>
-      </Paper>
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-2">
+          <Armchair className="w-4 h-4 text-blue-600" />
+          <span className="text-sm text-blue-900">Total Capacity: {room.capacity} seats</span>
+        </div>
+      </div>
     );
   }
 
   // For Individual mode, show seat grid
   if (!room.seats || room.seats.length === 0) {
     return (
-      <Alert color="yellow">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
         No seats configured for this room.
-      </Alert>
+      </div>
     );
   }
 
@@ -133,34 +140,34 @@ const SeatMapVisualization: React.FC<SeatMapVisualizationProps> = ({
 
   const getSeatColor = (seat: Seat) => {
     if (highlightSeats.includes(seat.seatNumber)) {
-      return 'blue.6';
+      return 'bg-blue-600 text-white border-blue-700';
     }
     switch (seat.status) {
       case 'Available':
-        return 'green.5';
+        return 'bg-green-500 text-white border-green-600';
       case 'Occupied':
-        return 'red.6';
+        return 'bg-red-600 text-white border-red-700';
       case 'Reserved':
-        return 'yellow.5';
+        return 'bg-yellow-500 text-white border-yellow-600';
       case 'Blocked':
-        return 'gray.5';
+        return 'bg-gray-500 text-white border-gray-600';
       default:
-        return 'gray.3';
+        return 'bg-gray-300 text-gray-700 border-gray-400';
     }
   };
 
   const getSeatIcon = (seat: Seat) => {
     switch (seat.status) {
       case 'Available':
-        return <IconCheck size={16} />;
+        return <Check className="w-4 h-4" />;
       case 'Occupied':
-        return <IconX size={16} />;
+        return <X className="w-4 h-4" />;
       case 'Reserved':
-        return <IconClock size={16} />;
+        return <Clock className="w-4 h-4" />;
       case 'Blocked':
-        return <IconX size={16} />;
+        return <X className="w-4 h-4" />;
       default:
-        return <IconArmchair size={16} />;
+        return <Armchair className="w-4 h-4" />;
     }
   };
 
@@ -173,143 +180,117 @@ const SeatMapVisualization: React.FC<SeatMapVisualizationProps> = ({
   };
 
   return (
-    <Paper p="lg" withBorder>
-      <Typography size="lg" weight={600} mb="md">
-        Seat Map - {room.roomName}
-      </Typography>
+    <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <h3 className="text-lg font-semibold mb-4">Seat Map - {room.roomName}</h3>
 
       {/* Front of room indicator */}
-      <Box mb="xl">
-        <Paper p="xs" bg="gray.1" style={{ textAlign: 'center' }}>
-          <Typography size="sm" color="dimmed" weight={600}>
+      <div className="mb-6">
+        <div className="bg-gray-100 border border-gray-200 rounded p-2 text-center">
+          <p className="text-sm text-gray-600 font-semibold">
             ↑ FRONT / STAGE / BOARD ↑
-          </Typography>
-        </Paper>
-      </Box>
+          </p>
+        </div>
+      </div>
 
       {/* Seat grid */}
-      <Box>
+      <div>
         {sortedRows.map(rowNumber => (
-          <Box key={rowNumber} mb="sm">
-            <Typography size="xs" color="dimmed" mb={4}>
+          <div key={rowNumber} className="mb-3">
+            <p className="text-xs text-gray-500 mb-1">
               Row {String.fromCharCode(64 + rowNumber)}
-            </Typography>
-            <Box style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            </p>
+            <div className="flex gap-2 flex-wrap">
               {seatsByRow[rowNumber].map(seat => (
-                <Tooltip
+                <div
                   key={seat.seatNumber}
-                  label={getSeatTooltip(seat)}
-                  withArrow
-                  multiline
-                  w={200}
+                  className={`${getSeatColor(seat)} border-2 rounded p-2 min-w-[60px] text-center transition-all cursor-pointer hover:scale-105 hover:shadow-lg`}
+                  onClick={() => onSeatClick && onSeatClick(seat)}
+                  title={getSeatTooltip(seat)}
                 >
-                  <Paper
-                    p="xs"
-                    withBorder
-                    bg={getSeatColor(seat)}
-                    style={{
-                      cursor: onSeatClick ? 'pointer' : 'default',
-                      minWidth: '60px',
-                      textAlign: 'center',
-                      transition: 'all 0.2s',
-                      '&:hover': onSeatClick ? {
-                        transform: 'scale(1.05)',
-                        boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                      } : {},
-                    }}
-                    onClick={() => onSeatClick && onSeatClick(seat)}
-                  >
-                    <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                      {getSeatIcon(seat)}
-                      <Typography size="sm" weight={600} color="white">
-                        {seat.seatNumber}
-                      </Typography>
-                    </Box>
-                  </Paper>
-                </Tooltip>
+                  <div className="flex items-center justify-center gap-1">
+                    {getSeatIcon(seat)}
+                    <span className="text-sm font-semibold">{seat.seatNumber}</span>
+                  </div>
+                </div>
               ))}
-            </Box>
-          </Box>
+            </div>
+          </div>
         ))}
-      </Box>
+      </div>
 
       {/* Legend */}
-      <Box mt="xl" p="md" bg="gray.0" style={{ borderRadius: '8px' }}>
-        <Typography size="sm" weight={600} mb="sm">
-          Legend:
-        </Typography>
-        <Box style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-          <Box style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Box w={20} h={20} bg="green.5" style={{ borderRadius: '4px' }} />
-            <Typography size="sm">Available</Typography>
-          </Box>
-          <Box style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Box w={20} h={20} bg="red.6" style={{ borderRadius: '4px' }} />
-            <Typography size="sm">Occupied</Typography>
-          </Box>
-          <Box style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Box w={20} h={20} bg="yellow.5" style={{ borderRadius: '4px' }} />
-            <Typography size="sm">Reserved</Typography>
-          </Box>
-          <Box style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Box w={20} h={20} bg="gray.5" style={{ borderRadius: '4px' }} />
-            <Typography size="sm">Blocked</Typography>
-          </Box>
+      <div className="mt-6 bg-gray-50 rounded-lg p-4">
+        <p className="text-sm font-semibold mb-3">Legend:</p>
+        <div className="flex gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-green-500 rounded" />
+            <span className="text-sm">Available</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-red-600 rounded" />
+            <span className="text-sm">Occupied</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-yellow-500 rounded" />
+            <span className="text-sm">Reserved</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-gray-500 rounded" />
+            <span className="text-sm">Blocked</span>
+          </div>
           {highlightSeats.length > 0 && (
-            <Box style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Box w={20} h={20} bg="blue.6" style={{ borderRadius: '4px' }} />
-              <Typography size="sm">Your Seat</Typography>
-            </Box>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-blue-600 rounded" />
+              <span className="text-sm">Your Seat</span>
+            </div>
           )}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* Room features */}
       {room.features && Object.keys(room.features).length > 0 && (
-        <Box mt="md">
-          <Typography size="sm" weight={600} mb="xs">
-            Room Features:
-          </Typography>
-          <Box style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="mt-4">
+          <p className="text-sm font-semibold mb-2">Room Features:</p>
+          <div className="flex gap-2 flex-wrap">
             {room.features.projector && (
-              <Paper px="sm" py={4} bg="blue.0" style={{ borderRadius: '16px' }}>
-                <Typography size="xs">🎥 Projector</Typography>
-              </Paper>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                🎥 Projector
+              </span>
             )}
             {room.features.whiteboard && (
-              <Paper px="sm" py={4} bg="blue.0" style={{ borderRadius: '16px' }}>
-                <Typography size="xs">📝 Whiteboard</Typography>
-              </Paper>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                📝 Whiteboard
+              </span>
             )}
             {room.features.AC && (
-              <Paper px="sm" py={4} bg="blue.0" style={{ borderRadius: '16px' }}>
-                <Typography size="xs">❄️ AC</Typography>
-              </Paper>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                ❄️ AC
+              </span>
             )}
             {room.features.WiFi && (
-              <Paper px="sm" py={4} bg="blue.0" style={{ borderRadius: '16px' }}>
-                <Typography size="xs">📶 WiFi</Typography>
-              </Paper>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                📶 WiFi
+              </span>
             )}
             {room.features.desktops && (
-              <Paper px="sm" py={4} bg="blue.0" style={{ borderRadius: '16px' }}>
-                <Typography size="xs">💻 Desktops</Typography>
-              </Paper>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                💻 Desktops
+              </span>
             )}
             {room.features.soundSystem && (
-              <Paper px="sm" py={4} bg="blue.0" style={{ borderRadius: '16px' }}>
-                <Typography size="xs">🔊 Sound System</Typography>
-              </Paper>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                🔊 Sound System
+              </span>
             )}
             {room.features.accessibility && (
-              <Paper px="sm" py={4} bg="blue.0" style={{ borderRadius: '16px' }}>
-                <Typography size="xs">♿ Accessible</Typography>
-              </Paper>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                ♿ Accessible
+              </span>
             )}
-          </Box>
-        </Box>
+          </div>
+        </div>
       )}
-    </Paper>
+    </div>
   );
 };
 
