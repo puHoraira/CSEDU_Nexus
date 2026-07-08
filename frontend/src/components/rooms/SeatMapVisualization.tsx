@@ -294,4 +294,4 @@ const SeatMapVisualization: React.FC<SeatMapVisualizationProps> = ({
   );
 };
 
-export default SeatMapVisualization;
+export { SeatMapVisualization };
