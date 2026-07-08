@@ -1,7 +1,7 @@
 const { RoomService } = require('../services/RoomService');
 const { ApiResponse } = require('../core/ApiResponse');
 const { asyncHandler } = require('../core/asyncHandler');
-const { Parser } = require('json2csv');
+const { Parser } = require('@json2csv/plainjs');
 
 class RoomController {
   /**
