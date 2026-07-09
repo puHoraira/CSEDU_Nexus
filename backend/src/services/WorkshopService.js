@@ -75,27 +75,34 @@ class WorkshopService {
 
       if (member || userRoles.length > 0) {
         const { filterByAudience } = require('../utils/audienceUtils');
+        
+        // Convert to plain objects first and identify user's workshops
+        const workshopsObjects = workshops.map(w => w.toObject());
+        
+        // Get workshops created by user BEFORE filtering
+        const createdByUserIds = workshopsObjects
+          .filter(w => w.createdBy && w.createdBy._id && w.createdBy._id.toString() === requestingUserId.toString())
+          .map(w => w._id.toString());
+        
+        // Filter by audience
         const filtered = filterByAudience(
-          workshops.map(w => w.toObject()),
+          workshopsObjects,
           member,
           requestingUserId,
           userRoles
         );
         
-        // Always include workshops created by the requesting user
-        const createdByUser = workshops.filter(w => 
-          w.createdBy && w.createdBy._id && w.createdBy._id.toString() === requestingUserId.toString()
-        ).map(w => w.toObject());
-        
-        // Merge and deduplicate
-        const allWorkshops = [...filtered];
-        createdByUser.forEach(workshop => {
-          if (!allWorkshops.find(w => w._id.toString() === workshop._id.toString())) {
-            allWorkshops.push(workshop);
+        // Add back workshops created by user that weren't in filtered list
+        workshopsObjects.forEach(workshop => {
+          const isCreatedByUser = createdByUserIds.includes(workshop._id.toString());
+          const alreadyIncluded = filtered.find(w => w._id.toString() === workshop._id.toString());
+          
+          if (isCreatedByUser && !alreadyIncluded) {
+            filtered.push(workshop);
           }
         });
         
-        return allWorkshops;
+        return filtered;
       }
     }
 

@@ -219,8 +219,16 @@ class EventService {
     // Filter events by targetAudience (comprehensive filtering)
     const { filterByAudience } = require('../utils/audienceUtils');
     
+    // Convert to plain objects first and identify user's events
+    const eventsObjects = events.map(e => e.toObject());
+    
+    // Get events created by user BEFORE filtering
+    const createdByUserIds = eventsObjects
+      .filter(ev => ev.createdBy && ev.createdBy.toString() === requestingUserId.toString())
+      .map(ev => ev._id.toString());
+    
     let filteredEvents = filterByAudience(
-      events.map(e => e.toObject()), 
+      eventsObjects, 
       member, 
       requestingUserId, 
       userRoles
@@ -241,14 +249,12 @@ class EventService {
       });
     }
 
-    // Always include events created by the requesting user
-    const createdByUser = events.filter(ev => 
-      ev.createdBy && ev.createdBy.toString() === requestingUserId.toString()
-    ).map(ev => ev.toObject());
-    
-    // Merge and deduplicate
-    createdByUser.forEach(event => {
-      if (!filteredEvents.find(e => e._id.toString() === event._id.toString())) {
+    // Add back events created by user that weren't in filtered list
+    eventsObjects.forEach(event => {
+      const isCreatedByUser = createdByUserIds.includes(event._id.toString());
+      const alreadyIncluded = filteredEvents.find(e => e._id.toString() === event._id.toString());
+      
+      if (isCreatedByUser && !alreadyIncluded) {
         filteredEvents.push(event);
       }
     });
