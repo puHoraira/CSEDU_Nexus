@@ -611,7 +611,7 @@ export function RoomManagementPage() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button 
                     className="secondary-button"
-                    onClick={() => window.location.href = `/dashboard/rooms/${room._id}`}
+                    onClick={() => window.location.href = `/dashboard/admin/rooms/${room._id}`}
                   >
                     View Details
                   </button>
