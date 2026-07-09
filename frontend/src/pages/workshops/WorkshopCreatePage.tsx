@@ -43,6 +43,8 @@ export function WorkshopCreatePage() {
   const [audienceBatchInput, setAudienceBatchInput] = useState('');
   const [roleInput, setRoleInput] = useState('');
   const [userSearchInput, setUserSearchInput] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState<Array<{ _id: string; fullName: string; email: string }>>([]);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [speakers, setSpeakers]     = useState<Array<{ name: string; designation: string; organization: string; bio: string }>>([]);
   const [newSpeaker, setNewSpeaker] = useState({ name: '', designation: '', organization: '', bio: '' });
   const [selectedRoomId, setSelectedRoomId] = useState('');
@@ -170,6 +172,41 @@ export function WorkshopCreatePage() {
         invitedUsers: f.targetAudience.invitedUsers.filter(u => u !== userId),
       },
     }));
+  };
+
+  // Search users with debounce
+  const searchUsers = async (query: string) => {
+    if (!query || query.length < 2) {
+      setUserSearchResults([]);
+      setShowUserDropdown(false);
+      return;
+    }
+    
+    try {
+      const users = await apiRequest<Array<{ _id: string; fullName: string; email: string }>>(`/admin/users?search=${query}`, { token });
+      setUserSearchResults(users || []);
+      setShowUserDropdown(true);
+    } catch (err) {
+      console.error('Failed to search users:', err);
+      setUserSearchResults([]);
+    }
+  };
+
+  const selectUser = (userId: string) => {
+    if (form.targetAudience.invitedUsers.includes(userId)) {
+      toast.error("User already invited");
+      return;
+    }
+    setForm(f => ({
+      ...f,
+      targetAudience: {
+        ...f.targetAudience,
+        invitedUsers: [...f.targetAudience.invitedUsers, userId],
+      },
+    }));
+    setUserSearchInput('');
+    setShowUserDropdown(false);
+    setUserSearchResults([]);
   };
 
   const addRoomToAssignment = () => {
@@ -506,18 +543,95 @@ export function WorkshopCreatePage() {
             {/* Manually Invite Users */}
             <div style={{ marginBottom: 20 }}>
               <label className="ui-input-label" style={{ marginBottom: 10 }}>Manually Invite Specific Users</label>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                <input
-                  type="text"
-                  className="ui-input"
-                  style={{ flex: 1 }}
-                  placeholder="Enter user ID or email to invite"
-                  value={userSearchInput}
-                  onChange={(e) => setUserSearchInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addInvitedUser(); } }}
-                />
-                <Button variant="outline" type="button" onClick={addInvitedUser}>Invite User</Button>
+              <div style={{ position: 'relative' }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <input
+                    type="text"
+                    className="ui-input"
+                    style={{ flex: 1 }}
+                    placeholder="Search by name or email..."
+                    value={userSearchInput}
+                    onChange={(e) => {
+                      setUserSearchInput(e.target.value);
+                      searchUsers(e.target.value);
+                    }}
+                    onFocus={() => {if (userSearchResults.length > 0) setShowUserDropdown(true);}}
+                  />
+                </div>
+                
+                {/* Dropdown Results */}
+                {showUserDropdown && userSearchResults.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    zIndex: 1000,
+                    marginTop: '-6px',
+                  }}>
+                    {userSearchResults.map(user => (
+                      <div
+                        key={user._id}
+                        onClick={() => selectUser(user._id)}
+                        style={{
+                          padding: '10px 14px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid var(--border)',
+                          transition: 'background 0.2s',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(107,163,255,0.08)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{ fontWeight: 500, fontSize: '0.88rem', color: 'var(--text)' }}>
+                          {user.fullName}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 2 }}>
+                          {user.email}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+              
+              {form.targetAudience.invitedUsers.length > 0 ? (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                  {form.targetAudience.invitedUsers.map(userId => (
+                    <span 
+                      key={userId}
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: 6, 
+                        padding: '4px 10px', 
+                        borderRadius: 999, 
+                        fontSize: '0.78rem', 
+                        background: 'rgba(245,158,11,0.12)', 
+                        color: '#d97706', 
+                        border: '1px solid rgba(245,158,11,0.25)' 
+                      }}
+                    >
+                      {userId}
+                      <button 
+                        type="button" 
+                        onClick={() => removeInvitedUser(userId)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="ui-text-xs ui-text-muted">No users manually invited. Use this for private/exclusive workshops.</p>
+              )}
+            </div>
               {form.targetAudience.invitedUsers.length > 0 ? (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {form.targetAudience.invitedUsers.map(userId => (
