@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../auth/AuthContext';
 import { apiRequest } from '../../lib/api';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { PageScreen } from '../../components/ui/PageScreen';
@@ -57,6 +58,7 @@ interface RoomFormData {
 }
 
 export function RoomManagementPage() {
+  const { token } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -98,7 +100,9 @@ export function RoomManagementPage() {
     try {
       setLoading(true);
       const response: any = await apiRequest('/rooms', {
-        method: 'GET'
+        method: 'GET',
+        token
+      });
       });
       setRooms(response.data || []);
     } catch (error) {
@@ -116,6 +120,7 @@ export function RoomManagementPage() {
         // Update existing room
         await apiRequest(`/rooms/${editingRoom._id}`, {
           method: 'PUT',
+          token,
           body: JSON.stringify(formData)
         });
         alert('Room updated successfully!');
@@ -123,6 +128,7 @@ export function RoomManagementPage() {
         // Create new room
         await apiRequest('/rooms', {
           method: 'POST',
+          token,
           body: JSON.stringify(formData)
         });
         alert('Room created successfully!');
@@ -161,7 +167,8 @@ export function RoomManagementPage() {
     
     try {
       await apiRequest(`/rooms/${roomId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        token
       });
       alert('Room deleted successfully!');
       fetchRooms();
