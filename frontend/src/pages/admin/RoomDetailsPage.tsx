@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../auth/AuthContext';
 import { apiRequest } from '../../lib/api';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { PageScreen } from '../../components/ui/PageScreen';
@@ -41,6 +42,7 @@ interface Room {
 export function RoomDetailsPage() {
   const { roomId } = useParams();
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [room, setRoom] = useState<Room | null>(null);
   const [seatMap, setSeatMap] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -54,8 +56,8 @@ export function RoomDetailsPage() {
   const fetchRoomDetails = async () => {
     try {
       setLoading(true);
-      const response: any = await apiRequest(`/rooms/${roomId}`);
-      setRoom(response.data);
+      const response: any = await apiRequest(`/rooms/${roomId}`, { token });
+      setRoom(response);
     } catch (error) {
       console.error('Error fetching room:', error);
       alert('Failed to load room details');
@@ -66,8 +68,8 @@ export function RoomDetailsPage() {
 
   const fetchSeatMap = async () => {
     try {
-      const response: any = await apiRequest(`/rooms/${roomId}/seat-map`);
-      setSeatMap(response.data);
+      const response: any = await apiRequest(`/rooms/${roomId}/seat-map`, { token });
+      setSeatMap(response);
     } catch (error) {
       console.error('Error fetching seat map:', error);
     }
@@ -88,7 +90,7 @@ export function RoomDetailsPage() {
         `${import.meta.env.VITE_API_BASE_URL}/rooms/export/${type}/${id}?format=${format}`,
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            'Authorization': `Bearer ${token}`
           }
         }
       );
