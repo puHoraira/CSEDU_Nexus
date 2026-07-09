@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
   { label: 'Governance',    to: '/dashboard/governance/ec-terms', icon: FileText,    roles: ['Moderator','Chief Patron','President','General Secretary'] },
   { label: 'Finance',       to: '/dashboard/finance',             icon: DollarSign,  roles: ['Treasurer','Moderator','Chief Patron'] },
   { label: 'Certificates',  to: '/dashboard/certificates',        icon: Award },
+  { label: 'Rooms',         to: '/dashboard/admin/rooms',         icon: Settings,    roles: ['Moderator','Chief Patron'] },
   { label: 'Notifications', to: '/dashboard/notifications',       icon: Bell },
   // Role-specific dashboards — shown only to the relevant role
   { label: 'Moderator',     to: '/dashboard/moderator',           icon: Shield,      roles: ['Moderator'] },
