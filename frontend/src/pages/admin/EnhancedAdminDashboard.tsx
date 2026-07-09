@@ -144,129 +144,263 @@ export function EnhancedAdminDashboard() {
   const teachersByDesignation = teacherStats?.byDesignation || [];
 
   return (
-    <div className="ui-page">
-      <PageHeader
-        title="Admin Dashboard"
-        description="Manage students, teachers, alumni, and system roles"
-        backButton
-      />
+    <div className="ui-page" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh', padding: '2rem' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ marginBottom: '2rem' }}>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: '700', color: 'white', marginBottom: '0.5rem', textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
+            Admin Dashboard
+          </h1>
+          <p style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.9)' }}>
+            Manage students, teachers, alumni, and system roles
+          </p>
+        </div>
 
-      {/* Tabs */}
-      <div className="ui-tabs" style={{ marginBottom: 24 }}>
-        <button
-          className={`ui-tab ${activeTab === 'overview' ? 'ui-tab--active' : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button
-          className={`ui-tab ${activeTab === 'students' ? 'ui-tab--active' : ''}`}
-          onClick={() => setActiveTab('students')}
-        >
-          <Users size={16} />
-          Students ({totalStudents})
-        </button>
-        <button
-          className={`ui-tab ${activeTab === 'teachers' ? 'ui-tab--active' : ''}`}
-          onClick={() => setActiveTab('teachers')}
-        >
-          <GraduationCap size={16} />
-          Teachers ({totalTeachers})
-        </button>
-        <button
-          className={`ui-tab ${activeTab === 'alumni' ? 'ui-tab--active' : ''}`}
-          onClick={() => setActiveTab('alumni')}
-        >
-          <Award size={16} />
-          Alumni
-        </button>
-        <button
-          className={`ui-tab ${activeTab === 'roles' ? 'ui-tab--active' : ''}`}
-          onClick={() => setActiveTab('roles')}
-        >
-          <Shield size={16} />
-          Roles
-        </button>
-      </div>
+        {/* Tabs */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '1rem', 
+          marginBottom: '2rem',
+          flexWrap: 'wrap',
+          background: 'rgba(255,255,255,0.15)',
+          backdropFilter: 'blur(10px)',
+          padding: '0.5rem',
+          borderRadius: '12px',
+          border: '1px solid rgba(255,255,255,0.2)'
+        }}>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              borderRadius: '8px',
+              background: activeTab === 'overview' ? 'white' : 'transparent',
+              color: activeTab === 'overview' ? '#667eea' : 'white',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: activeTab === 'overview' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
+            }}
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+          </button>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              borderRadius: '8px',
+              background: activeTab === 'students' ? 'white' : 'transparent',
+              color: activeTab === 'students' ? '#667eea' : 'white',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: activeTab === 'students' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
+            }}
+            onClick={() => setActiveTab('students')}
+          >
+            <Users size={18} />
+            Students ({totalStudents})
+          </button>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              borderRadius: '8px',
+              background: activeTab === 'teachers' ? 'white' : 'transparent',
+              color: activeTab === 'teachers' ? '#667eea' : 'white',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: activeTab === 'teachers' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
+            }}
+            onClick={() => setActiveTab('teachers')}
+          >
+            <GraduationCap size={18} />
+            Teachers ({totalTeachers})
+          </button>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              borderRadius: '8px',
+              background: activeTab === 'alumni' ? 'white' : 'transparent',
+              color: activeTab === 'alumni' ? '#667eea' : 'white',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: activeTab === 'alumni' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
+            }}
+            onClick={() => setActiveTab('alumni')}
+          >
+            <Award size={18} />
+            Alumni
+          </button>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              borderRadius: '8px',
+              background: activeTab === 'roles' ? 'white' : 'transparent',
+              color: activeTab === 'roles' ? '#667eea' : 'white',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: activeTab === 'roles' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
+            }}
+            onClick={() => setActiveTab('roles')}
+          >
+            <Shield size={18} />
+            Roles
+          </button>
+        </div>
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
         <div>
-          <div className="grid-3" style={{ marginBottom: 24, gap: 16 }}>
-            <div className="ui-card">
-              <div className="ui-card__body">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <Users size={24} style={{ color: '#3b82f6' }} />
-                  <span className="ui-text-muted">Total Students</span>
+          {/* Stats Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            <div style={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '16px',
+              padding: '2rem',
+              color: 'white',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.2 }}>
+                <Users size={120} />
+              </div>
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '0.5rem', fontWeight: '500' }}>Total Students</div>
+                <div style={{ fontSize: '3rem', fontWeight: '700', marginBottom: '0.5rem' }}>{totalStudents}</div>
+                <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+                  <span style={{ color: '#90EE90' }}>● </span>Active: {activeStudents}
                 </div>
-                <div className="ui-text-2xl ui-font-bold">{totalStudents}</div>
-                <div className="ui-text-sm ui-text-muted">Active: {activeStudents}</div>
               </div>
             </div>
 
-            <div className="ui-card">
-              <div className="ui-card__body">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <GraduationCap size={24} style={{ color: '#10b981' }} />
-                  <span className="ui-text-muted">Total Teachers</span>
+            <div style={{ 
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              borderRadius: '16px',
+              padding: '2rem',
+              color: 'white',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.2 }}>
+                <GraduationCap size={120} />
+              </div>
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '0.5rem', fontWeight: '500' }}>Total Teachers</div>
+                <div style={{ fontSize: '3rem', fontWeight: '700', marginBottom: '0.5rem' }}>{totalTeachers}</div>
+                <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+                  <span style={{ color: '#90EE90' }}>● </span>Active: {activeTeachersCount}
                 </div>
-                <div className="ui-text-2xl ui-font-bold">{totalTeachers}</div>
-                <div className="ui-text-sm ui-text-muted">Active: {activeTeachersCount}</div>
               </div>
             </div>
 
-            <div className="ui-card">
-              <div className="ui-card__body">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <Award size={24} style={{ color: '#f59e0b' }} />
-                  <span className="ui-text-muted">Alumni</span>
-                </div>
-                <div className="ui-text-2xl ui-font-bold">--</div>
-                <div className="ui-text-sm ui-text-muted">Graduated</div>
+            <div style={{ 
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              borderRadius: '16px',
+              padding: '2rem',
+              color: 'white',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.2 }}>
+                <Award size={120} />
+              </div>
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '0.5rem', fontWeight: '500' }}>Alumni Network</div>
+                <div style={{ fontSize: '3rem', fontWeight: '700', marginBottom: '0.5rem' }}>--</div>
+                <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>Graduated Students</div>
               </div>
             </div>
           </div>
 
           {/* Students by Year */}
-          <div className="ui-card" style={{ marginBottom: 24 }}>
-            <div className="ui-card__header">
-              <h3>Students by Year Level</h3>
-            </div>
-            <div className="ui-card__body">
-              {studentsByYear.length > 0 ? (
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                  {studentsByYear.map((item) => (
-                    <div key={item._id} style={{ flex: '1 1 150px', textAlign: 'center', padding: '12px', background: '#f3f4f6', borderRadius: 8 }}>
-                      <div className="ui-text-sm ui-text-muted">{item._id ? item._id.replace('_', ' ') : 'Unknown'}</div>
-                      <div className="ui-text-xl ui-font-bold">{item.count}</div>
+          <div style={{ 
+            background: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            marginBottom: '2rem',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.5rem', color: '#2d3748' }}>
+              📊 Students by Year Level
+            </h3>
+            {studentsByYear.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+                {studentsByYear.map((item) => (
+                  <div key={item._id} style={{ 
+                    textAlign: 'center', 
+                    padding: '1.5rem', 
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    borderRadius: '12px',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}>
+                    <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>
+                      {item._id ? item._id.replace('_', ' ') : 'Unknown'}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="ui-text-muted">No data available</p>
-              )}
-            </div>
+                    <div style={{ fontSize: '2.5rem', fontWeight: '700' }}>{item.count}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#a0aec0', textAlign: 'center', padding: '2rem' }}>No data available</p>
+            )}
           </div>
 
           {/* Teachers by Designation */}
-          <div className="ui-card">
-            <div className="ui-card__header">
-              <h3>Teachers by Designation</h3>
-            </div>
-            <div className="ui-card__body">
-              {teachersByDesignation.length > 0 ? (
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                  {teachersByDesignation.map((item) => (
-                    <div key={item._id} style={{ flex: '1 1 150px', textAlign: 'center', padding: '12px', background: '#f3f4f6', borderRadius: 8 }}>
-                      <div className="ui-text-sm ui-text-muted">{item._id ? item._id.replace('_', ' ') : 'Unknown'}</div>
-                      <div className="ui-text-xl ui-font-bold">{item.count}</div>
+          <div style={{ 
+            background: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.5rem', color: '#2d3748' }}>
+              👨‍🏫 Teachers by Designation
+            </h3>
+            {teachersByDesignation.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+                {teachersByDesignation.map((item) => (
+                  <div key={item._id} style={{ 
+                    textAlign: 'center', 
+                    padding: '1.5rem', 
+                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    borderRadius: '12px',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}>
+                    <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>
+                      {item._id ? item._id.replace('_', ' ') : 'Unknown'}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="ui-text-muted">No data available</p>
-              )}
-            </div>
+                    <div style={{ fontSize: '2.5rem', fontWeight: '700' }}>{item.count}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#a0aec0', textAlign: 'center', padding: '2rem' }}>No data available</p>
+            )}
           </div>
         </div>
       )}
@@ -581,13 +715,17 @@ export function EnhancedAdminDashboard() {
 
       {/* Roles Tab - Keep existing AdminRoleManagementPage component */}
       {activeTab === 'roles' && (
-        <div className="ui-card">
-          <div className="ui-card__body">
-            <p className="ui-text-muted">Role management moved to separate page.</p>
-            <Button variant="primary" href="/dashboard/admin/roles">Manage Roles</Button>
-          </div>
+        <div style={{ 
+          background: 'white',
+          borderRadius: '16px',
+          padding: '2rem',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+        }}>
+          <p style={{ color: '#a0aec0', marginBottom: '1.5rem' }}>Role management moved to separate page.</p>
+          <Button variant="primary" href="/dashboard/admin/roles">Manage Roles</Button>
         </div>
       )}
+      </div>
     </div>
   );
 }
