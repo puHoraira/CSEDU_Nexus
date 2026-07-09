@@ -99,11 +99,11 @@ export function RoomManagementPage() {
   const fetchRooms = async () => {
     try {
       setLoading(true);
-      const response: any = await apiRequest('/rooms', {
+      const rooms: any = await apiRequest('/rooms', {
         method: 'GET',
         token
       });
-      setRooms(response.data || []);
+      setRooms(rooms || []);
     } catch (error) {
       console.error('Error fetching rooms:', error);
     } finally {
