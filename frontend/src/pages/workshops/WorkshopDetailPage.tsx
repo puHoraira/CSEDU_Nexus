@@ -53,10 +53,11 @@ export function WorkshopDetailPage() {
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ name: '', email: '', phone: '' });
 
-  const { data: workshop, isLoading } = useQuery({
+  const { data: workshop, isLoading, refetch } = useQuery({
     queryKey: queryKeys.workshops.detail(id!, token ?? ''),
     queryFn: () => apiRequest<Workshop>(`/workshops/${id}`, { token }),
     enabled: Boolean(id),
+    staleTime: 0, // Always refetch to avoid stale data
   });
 
   const { data: myReg, isLoading: regLoading } = useQuery({
@@ -473,16 +474,24 @@ export function WorkshopDetailPage() {
                     <Button fullWidth leftIcon={CheckCircle} onClick={handleOpenRegForm}>
                       Register Now
                     </Button>
+                    <Button variant="ghost" size="sm" fullWidth onClick={() => refetch()} style={{ marginTop: 8, fontSize: '0.8rem' }}>
+                      🔄 Refresh Info
+                    </Button>
                   </>
                 ) : (
-                  <Alert variant="warning">
-                    {isFull 
-                      ? 'Workshop is full' 
-                      : registrationDeadlinePassed 
-                      ? `Registration deadline passed (${deadline ? formatDateTime(deadline) : ''})`
-                      : `Registration is ${workshop.status.replace('_', ' ')}`
-                    }
-                  </Alert>
+                  <>
+                    <Alert variant="warning">
+                      {isFull 
+                        ? 'Workshop is full' 
+                        : registrationDeadlinePassed 
+                        ? `Registration deadline passed (${deadline ? formatDateTime(deadline) : ''})`
+                        : `Registration is ${workshop.status.replace('_', ' ')}`
+                      }
+                    </Alert>
+                    <Button variant="ghost" size="sm" fullWidth onClick={() => refetch()} style={{ marginTop: 8, fontSize: '0.8rem' }}>
+                      🔄 Refresh Info
+                    </Button>
+                  </>
                 )}
               </div>
             </div>

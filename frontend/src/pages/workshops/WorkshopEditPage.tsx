@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, X, BookOpen, Save } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
+import { queryKeys, invalidateQueries } from '../../lib/queryKeys';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
@@ -28,6 +29,7 @@ export function WorkshopEditPage() {
   const { id } = useParams<{ id: string }>();
   const { token, user } = useAuth();
   const navigate  = useNavigate();
+  const queryClient = useQueryClient();
 
   const [form, setForm] = useState({
     title: '', description: '', shortDescription: '', coverImage: '',
@@ -46,7 +48,7 @@ export function WorkshopEditPage() {
   const [newSpeaker, setNewSpeaker] = useState({ name: '', designation: '', organization: '', bio: '' });
 
   const { data: workshop, isLoading } = useQuery({
-    queryKey: ['workshop', id, token],
+    queryKey: queryKeys.workshops.detail(id!, token ?? ''),
     queryFn: () => apiRequest<Workshop>(`/workshops/${id}`, { token }),
     enabled: Boolean(id && token),
   });
@@ -81,6 +83,11 @@ export function WorkshopEditPage() {
   const updateMut = useMutation({
     mutationFn: () => apiRequest(`/workshops/${id}`, { method: 'PATCH', token, body: JSON.stringify({ ...form, speakers }) }),
     onSuccess: () => {
+      // Invalidate workshop queries to force refetch with updated data
+      if (token) {
+        Promise.all(invalidateQueries.workshops.detail(queryClient, id!, token));
+        Promise.all(invalidateQueries.workshops.all(queryClient, token));
+      }
       toast.success('Workshop updated!');
       navigate(`/dashboard/workshops/${id}`);
     },

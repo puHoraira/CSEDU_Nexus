@@ -87,42 +87,51 @@ export function EnhancedAdminDashboard() {
   // Fetch students
   const { data: students, isLoading: studentsLoading } = useQuery({
     queryKey: ['admin-students', searchQuery, filters.batch, filters.year, filters.status, token],
-    queryFn: () => apiRequest<Student[]>('/admin/students', { 
-      token,
-      query: { 
-        search: searchQuery,
-        batch: filters.batch,
-        year: filters.year,
-        status: filters.status
-      }
-    }),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (filters.batch) params.append('batch', filters.batch);
+      if (filters.year) params.append('year', filters.year);
+      if (filters.status) params.append('status', filters.status);
+      
+      const queryString = params.toString();
+      const url = queryString ? `/admin/students?${queryString}` : '/admin/students';
+      
+      return apiRequest<Student[]>(url, { token });
+    },
     enabled: activeTab === 'students' && Boolean(token)
   });
 
   // Fetch teachers
   const { data: teachers, isLoading: teachersLoading } = useQuery({
     queryKey: ['admin-teachers', searchQuery, filters.designation, token],
-    queryFn: () => apiRequest<Teacher[]>('/admin/teachers', { 
-      token,
-      query: { 
-        search: searchQuery,
-        designation: filters.designation
-      }
-    }),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (filters.designation) params.append('designation', filters.designation);
+      
+      const queryString = params.toString();
+      const url = queryString ? `/admin/teachers?${queryString}` : '/admin/teachers';
+      
+      return apiRequest<Teacher[]>(url, { token });
+    },
     enabled: activeTab === 'teachers' && Boolean(token)
   });
 
   // Fetch alumni
   const { data: alumni, isLoading: alumniLoading } = useQuery({
     queryKey: ['admin-alumni', searchQuery, filters.batch, filters.employmentStatus, token],
-    queryFn: () => apiRequest<Alumni[]>('/admin/alumni', { 
-      token,
-      query: { 
-        search: searchQuery,
-        batch: filters.batch,
-        employmentStatus: filters.employmentStatus
-      }
-    }),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (filters.batch) params.append('batch', filters.batch);
+      if (filters.employmentStatus) params.append('employmentStatus', filters.employmentStatus);
+      
+      const queryString = params.toString();
+      const url = queryString ? `/admin/alumni?${queryString}` : '/admin/alumni';
+      
+      return apiRequest<Alumni[]>(url, { token });
+    },
     enabled: activeTab === 'alumni' && Boolean(token)
   });
 
@@ -130,6 +139,9 @@ export function EnhancedAdminDashboard() {
   const totalTeachers = teacherStats?.totalTeachers?.[0]?.count || 0;
   const activeStudents = studentStats?.activeMembers?.[0]?.count || 0;
   const activeTeachersCount = teacherStats?.activeTeachers?.[0]?.count || 0;
+  
+  const studentsByYear = studentStats?.byYear || [];
+  const teachersByDesignation = teacherStats?.byDesignation || [];
 
   return (
     <div className="ui-page">
@@ -221,14 +233,18 @@ export function EnhancedAdminDashboard() {
               <h3>Students by Year Level</h3>
             </div>
             <div className="ui-card__body">
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                {studentStats?.byYear?.map((item) => (
-                  <div key={item._id} style={{ flex: '1 1 150px', textAlign: 'center', padding: '12px', background: '#f3f4f6', borderRadius: 8 }}>
-                    <div className="ui-text-sm ui-text-muted">{item._id.replace('_', ' ')}</div>
-                    <div className="ui-text-xl ui-font-bold">{item.count}</div>
-                  </div>
-                ))}
-              </div>
+              {studentsByYear.length > 0 ? (
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  {studentsByYear.map((item) => (
+                    <div key={item._id} style={{ flex: '1 1 150px', textAlign: 'center', padding: '12px', background: '#f3f4f6', borderRadius: 8 }}>
+                      <div className="ui-text-sm ui-text-muted">{item._id.replace('_', ' ')}</div>
+                      <div className="ui-text-xl ui-font-bold">{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="ui-text-muted">No data available</p>
+              )}
             </div>
           </div>
 
@@ -238,14 +254,18 @@ export function EnhancedAdminDashboard() {
               <h3>Teachers by Designation</h3>
             </div>
             <div className="ui-card__body">
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                {teacherStats?.byDesignation?.map((item) => (
-                  <div key={item._id} style={{ flex: '1 1 150px', textAlign: 'center', padding: '12px', background: '#f3f4f6', borderRadius: 8 }}>
-                    <div className="ui-text-sm ui-text-muted">{item._id.replace('_', ' ')}</div>
-                    <div className="ui-text-xl ui-font-bold">{item.count}</div>
-                  </div>
-                ))}
-              </div>
+              {teachersByDesignation.length > 0 ? (
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  {teachersByDesignation.map((item) => (
+                    <div key={item._id} style={{ flex: '1 1 150px', textAlign: 'center', padding: '12px', background: '#f3f4f6', borderRadius: 8 }}>
+                      <div className="ui-text-sm ui-text-muted">{item._id.replace('_', ' ')}</div>
+                      <div className="ui-text-xl ui-font-bold">{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="ui-text-muted">No data available</p>
+              )}
             </div>
           </div>
         </div>
@@ -300,50 +320,56 @@ export function EnhancedAdminDashboard() {
           ) : (
             <div className="ui-card">
               <div className="ui-card__body" style={{ padding: 0 }}>
-                <table className="ui-table">
-                  <thead>
-                    <tr>
-                      <th>Student</th>
-                      <th>Student ID</th>
-                      <th>Batch</th>
-                      <th>Year</th>
-                      <th>CGPA</th>
-                      <th>Attendance</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {students?.map((student) => (
-                      <tr key={student.id}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            {student.avatarUrl ? (
-                              <img src={student.avatarUrl} alt={student.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-                            ) : (
-                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
-                                {student.name.charAt(0)}
-                              </div>
-                            )}
-                            <div>
-                              <div className="ui-font-medium">{student.name}</div>
-                              <div className="ui-text-sm ui-text-muted">{student.email}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{student.studentId}</td>
-                        <td>{student.batch}</td>
-                        <td>{student.academicYearLevel.replace('_', ' ')}</td>
-                        <td>{typeof student.cgpa === 'number' ? student.cgpa.toFixed(2) : student.cgpa}</td>
-                        <td>{typeof student.attendance === 'number' ? `${student.attendance}%` : student.attendance}</td>
-                        <td><Badge variant={student.membershipStatus === 'Active' ? 'success' : 'warning'}>{student.membershipStatus}</Badge></td>
-                        <td>
-                          <Button variant="outline" size="sm" href={`/dashboard/admin/students/${student.id}`}>View</Button>
-                        </td>
+                {students && students.length > 0 ? (
+                  <table className="ui-table">
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Student ID</th>
+                        <th>Batch</th>
+                        <th>Year</th>
+                        <th>CGPA</th>
+                        <th>Attendance</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {students.map((student) => (
+                        <tr key={student.id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              {student.avatarUrl ? (
+                                <img src={student.avatarUrl} alt={student.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
+                                  {student.name.charAt(0)}
+                                </div>
+                              )}
+                              <div>
+                                <div className="ui-font-medium">{student.name}</div>
+                                <div className="ui-text-sm ui-text-muted">{student.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>{student.studentId}</td>
+                          <td>{student.batch}</td>
+                          <td>{student.academicYearLevel.replace('_', ' ')}</td>
+                          <td>{typeof student.cgpa === 'number' ? student.cgpa.toFixed(2) : student.cgpa}</td>
+                          <td>{typeof student.attendance === 'number' ? `${student.attendance}%` : student.attendance}</td>
+                          <td><Badge variant={student.membershipStatus === 'Active' ? 'success' : 'warning'}>{student.membershipStatus}</Badge></td>
+                          <td>
+                            <Button variant="outline" size="sm" href={`/dashboard/admin/students/${student.id}`}>View</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div style={{ padding: 40, textAlign: 'center' }}>
+                    <p className="ui-text-muted">No students found</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -387,58 +413,64 @@ export function EnhancedAdminDashboard() {
           ) : (
             <div className="ui-card">
               <div className="ui-card__body" style={{ padding: 0 }}>
-                <table className="ui-table">
-                  <thead>
-                    <tr>
-                      <th>Teacher</th>
-                      <th>Employee ID</th>
-                      <th>Designation</th>
-                      <th>Department</th>
-                      <th>Publications</th>
-                      <th>Courses</th>
-                      <th>Club Roles</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teachers?.map((teacher) => (
-                      <tr key={teacher.id}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            {teacher.avatarUrl ? (
-                              <img src={teacher.avatarUrl} alt={teacher.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-                            ) : (
-                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
-                                {teacher.name.charAt(0)}
-                              </div>
-                            )}
-                            <div>
-                              <div className="ui-font-medium">{teacher.name}</div>
-                              <div className="ui-text-sm ui-text-muted">{teacher.email}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{teacher.employeeId}</td>
-                        <td>{teacher.designation.replace('_', ' ')}</td>
-                        <td className="ui-text-sm">{teacher.department}</td>
-                        <td>{teacher.totalPublications}</td>
-                        <td>{teacher.totalCourses}</td>
-                        <td>
-                          {teacher.clubRoles.length > 0 ? (
-                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                              {teacher.clubRoles.map((role, i) => (
-                                <Badge key={i} variant="primary">{role.replace('_', ' ')}</Badge>
-                              ))}
-                            </div>
-                          ) : '-'}
-                        </td>
-                        <td>
-                          <Button variant="outline" size="sm" href={`/dashboard/admin/teachers/${teacher.id}`}>View</Button>
-                        </td>
+                {teachers && teachers.length > 0 ? (
+                  <table className="ui-table">
+                    <thead>
+                      <tr>
+                        <th>Teacher</th>
+                        <th>Employee ID</th>
+                        <th>Designation</th>
+                        <th>Department</th>
+                        <th>Publications</th>
+                        <th>Courses</th>
+                        <th>Club Roles</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {teachers.map((teacher) => (
+                        <tr key={teacher.id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              {teacher.avatarUrl ? (
+                                <img src={teacher.avatarUrl} alt={teacher.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
+                                  {teacher.name.charAt(0)}
+                                </div>
+                              )}
+                              <div>
+                                <div className="ui-font-medium">{teacher.name}</div>
+                                <div className="ui-text-sm ui-text-muted">{teacher.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>{teacher.employeeId}</td>
+                          <td>{teacher.designation.replace('_', ' ')}</td>
+                          <td className="ui-text-sm">{teacher.department}</td>
+                          <td>{teacher.totalPublications}</td>
+                          <td>{teacher.totalCourses}</td>
+                          <td>
+                            {teacher.clubRoles.length > 0 ? (
+                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                {teacher.clubRoles.map((role, i) => (
+                                  <Badge key={i} variant="primary">{role.replace('_', ' ')}</Badge>
+                                ))}
+                              </div>
+                            ) : '-'}
+                          </td>
+                          <td>
+                            <Button variant="outline" size="sm" href={`/dashboard/admin/teachers/${teacher.id}`}>View</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div style={{ padding: 40, textAlign: 'center' }}>
+                    <p className="ui-text-muted">No teachers found</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -487,54 +519,60 @@ export function EnhancedAdminDashboard() {
           ) : (
             <div className="ui-card">
               <div className="ui-card__body" style={{ padding: 0 }}>
-                <table className="ui-table">
-                  <thead>
-                    <tr>
-                      <th>Alumni</th>
-                      <th>Student ID</th>
-                      <th>Batch</th>
-                      <th>Graduated</th>
-                      <th>Current Position</th>
-                      <th>Company</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alumni?.map((alum) => (
-                      <tr key={alum.id}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            {alum.avatarUrl ? (
-                              <img src={alum.avatarUrl} alt={alum.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-                            ) : (
-                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
-                                {alum.name.charAt(0)}
-                              </div>
-                            )}
-                            <div>
-                              <div className="ui-font-medium">{alum.name}</div>
-                              <div className="ui-text-sm ui-text-muted">{alum.email}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{alum.studentId}</td>
-                        <td>{alum.batch}</td>
-                        <td>{alum.graduatedYear || '-'}</td>
-                        <td>{alum.currentPosition || '-'}</td>
-                        <td>{alum.currentEmployer || '-'}</td>
-                        <td>
-                          <Badge variant={alum.employmentStatus === 'Employed' ? 'success' : 'neutral'}>
-                            {alum.employmentStatus?.replace('_', ' ') || 'Not Disclosed'}
-                          </Badge>
-                        </td>
-                        <td>
-                          <Button variant="outline" size="sm" href={`/dashboard/admin/alumni/${alum.id}`}>View</Button>
-                        </td>
+                {alumni && alumni.length > 0 ? (
+                  <table className="ui-table">
+                    <thead>
+                      <tr>
+                        <th>Alumni</th>
+                        <th>Student ID</th>
+                        <th>Batch</th>
+                        <th>Graduated</th>
+                        <th>Current Position</th>
+                        <th>Company</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {alumni.map((alum) => (
+                        <tr key={alum.id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              {alum.avatarUrl ? (
+                                <img src={alum.avatarUrl} alt={alum.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
+                                  {alum.name.charAt(0)}
+                                </div>
+                              )}
+                              <div>
+                                <div className="ui-font-medium">{alum.name}</div>
+                                <div className="ui-text-sm ui-text-muted">{alum.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>{alum.studentId}</td>
+                          <td>{alum.batch}</td>
+                          <td>{alum.graduatedYear || '-'}</td>
+                          <td>{alum.currentPosition || '-'}</td>
+                          <td>{alum.currentEmployer || '-'}</td>
+                          <td>
+                            <Badge variant={alum.employmentStatus === 'Employed' ? 'success' : 'neutral'}>
+                              {alum.employmentStatus?.replace('_', ' ') || 'Not Disclosed'}
+                            </Badge>
+                          </td>
+                          <td>
+                            <Button variant="outline" size="sm" href={`/dashboard/admin/alumni/${alum.id}`}>View</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div style={{ padding: 40, textAlign: 'center' }}>
+                    <p className="ui-text-muted">No alumni found</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
