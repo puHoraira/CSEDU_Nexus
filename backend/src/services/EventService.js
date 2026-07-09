@@ -110,7 +110,7 @@ class EventService {
           title: 'New Event Created',
           message: `${event.title} has been created`,
           category: 'Event',
-          actionUrl: `/events/${event._id}`,
+          actionUrl: `/dashboard/events/${event._id}`,
           entityType: 'Event',
           entityId: event._id.toString(),
         }, { 
@@ -170,7 +170,7 @@ class EventService {
         title: 'Event Updated',
         message: `${event.title} has been updated. Please check the details.`,
         category: 'Event',
-        actionUrl: `/events/${event._id}`,
+        actionUrl: `/dashboard/events/${event._id}`,
         entityType: 'Event',
         entityId: event._id.toString(),
       }, { excludeUserIds: [actorId] });
@@ -240,6 +240,18 @@ class EventService {
         return targetYears.includes(member.academicYearLevel);
       });
     }
+
+    // Always include events created by the requesting user
+    const createdByUser = events.filter(ev => 
+      ev.createdBy && ev.createdBy.toString() === requestingUserId.toString()
+    ).map(ev => ev.toObject());
+    
+    // Merge and deduplicate
+    createdByUser.forEach(event => {
+      if (!filteredEvents.find(e => e._id.toString() === event._id.toString())) {
+        filteredEvents.push(event);
+      }
+    });
 
     return filteredEvents;
   }
