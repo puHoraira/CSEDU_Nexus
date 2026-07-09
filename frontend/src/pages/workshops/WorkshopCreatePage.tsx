@@ -232,10 +232,10 @@ export function WorkshopCreatePage() {
     });
   };
 
-  const rooms = roomsData?.data || [];
+  const rooms = roomsData || [];
   const totalRoomCapacity = form.roomAssignment.rooms.reduce((sum, assignment) => {
     const room = rooms.find((r: any) => r._id === assignment.roomId);
-    return sum + (room?.capacity || 0);
+    return sum + (room?.totalCapacity || 0);
   }, 0);
 
   const field = (label: string, key: keyof typeof form, type = 'text', placeholder = '') => (
