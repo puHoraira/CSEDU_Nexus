@@ -3,6 +3,10 @@ const { asyncHandler } = require("../core/asyncHandler");
 const { AdminService } = require("../services/AdminService");
 
 class AdminController {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ROLES MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+  
   static listRoles = asyncHandler(async (_req, res) => {
     const items = await AdminService.listRoles();
     return ApiResponse.ok(res, items, "Roles");
@@ -21,6 +25,73 @@ class AdminController {
   static revokeRole = asyncHandler(async (req, res) => {
     const item = await AdminService.revokeRole(req.body.userId, req.body.roleName, req.auth.userId, req.requestMeta.requestId);
     return ApiResponse.ok(res, item, "Role revoked");
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TEACHER MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static listTeachers = asyncHandler(async (req, res) => {
+    const items = await AdminService.listTeachers(req.query);
+    return ApiResponse.ok(res, items, "Teachers retrieved");
+  });
+
+  static getTeacherById = asyncHandler(async (req, res) => {
+    const item = await AdminService.getTeacherById(req.params.id);
+    return ApiResponse.ok(res, item, "Teacher details");
+  });
+
+  static createTeacher = asyncHandler(async (req, res) => {
+    const item = await AdminService.createTeacher(req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.created(res, item, "Teacher created");
+  });
+
+  static updateTeacher = asyncHandler(async (req, res) => {
+    const item = await AdminService.updateTeacher(req.params.id, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "Teacher updated");
+  });
+
+  static deactivateTeacher = asyncHandler(async (req, res) => {
+    const item = await AdminService.deactivateTeacher(req.params.id, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "Teacher deactivated");
+  });
+
+  static getTeacherStats = asyncHandler(async (_req, res) => {
+    const stats = await AdminService.getTeacherStats();
+    return ApiResponse.ok(res, stats, "Teacher statistics");
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STUDENT MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static listStudents = asyncHandler(async (req, res) => {
+    const items = await AdminService.listStudents(req.query);
+    return ApiResponse.ok(res, items, "Students retrieved");
+  });
+
+  static getStudentById = asyncHandler(async (req, res) => {
+    const item = await AdminService.getStudentById(req.params.id);
+    return ApiResponse.ok(res, item, "Student details");
+  });
+
+  static updateStudentAcademics = asyncHandler(async (req, res) => {
+    const item = await AdminService.updateStudentAcademics(req.params.id, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "Student academics updated");
+  });
+
+  static getStudentStats = asyncHandler(async (_req, res) => {
+    const stats = await AdminService.getStudentStats();
+    return ApiResponse.ok(res, stats, "Student statistics");
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ALUMNI MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static listAlumni = asyncHandler(async (req, res) => {
+    const items = await AdminService.listAlumni(req.query);
+    return ApiResponse.ok(res, items, "Alumni retrieved");
   });
 }
 
