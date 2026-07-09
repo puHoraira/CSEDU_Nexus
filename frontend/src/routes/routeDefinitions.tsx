@@ -55,6 +55,8 @@ import { ElectionCommissionPage } from "../pages/dashboard/ElectionCommissionPag
 import { AlumniPortalPage } from "../pages/dashboard/AlumniPortalPage";
 import { AdminRoleManagementPage } from "../pages/dashboard/AdminRoleManagementPage";
 import  YearPromotionPage  from "../pages/admin/YearPromotionPage";
+import { RoomManagementPage } from "../pages/admin/RoomManagementPage";
+import { RoomDetailsPage } from "../pages/admin/RoomDetailsPage";
 import { EnhancedAdminDashboard } from "../pages/admin/EnhancedAdminDashboard";
 
 type RouteDef = {

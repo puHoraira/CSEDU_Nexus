@@ -103,7 +103,6 @@ export function RoomManagementPage() {
         method: 'GET',
         token
       });
-      });
       setRooms(response.data || []);
     } catch (error) {
       console.error('Error fetching rooms:', error);
