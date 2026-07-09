@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tantml/react-query';
 import { Plus, X, BookOpen, Save } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
@@ -9,6 +9,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Alert } from '../../components/ui/Alert';
 import toast from 'react-hot-toast';
 
 const CATEGORIES = ['Technical', 'Soft Skills', 'Research', 'Career', 'Creative', 'Other'];
@@ -39,11 +40,20 @@ export function WorkshopEditPage() {
     isFree: true, fee: 0,
     prerequisites: [] as string[], learningOutcomes: [] as string[],
     status: 'Draft',
+    targetAudience: {
+      allowedYears: [] as number[],
+      allowedBatches: [] as number[],
+      allowedRoles: [] as string[],
+      invitedUsers: [] as string[],
+    },
   });
 
   const [tagInput, setTagInput]     = useState('');
   const [prereqInput, setPrereq]    = useState('');
   const [outcomeInput, setOutcome]  = useState('');
+  const [audienceBatchInput, setAudienceBatchInput] = useState('');
+  const [roleInput, setRoleInput] = useState('');
+  const [userSearchInput, setUserSearchInput] = useState('');
   const [speakers, setSpeakers] = useState<Array<{ name: string; designation?: string; organization?: string; bio?: string }>>([]);
   const [newSpeaker, setNewSpeaker] = useState({ name: '', designation: '', organization: '', bio: '' });
 
@@ -76,12 +86,26 @@ export function WorkshopEditPage() {
       prerequisites: workshop.prerequisites || [],
       learningOutcomes: workshop.learningOutcomes || [],
       status: workshop.status,
+      targetAudience: {
+        allowedYears: (workshop as any).targetAudience?.allowedYears || [],
+        allowedBatches: (workshop as any).targetAudience?.allowedBatches || [],
+        allowedRoles: (workshop as any).targetAudience?.allowedRoles || [],
+        invitedUsers: (workshop as any).targetAudience?.invitedUsers || [],
+      },
     });
     setSpeakers(workshop.speakers || []);
   }, [workshop]);
 
   const updateMut = useMutation({
-    mutationFn: () => apiRequest(`/workshops/${id}`, { method: 'PATCH', token, body: JSON.stringify({ ...form, speakers }) }),
+    mutationFn: () => apiRequest(`/workshops/${id}`, { 
+      method: 'PATCH', 
+      token, 
+      body: JSON.stringify({ 
+        ...form, 
+        speakers,
+        targetAudience: form.targetAudience,
+      }) 
+    }),
     onSuccess: () => {
       // Invalidate workshop queries to force refetch with updated data
       if (token) {
@@ -98,6 +122,103 @@ export function WorkshopEditPage() {
   const addPrereq = () => { if (prereqInput.trim()) { setForm(f => ({ ...f, prerequisites: [...f.prerequisites, prereqInput.trim()] })); setPrereq(''); } };
   const addOutcome = () => { if (outcomeInput.trim()) { setForm(f => ({ ...f, learningOutcomes: [...f.learningOutcomes, outcomeInput.trim()] })); setOutcome(''); } };
   const addSpeaker = () => { if (newSpeaker.name.trim()) { setSpeakers(s => [...s, { ...newSpeaker }]); setNewSpeaker({ name: '', designation: '', organization: '', bio: '' }); } };
+
+  // Target Audience functions
+  const toggleAudienceYear = (year: number) => {
+    setForm(f => {
+      const exists = f.targetAudience.allowedYears.includes(year);
+      return {
+        ...f,
+        targetAudience: {
+          ...f.targetAudience,
+          allowedYears: exists
+            ? f.targetAudience.allowedYears.filter(y => y !== year)
+            : [...f.targetAudience.allowedYears, year].sort((a, b) => a - b),
+        },
+      };
+    });
+  };
+
+  const addAudienceBatch = () => {
+    const value = Number(audienceBatchInput);
+    if (!Number.isInteger(value) || value <= 0) {
+      toast.error("Batch must be a positive number.");
+      return;
+    }
+    if (form.targetAudience.allowedBatches.includes(value)) return;
+    setForm(f => ({
+      ...f,
+      targetAudience: {
+        ...f.targetAudience,
+        allowedBatches: [...f.targetAudience.allowedBatches, value].sort((a, b) => a - b),
+      },
+    }));
+    setAudienceBatchInput('');
+  };
+
+  const removeAudienceBatch = (batch: number) => {
+    setForm(f => ({
+      ...f,
+      targetAudience: {
+        ...f.targetAudience,
+        allowedBatches: f.targetAudience.allowedBatches.filter(b => b !== batch),
+      },
+    }));
+  };
+
+  const addRole = () => {
+    const role = roleInput.trim();
+    if (!role) {
+      toast.error("Role name cannot be empty.");
+      return;
+    }
+    if (form.targetAudience.allowedRoles.includes(role)) return;
+    setForm(f => ({
+      ...f,
+      targetAudience: {
+        ...f.targetAudience,
+        allowedRoles: [...f.targetAudience.allowedRoles, role],
+      },
+    }));
+    setRoleInput('');
+  };
+
+  const removeRole = (role: string) => {
+    setForm(f => ({
+      ...f,
+      targetAudience: {
+        ...f.targetAudience,
+        allowedRoles: f.targetAudience.allowedRoles.filter(r => r !== role),
+      },
+    }));
+  };
+
+  const addInvitedUser = () => {
+    const userId = userSearchInput.trim();
+    if (!userId) {
+      toast.error("User ID cannot be empty.");
+      return;
+    }
+    if (form.targetAudience.invitedUsers.includes(userId)) return;
+    setForm(f => ({
+      ...f,
+      targetAudience: {
+        ...f.targetAudience,
+        invitedUsers: [...f.targetAudience.invitedUsers, userId],
+      },
+    }));
+    setUserSearchInput('');
+  };
+
+  const removeInvitedUser = (userId: string) => {
+    setForm(f => ({
+      ...f,
+      targetAudience: {
+        ...f.targetAudience,
+        invitedUsers: f.targetAudience.invitedUsers.filter(u => u !== userId),
+      },
+    }));
+  };
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: '72px 0' }}><Spinner size="xl" label="Loading workshop…" /></div>;
   if (!workshop) return <EmptyState icon={BookOpen} title="Workshop not found" action={<Button href="/dashboard/workshops">Back to Workshops</Button>} />;
@@ -222,6 +343,201 @@ export function WorkshopEditPage() {
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>
+          </div>
+        </div>
+
+        {/* Target Audience */}
+        <div className="ui-card" style={{ marginBottom: 20 }}>
+          <div className="ui-card__header"><h3 className="ui-card__title">Target Audience & Visibility</h3></div>
+          <div className="ui-card__body">
+            <p className="ui-text-sm ui-text-muted" style={{ marginBottom: 16 }}>
+              Control who can see and register for this workshop. Leave all filters empty to make it public. 
+              Use year/batch for academic targeting, role-based for EC/committee members, or manually invite specific users.
+            </p>
+
+            {/* Year Filtering */}
+            <div style={{ marginBottom: 20 }}>
+              <label className="ui-input-label" style={{ marginBottom: 10 }}>Year Filtering</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[1, 2, 3, 4, 5].map(year => {
+                  const selected = form.targetAudience.allowedYears.includes(year);
+                  return (
+                    <button
+                      key={year}
+                      type="button"
+                      onClick={() => toggleAudienceYear(year)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 8,
+                        border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                        background: selected ? 'rgba(107,163,255,0.12)' : 'var(--surface)',
+                        color: selected ? 'var(--accent)' : 'var(--text)',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: selected ? 600 : 400,
+                      }}
+                    >
+                      Year {year}
+                    </button>
+                  );
+                })}
+              </div>
+              {form.targetAudience.allowedYears.length > 0 && (
+                <p className="ui-text-xs ui-text-muted" style={{ marginTop: 8 }}>
+                  Only Year {form.targetAudience.allowedYears.join(', ')} students will see this workshop.
+                </p>
+              )}
+            </div>
+
+            {/* Batch Filtering */}
+            <div style={{ marginBottom: 20 }}>
+              <label className="ui-input-label" style={{ marginBottom: 10 }}>Batch Filtering</label>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <input
+                  type="number"
+                  min={1}
+                  className="ui-input"
+                  style={{ flex: 1 }}
+                  placeholder="Add batch e.g. 29"
+                  value={audienceBatchInput}
+                  onChange={(e) => setAudienceBatchInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAudienceBatch(); } }}
+                />
+                <Button variant="outline" type="button" onClick={addAudienceBatch}>Add Batch</Button>
+              </div>
+              {form.targetAudience.allowedBatches.length > 0 ? (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {form.targetAudience.allowedBatches.map(batch => (
+                    <span 
+                      key={batch}
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: 6, 
+                        padding: '4px 10px', 
+                        borderRadius: 999, 
+                        fontSize: '0.78rem', 
+                        background: 'rgba(107,163,255,0.12)', 
+                        color: 'var(--accent)', 
+                        border: '1px solid rgba(107,163,255,0.25)' 
+                      }}
+                    >
+                      Batch {batch}
+                      <button 
+                        type="button" 
+                        onClick={() => removeAudienceBatch(batch)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="ui-text-xs ui-text-muted">No batch restriction. All batches can see this.</p>
+              )}
+            </div>
+
+            {/* Role-Based Access */}
+            <div style={{ marginBottom: 20 }}>
+              <label className="ui-input-label" style={{ marginBottom: 10 }}>Role-Based Access (EC, Committees)</label>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <input
+                  type="text"
+                  className="ui-input"
+                  style={{ flex: 1 }}
+                  placeholder="e.g. President, Vice President, EC Member"
+                  value={roleInput}
+                  onChange={(e) => setRoleInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRole(); } }}
+                />
+                <Button variant="outline" type="button" onClick={addRole}>Add Role</Button>
+              </div>
+              {form.targetAudience.allowedRoles.length > 0 ? (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {form.targetAudience.allowedRoles.map(role => (
+                    <span 
+                      key={role}
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: 6, 
+                        padding: '4px 10px', 
+                        borderRadius: 999, 
+                        fontSize: '0.78rem', 
+                        background: 'rgba(16,185,129,0.12)', 
+                        color: '#059669', 
+                        border: '1px solid rgba(16,185,129,0.25)' 
+                      }}
+                    >
+                      {role}
+                      <button 
+                        type="button" 
+                        onClick={() => removeRole(role)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="ui-text-xs ui-text-muted">No role restriction. Perfect for EC-only or committee-specific workshops.</p>
+              )}
+            </div>
+
+            {/* Manually Invite Users */}
+            <div style={{ marginBottom: 20 }}>
+              <label className="ui-input-label" style={{ marginBottom: 10 }}>Manually Invite Specific Users</label>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <input
+                  type="text"
+                  className="ui-input"
+                  style={{ flex: 1 }}
+                  placeholder="Enter user ID or email to invite"
+                  value={userSearchInput}
+                  onChange={(e) => setUserSearchInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addInvitedUser(); } }}
+                />
+                <Button variant="outline" type="button" onClick={addInvitedUser}>Invite User</Button>
+              </div>
+              {form.targetAudience.invitedUsers.length > 0 ? (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {form.targetAudience.invitedUsers.map(userId => (
+                    <span 
+                      key={userId}
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: 6, 
+                        padding: '4px 10px', 
+                        borderRadius: 999, 
+                        fontSize: '0.78rem', 
+                        background: 'rgba(245,158,11,0.12)', 
+                        color: '#d97706', 
+                        border: '1px solid rgba(245,158,11,0.25)' 
+                      }}
+                    >
+                      {userId}
+                      <button 
+                        type="button" 
+                        onClick={() => removeInvitedUser(userId)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="ui-text-xs ui-text-muted">No users manually invited. Use this for private/exclusive workshops.</p>
+              )}
+            </div>
+
+            <Alert variant="info">
+              <strong>🔐 How filtering works:</strong> If you use multiple filters, users need to match at least one criterion. 
+              Invited users always have access regardless of other filters.
+            </Alert>
           </div>
         </div>
 

@@ -69,6 +69,8 @@ const workshopSchema = new mongoose.Schema({
     // Empty arrays = open to all
     allowedYears:   [{ type: Number, min: 1, max: 5 }],  // e.g. [1, 2] = 1st and 2nd year only
     allowedBatches: [{ type: Number }],                   // e.g. [2021, 2022]
+    allowedRoles:   [{ type: String }],                   // e.g. ['President', 'Vice President', 'EC Member']
+    invitedUsers:   [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // manually invited users
     programType:    { type: String, enum: ['undergrad', 'masters', 'all'], default: 'all' },
   },
 
