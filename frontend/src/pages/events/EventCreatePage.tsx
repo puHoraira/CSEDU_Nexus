@@ -440,8 +440,6 @@ export function EventCreatePage() {
     const room = rooms.find((r: any) => r._id === assignment.roomId);
     return sum + (room?.totalCapacity || 0);
   }, 0) || 0;
-    return sum + (room?.capacity || 0);
-  }, 0) || 0;
 
   return (
     <PageScreen title="Create Event" subtitle="Create the event, set volunteer rules, and define position-based staffing.">
