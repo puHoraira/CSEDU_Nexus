@@ -121,7 +121,7 @@ export function RoomDetailsPage() {
 
   if (loading || !room) {
     return (
-      <PageScreen title="Room Details">
+      <PageScreen title="Room Details" subtitle="Loading room details...">
         <div style={{ textAlign: 'center', padding: 40 }}>
           <LoadingSpinner size="lg" />
           <p>Loading room details...</p>
@@ -244,7 +244,7 @@ export function RoomDetailsPage() {
       <div className="card" style={{ padding: 20 }}>
         <h3 style={{ marginTop: 0 }}>Seat Map</h3>
         {seatMap ? (
-          <SeatMapVisualization seatMap={seatMap} roomName={room.roomName} />
+          <SeatMapVisualization room={{ ...room, ...seatMap }} />
         ) : (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>
             <LoadingSpinner />
