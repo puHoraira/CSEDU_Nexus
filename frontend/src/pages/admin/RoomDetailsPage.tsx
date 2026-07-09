@@ -138,7 +138,7 @@ export function RoomDetailsPage() {
       <div style={{ marginBottom: 16 }}>
         <button 
           className="secondary-button"
-          onClick={() => navigate('/dashboard/admin/rooms')}
+          onClick={() => navigate('/dashboard/rooms')}
         >
           ← Back to Rooms
         </button>
