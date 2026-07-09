@@ -145,7 +145,9 @@ class WorkshopService {
       throw new ApiError(400, 'Workshop is not open for registration');
     }
 
-    if (workshop.registrationDeadline && new Date() > workshop.registrationDeadline) {
+    // Check registration deadline (if set) or fall back to endDate
+    const deadline = workshop.registrationDeadline || workshop.endDate;
+    if (deadline && new Date() > deadline) {
       throw new ApiError(400, 'Registration deadline has passed');
     }
 

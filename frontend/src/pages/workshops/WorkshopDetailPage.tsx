@@ -113,8 +113,10 @@ export function WorkshopDetailPage() {
   const isUpcoming = new Date(workshop.startDate) > new Date();
   
   // Check if registration deadline has passed
-  const registrationDeadlinePassed = workshop.registrationDeadline 
-    ? new Date() > new Date(workshop.registrationDeadline)
+  // Use registrationDeadline if set, otherwise use endDate
+  const deadline = workshop.registrationDeadline || workshop.endDate;
+  const registrationDeadlinePassed = deadline 
+    ? new Date() > new Date(deadline)
     : false;
   
   // Allow registration for Published, Registration_Open, and also Draft (for testing/preview)
@@ -477,7 +479,7 @@ export function WorkshopDetailPage() {
                     {isFull 
                       ? 'Workshop is full' 
                       : registrationDeadlinePassed 
-                      ? `Registration deadline passed (${workshop.registrationDeadline ? formatDateTime(workshop.registrationDeadline) : ''})`
+                      ? `Registration deadline passed (${deadline ? formatDateTime(deadline) : ''})`
                       : `Registration is ${workshop.status.replace('_', ' ')}`
                     }
                   </Alert>
