@@ -237,7 +237,7 @@ export function EnhancedAdminDashboard() {
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                   {studentsByYear.map((item) => (
                     <div key={item._id} style={{ flex: '1 1 150px', textAlign: 'center', padding: '12px', background: '#f3f4f6', borderRadius: 8 }}>
-                      <div className="ui-text-sm ui-text-muted">{item._id.replace('_', ' ')}</div>
+                      <div className="ui-text-sm ui-text-muted">{item._id ? item._id.replace('_', ' ') : 'Unknown'}</div>
                       <div className="ui-text-xl ui-font-bold">{item.count}</div>
                     </div>
                   ))}
@@ -258,7 +258,7 @@ export function EnhancedAdminDashboard() {
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                   {teachersByDesignation.map((item) => (
                     <div key={item._id} style={{ flex: '1 1 150px', textAlign: 'center', padding: '12px', background: '#f3f4f6', borderRadius: 8 }}>
-                      <div className="ui-text-sm ui-text-muted">{item._id.replace('_', ' ')}</div>
+                      <div className="ui-text-sm ui-text-muted">{item._id ? item._id.replace('_', ' ') : 'Unknown'}</div>
                       <div className="ui-text-xl ui-font-bold">{item.count}</div>
                     </div>
                   ))}
@@ -354,7 +354,7 @@ export function EnhancedAdminDashboard() {
                           </td>
                           <td>{student.studentId}</td>
                           <td>{student.batch}</td>
-                          <td>{student.academicYearLevel.replace('_', ' ')}</td>
+                          <td>{student.academicYearLevel ? student.academicYearLevel.replace('_', ' ') : '-'}</td>
                           <td>{typeof student.cgpa === 'number' ? student.cgpa.toFixed(2) : student.cgpa}</td>
                           <td>{typeof student.attendance === 'number' ? `${student.attendance}%` : student.attendance}</td>
                           <td><Badge variant={student.membershipStatus === 'Active' ? 'success' : 'warning'}>{student.membershipStatus}</Badge></td>
@@ -446,15 +446,15 @@ export function EnhancedAdminDashboard() {
                             </div>
                           </td>
                           <td>{teacher.employeeId}</td>
-                          <td>{teacher.designation.replace('_', ' ')}</td>
+                          <td>{teacher.designation ? teacher.designation.replace('_', ' ') : '-'}</td>
                           <td className="ui-text-sm">{teacher.department}</td>
                           <td>{teacher.totalPublications}</td>
                           <td>{teacher.totalCourses}</td>
                           <td>
-                            {teacher.clubRoles.length > 0 ? (
+                            {teacher.clubRoles && teacher.clubRoles.length > 0 ? (
                               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                 {teacher.clubRoles.map((role, i) => (
-                                  <Badge key={i} variant="primary">{role.replace('_', ' ')}</Badge>
+                                  <Badge key={i} variant="primary">{role ? role.replace('_', ' ') : 'Unknown'}</Badge>
                                 ))}
                               </div>
                             ) : '-'}
