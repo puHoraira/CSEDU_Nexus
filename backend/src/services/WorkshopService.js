@@ -33,7 +33,7 @@ class WorkshopService {
           title: 'New Workshop Available',
           message: `${workshop.title} has been created`,
           category: 'Workshop',
-          actionUrl: `/workshops/${workshop._id}`,
+          actionUrl: `/dashboard/workshops/${workshop._id}`,
           entityType: 'Workshop',
           entityId: workshop._id.toString(),
         }, { 
@@ -75,12 +75,27 @@ class WorkshopService {
 
       if (member || userRoles.length > 0) {
         const { filterByAudience } = require('../utils/audienceUtils');
-        return filterByAudience(
+        const filtered = filterByAudience(
           workshops.map(w => w.toObject()),
           member,
           requestingUserId,
           userRoles
         );
+        
+        // Always include workshops created by the requesting user
+        const createdByUser = workshops.filter(w => 
+          w.createdBy && w.createdBy._id && w.createdBy._id.toString() === requestingUserId.toString()
+        ).map(w => w.toObject());
+        
+        // Merge and deduplicate
+        const allWorkshops = [...filtered];
+        createdByUser.forEach(workshop => {
+          if (!allWorkshops.find(w => w._id.toString() === workshop._id.toString())) {
+            allWorkshops.push(workshop);
+          }
+        });
+        
+        return allWorkshops;
       }
     }
 
