@@ -150,7 +150,7 @@ export function RoomDetailsPage() {
           <h3 style={{ marginTop: 0 }}>Room Information</h3>
           <div className="stack" style={{ gap: 12 }}>
             <div>
-              <strong>Type:</strong> {room.roomType}
+              <strong>Type:</strong> {room.roomType || 'Unknown'}
             </div>
             <div>
               <strong>Total Capacity:</strong> {room.totalCapacity}
@@ -164,15 +164,15 @@ export function RoomDetailsPage() {
             <div>
               <strong>Seat Management:</strong> {room.seatManagementMode === 'Individual' ? 'Individual Seats' : 'Capacity Only'}
             </div>
-            {room.seatManagementMode === 'Individual' && (
+            {room.seatManagementMode === 'Individual' && room.totalRows && room.seatsPerRow && (
               <div>
                 <strong>Layout:</strong> {room.totalRows} rows × {room.seatsPerRow} seats per row
               </div>
             )}
             <div>
               <strong>Status:</strong>{' '}
-              <span style={{ color: room.currentUsage.isOccupied ? '#ef4444' : '#10b981' }}>
-                {room.currentUsage.isOccupied ? 'Occupied' : 'Available'}
+              <span style={{ color: room.currentUsage?.isOccupied ? '#ef4444' : '#10b981' }}>
+                {room.currentUsage?.isOccupied ? 'Occupied' : 'Available'}
               </span>
             </div>
           </div>
@@ -181,34 +181,37 @@ export function RoomDetailsPage() {
         <div className="card" style={{ padding: 20 }}>
           <h3 style={{ marginTop: 0 }}>Features</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {room.features.hasProjector && <span className="chip">📽️ Projector</span>}
-            {room.features.hasWhiteboard && <span className="chip">🖊️ Whiteboard</span>}
-            {room.features.hasAC && <span className="chip">❄️ AC</span>}
-            {room.features.hasWifi && <span className="chip">📡 WiFi</span>}
-            {room.features.hasDesktops && <span className="chip">💻 Desktops</span>}
-            {room.features.hasSoundSystem && <span className="chip">🔊 Sound System</span>}
-            {room.features.isAccessible && <span className="chip">♿ Accessible</span>}
+            {room.features?.hasProjector && <span className="chip">📽️ Projector</span>}
+            {room.features?.hasWhiteboard && <span className="chip">🖊️ Whiteboard</span>}
+            {room.features?.hasAC && <span className="chip">❄️ AC</span>}
+            {room.features?.hasWifi && <span className="chip">📡 WiFi</span>}
+            {room.features?.hasDesktops && <span className="chip">💻 Desktops</span>}
+            {room.features?.hasSoundSystem && <span className="chip">🔊 Sound System</span>}
+            {room.features?.isAccessible && <span className="chip">♿ Accessible</span>}
+            {!room.features || Object.values(room.features).every(v => !v) && (
+              <span className="ui-text-muted">No special features</span>
+            )}
           </div>
         </div>
       </div>
 
       {/* Current Usage */}
-      {room.currentUsage.isOccupied && (
+      {room.currentUsage?.isOccupied && (
         <div className="card" style={{ padding: 20, marginBottom: 24, background: '#fef3c7' }}>
           <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>🔴</span> Currently Occupied
           </h3>
           <div className="stack" style={{ gap: 8 }}>
             <div>
-              <strong>Event/Workshop:</strong> {room.currentUsage.occupiedBy}
+              <strong>Event/Workshop:</strong> {room.currentUsage.occupiedBy || 'Unknown'}
             </div>
             {room.seatManagementMode === 'Individual' ? (
               <div>
-                <strong>Seats Occupied:</strong> {room.currentUsage.occupiedSeats} / {room.totalCapacity}
+                <strong>Seats Occupied:</strong> {room.currentUsage.occupiedSeats || 0} / {room.totalCapacity}
               </div>
             ) : (
               <div>
-                <strong>Registered:</strong> {room.currentUsage.registeredCount} / {room.totalCapacity}
+                <strong>Registered:</strong> {room.currentUsage.registeredCount || 0} / {room.totalCapacity}
               </div>
             )}
             {room.currentUsage.startTime && (
@@ -254,9 +257,11 @@ export function RoomDetailsPage() {
       <div className="card" style={{ padding: 20, marginTop: 24 }}>
         <h3 style={{ marginTop: 0 }}>Metadata</h3>
         <div className="stack" style={{ gap: 8, fontSize: '0.9rem' }}>
-          <div>
-            <strong>Created By:</strong> {room.createdBy.firstName} {room.createdBy.lastName} ({room.createdBy.email})
-          </div>
+          {room.createdBy && (
+            <div>
+              <strong>Created By:</strong> {room.createdBy.firstName} {room.createdBy.lastName} ({room.createdBy.email})
+            </div>
+          )}
           <div>
             <strong>Created At:</strong> {new Date(room.createdAt).toLocaleString()}
           </div>
