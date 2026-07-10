@@ -242,9 +242,6 @@ class AuthController {
       filters: { batch, year, eligibilityType }
     }, "Eligibility report generated");
   });
-}
-
-module.exports = { AuthController };
 
   static searchUsers = asyncHandler(async (req, res) => {
     const { search } = req.query;
@@ -265,3 +262,6 @@ module.exports = { AuthController };
     
     return ApiResponse.ok(res, users, "User search results");
   });
+}
+
+module.exports = { AuthController };
