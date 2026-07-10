@@ -173,7 +173,7 @@ class EnhancedElectionService {
       }
     }
 
-    const member = await Member.findOne({ userId: actorId });
+    const member = await Member.findOne({ userId: actorId }).populate("userId", "firstName lastName email");
     if (!member) {
       throw new ApiError(404, "Member record not found");
     }
@@ -201,13 +201,17 @@ class EnhancedElectionService {
       if (!payload.batch) {
         payload.batch = member.batch;
       }
-    } else if (payload.phase === 2) {
+    }
+
+    let targetPost = null;
+
+    if (payload.phase === 2) {
       if (!payload.postId) {
         throw new ApiError(400, "Phase 2 candidates must specify a post");
       }
       
-      const post = await EcPost.findById(payload.postId);
-      if (!post || !post.isActive) {
+      targetPost = await EcPost.findById(payload.postId);
+      if (!targetPost || !targetPost.isActive) {
         throw new ApiError(404, "Invalid or inactive post specified");
       }
     }
@@ -250,7 +254,7 @@ class EnhancedElectionService {
       for (const memberId of commissionMembers) {
         await NotificationService.createForUser(memberId, {
           title: "New Candidate Application",
-          message: `${member.userId.firstName} ${member.userId.lastName} has applied for ${payload.phase === 1 ? 'Executive Member' : post?.title}`,
+          message: `${member.userId?.firstName || "Member"} ${member.userId?.lastName || ""}`.trim() + ` has applied for ${payload.phase === 1 ? 'Executive Member' : (targetPost?.title || 'Office Bearer')}`,
           category: "Election",
           actionUrl: `/dashboard/elections/${payload.electionId}/candidates`,
           entityType: "ElectionCandidate",
@@ -570,7 +574,7 @@ class EnhancedElectionService {
       ElectionCandidate.countDocuments({ electionId, status: "Approved" }),
       Vote.countDocuments({ electionId, isValid: true }),
       Vote.distinct("voterMemberId", { electionId, isValid: true }),
-      Member.countDocuments({ status: "Active" })
+      Member.countDocuments({ "membershipStatus.status": "Active" })
     ]);
 
     const voterTurnoutPercentage = eligibleVoters > 0 ? 
@@ -603,6 +607,9 @@ class EnhancedElectionService {
 
     if (!isAuthorized) {
       const user = await User.findById(actorId);
+      if (!user) {
+        throw new ApiError(404, "Actor user not found");
+      }
       if (!user.roles.includes("Chief Patron") && !user.roles.includes("Chairman")) {
         throw new ApiError(403, "Only commission members can publish results");
       }

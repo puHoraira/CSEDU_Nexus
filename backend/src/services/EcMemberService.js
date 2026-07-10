@@ -1,10 +1,75 @@
 const { EcAppointment } = require("../models/EcAppointment");
 const { EcTerm } = require("../models/EcTerm");
 const { EcPost } = require("../models/EcPost");
+const { Election } = require("../models/Election");
+const { ElectionCandidate } = require("../models/ElectionCandidate");
 const { Member } = require("../models/Member");
 const { ApiError } = require("../core/ApiError");
 
 class EcMemberService {
+  static async getCurrentElectionForTerm(termId) {
+    if (!termId) return null;
+
+    return Election.findOne({ termId })
+      .sort({ createdAt: -1 })
+      .populate("termId", "name startsOn endsOn status")
+      .populate("commissionId", "status formedAt")
+      .populate("supervisedBy", "firstName lastName email");
+  }
+
+  static async getCurrentBatchRepresentatives(electionId) {
+    if (!electionId) {
+      return [];
+    }
+
+    const election = await Election.findById(electionId).select("_id name termId currentPhase status results.phase1Results");
+    if (!election) return [];
+
+    const resultCandidateIds = (election.results?.phase1Results || [])
+      .flatMap((batchResult) => (batchResult.winners || []).map((winner) => winner.candidateId))
+      .filter(Boolean)
+      .map((candidateId) => candidateId.toString());
+
+    if (resultCandidateIds.length === 0) {
+      const winnerCandidates = await ElectionCandidate.find({
+        electionId: election._id,
+        phase: 1,
+        "votingResults.isWinner": true,
+      })
+        .populate({
+          path: "memberId",
+          select: "studentId batch currentYear academicYearLevel userId",
+          populate: { path: "userId", select: "firstName lastName email avatarUrl" },
+        })
+        .sort({ batch: 1, "votingResults.rank": 1, createdAt: 1 })
+        .lean();
+
+      return winnerCandidates.reduce((groups, candidate) => {
+        const batch = candidate.batch || "Unknown";
+        if (!groups[batch]) groups[batch] = [];
+        groups[batch].push(candidate);
+        return groups;
+      }, {});
+    }
+
+    const winners = await ElectionCandidate.find({ _id: { $in: resultCandidateIds } })
+      .populate({
+        path: "memberId",
+        select: "studentId batch currentYear academicYearLevel userId",
+        populate: { path: "userId", select: "firstName lastName email avatarUrl" },
+      })
+      .populate("postId", "title code displayOrder")
+      .sort({ batch: 1, "votingResults.rank": 1, createdAt: 1 })
+      .lean();
+
+    return winners.reduce((groups, candidate) => {
+      const batch = candidate.batch || "Unknown";
+      if (!groups[batch]) groups[batch] = [];
+      groups[batch].push(candidate);
+      return groups;
+    }, {});
+  }
+
   /**
    * Get current EC members (active term)
    */
@@ -40,6 +105,16 @@ class EcMemberService {
       .sort({ 'postId.displayOrder': 1 })
       .lean();
 
+    const currentElection = await this.getCurrentElectionForTerm(activeTerm._id);
+    const currentBatchRepresentatives = await this.getCurrentBatchRepresentatives(currentElection?._id);
+
+    const panelByPost = appointments.reduce((groups, appointment) => {
+      const postTitle = appointment.postId?.title || "Unassigned post";
+      if (!groups[postTitle]) groups[postTitle] = [];
+      groups[postTitle].push(appointment);
+      return groups;
+    }, {});
+
     return {
       term: {
         _id: activeTerm._id,
@@ -48,6 +123,13 @@ class EcMemberService {
         endsOn: activeTerm.endsOn,
         status: activeTerm.status
       },
+      election: currentElection ? {
+        _id: currentElection._id,
+        name: currentElection.name,
+        currentPhase: currentElection.currentPhase,
+        status: currentElection.status,
+        phase1ResultsPublished: Boolean(currentElection.results?.phase1Results?.length),
+      } : null,
       members: appointments.map(apt => ({
         appointmentId: apt._id,
         post: apt.postId,
@@ -64,7 +146,32 @@ class EcMemberService {
         },
         startsOn: apt.startsOn,
         source: apt.source
-      }))
+      })),
+      panelByPost: Object.entries(panelByPost).map(([postTitle, items]) => ({
+        postTitle,
+        members: items.map((item) => ({
+          appointmentId: item._id,
+          post: item.postId,
+          member: {
+            memberId: item.memberId?._id,
+            studentId: item.memberId?.studentId,
+            batch: item.memberId?.batch,
+            currentYear: item.memberId?.currentYear,
+            academicYearLevel: item.memberId?.academicYearLevel,
+            fullName: item.memberId?.userId?.fullName,
+            email: item.memberId?.userId?.email,
+            phone: item.memberId?.userId?.phone,
+            avatarUrl: item.memberId?.userId?.avatarUrl
+          },
+          startsOn: item.startsOn,
+          source: item.source,
+        })),
+      })),
+      currentBatchRepresentatives,
+      overview: {
+        currentPanelCount: appointments.length,
+        currentBatchRepresentativeCount: Object.values(currentBatchRepresentatives).flat().length,
+      },
     };
   }
 

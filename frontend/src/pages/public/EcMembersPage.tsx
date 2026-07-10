@@ -51,11 +51,48 @@ interface Statistics {
   }>;
 }
 
+interface CurrentEcPayload {
+  term: EcTerm | null;
+  election?: {
+    _id: string;
+    name: string;
+    currentPhase: number;
+    status: string;
+    phase1ResultsPublished?: boolean;
+  } | null;
+  members: EcMember[];
+  panelByPost?: Array<{
+    postTitle: string;
+    members: EcMember[];
+  }>;
+  currentBatchRepresentatives?: Record<string, Array<{
+    _id: string;
+    batch?: string;
+    votingResults?: { totalVotes?: number; votePercentage?: number; rank?: number; isWinner?: boolean };
+    memberId?: {
+      _id?: string;
+      studentId?: string;
+      batch?: number;
+      currentYear?: number;
+      academicYearLevel?: string;
+      userId?: { firstName?: string; lastName?: string; email?: string; avatarUrl?: string };
+    };
+  }>>;
+  overview?: {
+    currentPanelCount: number;
+    currentBatchRepresentativeCount: number;
+  };
+  message?: string;
+}
+
 const EcMembersPage: React.FC = () => {
   const { token } = useAuth();
   const [view, setView] = useState<'current' | 'past' | 'history'>('current');
   const [currentMembers, setCurrentMembers] = useState<EcMember[]>([]);
   const [currentTerm, setCurrentTerm] = useState<EcTerm | null>(null);
+  const [currentElection, setCurrentElection] = useState<CurrentEcPayload['election']>(null);
+  const [currentPanelByPost, setCurrentPanelByPost] = useState<Array<{ postTitle: string; members: EcMember[] }>>([]);
+  const [currentBatchRepresentatives, setCurrentBatchRepresentatives] = useState<CurrentEcPayload['currentBatchRepresentatives']>({});
   const [allTerms, setAllTerms] = useState<EcTerm[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<string>('');
   const [termMembers, setTermMembers] = useState<EcMember[]>([]);
@@ -80,8 +117,12 @@ const EcMembersPage: React.FC = () => {
       const response = await axios.get(`${API_BASE_URL}/ec-members/current`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setCurrentMembers(response.data.data.members || []);
-      setCurrentTerm(response.data.data.term);
+      const payload: CurrentEcPayload = response.data.data;
+      setCurrentMembers(payload.members || []);
+      setCurrentTerm(payload.term || null);
+      setCurrentElection(payload.election || null);
+      setCurrentPanelByPost(payload.panelByPost || []);
+      setCurrentBatchRepresentatives(payload.currentBatchRepresentatives || {});
     } catch (error) {
       console.error('Error fetching current EC members:', error);
     } finally {
@@ -161,6 +202,29 @@ const EcMembersPage: React.FC = () => {
     </div>
   );
 
+  const renderBatchRepCard = (rep: NonNullable<CurrentEcPayload['currentBatchRepresentatives']>[string][number]) => {
+    const member = rep.memberId;
+    const name = `${member?.userId?.firstName || ''} ${member?.userId?.lastName || ''}`.trim() || member?.studentId || 'Batch representative';
+
+    return (
+      <div key={rep._id} className="bg-white rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow border border-gray-100">
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">{name}</h3>
+            <p className="text-sm text-gray-600">Batch {rep.batch || member?.batch || '-'}</p>
+          </div>
+          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">Winner</span>
+        </div>
+        <div className="space-y-1 text-sm text-gray-600">
+          <p>Student ID: {member?.studentId || '-'}</p>
+          <p>Rank: {rep.votingResults?.rank || '-'}</p>
+          <p>Total votes: {rep.votingResults?.totalVotes ?? 0}</p>
+          <p>Vote share: {rep.votingResults?.votePercentage?.toFixed(1) || 0}%</p>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -191,6 +255,23 @@ const EcMembersPage: React.FC = () => {
           <div className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg shadow-md p-4">
             <p className="text-sm opacity-90">Active Terms</p>
             <p className="text-3xl font-bold">{statistics.overview.activeTermCount}</p>
+          </div>
+        </div>
+      )}
+
+      {currentElection && (
+        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Current election</p>
+              <h2 className="text-xl font-semibold text-gray-900 mt-1">{currentElection.name}</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="px-3 py-1 rounded-full text-sm font-semibold bg-blue-50 text-blue-700">{currentElection.status}</span>
+              <span className="px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-700">
+                {currentElection.currentPhase === 1 ? 'Phase 1 - Batch Representatives' : 'Phase 2 - Main Executive Vote'}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -242,13 +323,54 @@ const EcMembersPage: React.FC = () => {
                     </div>
                   )}
 
-                  {currentMembers.length === 0 ? (
+                  {currentPanelByPost.length > 0 && (
+                    <div className="mb-8">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Full EC Panel</h2>
+                      <div className="space-y-5">
+                        {currentPanelByPost.map((group) => (
+                          <div key={group.postTitle} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                              <h3 className="text-lg font-semibold text-gray-900">{group.postTitle}</h3>
+                              <span className="text-sm font-medium text-gray-500">{group.members.length} member{group.members.length !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                              {group.members.map(renderMemberCard)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {currentMembers.length === 0 && currentPanelByPost.length === 0 ? (
                     <div className="text-center py-12">
                       <p className="text-gray-500">No active EC members found</p>
                     </div>
-                  ) : (
+                  ) : currentPanelByPost.length === 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {currentMembers.map(renderMemberCard)}
+                    </div>
+                  ) : null}
+
+                  {currentBatchRepresentatives && Object.keys(currentBatchRepresentatives).length > 0 && (
+                    <div className="mt-10">
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                        <h2 className="text-2xl font-bold text-gray-900">Current Batch Representatives</h2>
+                        <span className="text-sm text-gray-500">Phase 1 winners for the active election</span>
+                      </div>
+                      <div className="space-y-6">
+                        {Object.entries(currentBatchRepresentatives).map(([batch, winners]) => (
+                          <div key={batch} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                              <h3 className="text-lg font-semibold text-gray-900">Batch {batch}</h3>
+                              <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-50 text-green-700">{winners.length} winner{winners.length !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                              {winners.map(renderBatchRepCard)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -66,6 +66,73 @@ function splitArticleHeading(rawHeading: string) {
   return { articleNo: segments.slice(0, 2).join(" "), title: segments.slice(2).join(" ") };
 }
 
+const electionGovernanceTemplate: ConstitutionArticleInput[] = [
+  {
+    articleNo: "ARTICLE XI",
+    title: "ELECTION COMMISSION COMPOSITION",
+    content:
+      "The Election Commission shall consist of three members: one Chief Commissioner and two Commissioners. The Moderator shall serve as Chief Commissioner and oversee the entire election process with neutrality, transparency, and record keeping.",
+    imageUrl: "",
+    order: 1,
+  },
+  {
+    articleNo: "ARTICLE XII",
+    title: "TERM AND POWERS OF THE ELECTION COMMISSION",
+    content:
+      "The Commission shall serve for the election term assigned by the active EC term. It may approve the schedule, supervise candidate review, publish stage decisions, and record all actions in the audit trail.",
+    imageUrl: "",
+    order: 2,
+  },
+  {
+    articleNo: "ARTICLE XIII",
+    title: "CANDIDATE ELIGIBILITY",
+    content:
+      "Only active members who satisfy the academic, attendance, conduct, and post-specific requirements may contest. The Commission may verify eligibility before approval and may reject applications that fail the published criteria.",
+    imageUrl: "",
+    order: 3,
+  },
+  {
+    articleNo: "ARTICLE XIV",
+    title: "NOMINATION AND SCRUTINY",
+    content:
+      "Candidates may self-nominate or be nominated according to the published rules. Every nomination shall be checked for completeness, and all objections or review decisions must be recorded before the candidate is moved forward.",
+    imageUrl: "",
+    order: 4,
+  },
+  {
+    articleNo: "ARTICLE XV",
+    title: "PHASE 1: BATCH REPRESENTATIVE ELECTION",
+    content:
+      "Phase 1 shall elect batch representatives first. Ballots in this phase are visible only to members voting within their own batch, and voters may select the permitted number of candidates for their batch only.",
+    imageUrl: "",
+    order: 5,
+  },
+  {
+    articleNo: "ARTICLE XVI",
+    title: "PHASE 2: MAIN EXECUTIVE ELECTION",
+    content:
+      "Phase 2 shall conduct the main executive election after Phase 1 is completed. Ballots in this stage shall be shown only to members who are eligible to vote, and only approved candidates for the relevant posts may appear on the ballot.",
+    imageUrl: "",
+    order: 6,
+  },
+  {
+    articleNo: "ARTICLE XVII",
+    title: "RESULTS, DISCLOSURE, AND CHALLENGES",
+    content:
+      "Results shall be published by the Commission after verification. The publication must include the official result summary, and disputes or challenges must follow the published review window and appeal procedure.",
+    imageUrl: "",
+    order: 7,
+  },
+  {
+    articleNo: "ARTICLE XVIII",
+    title: "VACANCIES AND BY-ELECTIONS",
+    content:
+      "If any elected office becomes vacant, the Commission may initiate a by-election or vacancy fill process in accordance with the Constitution and the active EC term rules.",
+    imageUrl: "",
+    order: 8,
+  },
+];
+
 export function ModeratorConstitutionEditorPage() {
   const { token, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("live");
@@ -162,6 +229,26 @@ export function ModeratorConstitutionEditorPage() {
         order: prev.length + 1,
       },
     ]);
+  }
+
+  function insertElectionGovernanceTemplate() {
+    setActiveTab("compose");
+    const existingText = constitutionArticles.map((item) => `${item.articleNo} ${item.title} ${item.content}`.toLowerCase()).join(" ");
+    if (existingText.includes("election commission") || existingText.includes("batch representative")) {
+      setMessage("Election and EC articles already exist in the draft. Edit them directly instead of inserting another template.");
+      return;
+    }
+
+    setConstitutionArticles((prev) => {
+      const startOrder = prev.length + 1;
+      return [
+        ...prev,
+        ...electionGovernanceTemplate.map((item, index) => ({
+          ...item,
+          order: startOrder + index,
+        })),
+      ];
+    });
   }
 
   function removeConstitutionArticle(index: number) {
@@ -321,6 +408,9 @@ export function ModeratorConstitutionEditorPage() {
                     <button className="secondary-button" type="button" onClick={addConstitutionArticle}>
                       Add another article
                     </button>
+                    <button className="secondary-button" type="button" onClick={insertElectionGovernanceTemplate}>
+                      Insert election and EC template
+                    </button>
                     <Link className="secondary-button" to="/constitution">
                       Public preview
                     </Link>
@@ -388,9 +478,14 @@ export function ModeratorConstitutionEditorPage() {
                       <p className="constitution-section-header__eyebrow">Sections</p>
                       <h3>Articles</h3>
                     </div>
-                    <button className="secondary-button" type="button" onClick={addConstitutionArticle}>
-                      Add article
-                    </button>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <button className="secondary-button" type="button" onClick={insertElectionGovernanceTemplate}>
+                        Insert election and EC template
+                      </button>
+                      <button className="secondary-button" type="button" onClick={addConstitutionArticle}>
+                        Add article
+                      </button>
+                    </div>
                   </div>
 
                   <div className="constitution-article-editor-list">

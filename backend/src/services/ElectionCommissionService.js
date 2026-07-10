@@ -113,6 +113,9 @@ class ElectionCommissionService {
 
     // Only chief commissioner or chairman can update config
     const user = await User.findById(actorId);
+    if (!user) {
+      throw new ApiError(404, "Actor user not found");
+    }
     if (commission.chiefCommissioner.toString() !== actorId && 
         !user.roles.includes("Chief Patron") && 
         !user.roles.includes("Chairman")) {
@@ -156,6 +159,9 @@ class ElectionCommissionService {
 
     if (!isAuthorized) {
       const user = await User.findById(actorId);
+      if (!user) {
+        throw new ApiError(404, "Actor user not found");
+      }
       if (!user.roles.includes("Chief Patron") && !user.roles.includes("Chairman")) {
         throw new ApiError(403, "Only commission members can review candidate applications");
       }
@@ -341,6 +347,9 @@ class ElectionCommissionService {
 
     if (!isAuthorized) {
       const user = await User.findById(actorId);
+      if (!user) {
+        throw new ApiError(404, "Actor user not found");
+      }
       if (!user.roles.includes("Chief Patron") && !user.roles.includes("Chairman")) {
         throw new ApiError(403, "Only commission members can update election phases");
       }

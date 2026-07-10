@@ -25,6 +25,8 @@ type ConstitutionDoc = {
 export function ConstitutionPage() {
   const { user } = useAuth();
   const isModerator = Boolean(user?.roles?.includes("Moderator"));
+  const isElectionArticle = (articleNo?: string, title?: string, content?: string) =>
+    Boolean(`${articleNo || ""} ${title || ""} ${content || ""}`.toLowerCase().match(/election|commission|nomination|voting|results|dispute|vacanc|phase 1|phase 2/));
 
   const { data, isLoading } = useQuery({
     queryKey: ["constitution-active"],
@@ -56,6 +58,25 @@ export function ConstitutionPage() {
           ) : null}
           {data.changeNote ? <p><strong>Change note:</strong> {data.changeNote}</p> : null}
           <div className="constitution-content-flow">
+            {(data.articles || []).some((article) => isElectionArticle(article.articleNo, article.title, article.content)) ? (
+              <div className="card" style={{ marginBottom: 12 }}>
+                <p style={{ marginTop: 0, marginBottom: 8 }}><strong>Election and EC Articles</strong></p>
+                <p className="muted-inline" style={{ marginBottom: 12 }}>
+                  The election rules are now separated into explicit articles for commission structure, eligibility, nomination, phase 1, phase 2, results, disputes, and vacancies.
+                </p>
+                <div className="stack">
+                  {(data.articles || [])
+                    .filter((article) => isElectionArticle(article.articleNo, article.title, article.content))
+                    .map((article, index) => (
+                      <div key={`${article.articleNo || "election"}-${index}`} className="chip" style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 12px" }}>
+                        <span>{article.articleNo ? `${article.articleNo}: ${article.title}` : article.title}</span>
+                        <span>Phase-aware governance</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ) : null}
+
             {data.preamble ? (
               <article className="constitution-article-card constitution-preamble-card">
                 <h3 className="constitution-article-heading">PREAMBLE</h3>
@@ -71,6 +92,9 @@ export function ConstitutionPage() {
                 <div className="stack constitution-articles-stack">
                   {(data.articles || []).map((article, index) => (
                     <article key={`${article.articleNo || "A"}-${index}`} className="constitution-article-card">
+                      {isElectionArticle(article.articleNo, article.title, article.content) ? (
+                        <div className="chip" style={{ marginBottom: 10, width: "fit-content" }}>Election / EC</div>
+                      ) : null}
                       <h3 className="constitution-article-heading">
                         {article.articleNo ? `${article.articleNo}: ${article.title}` : article.title}
                       </h3>
