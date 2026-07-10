@@ -252,15 +252,23 @@ class AuthController {
     const { User } = require('../models/User');
     const users = await User.find({
       $or: [
-        { fullName: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } }
       ],
       isActive: true
     })
-    .select('_id fullName email avatarUrl')
-    .limit(20);
+    .select('_id firstName lastName email avatarUrl')
+    .limit(20)
+    .lean();
     
-    return ApiResponse.ok(res, users, "User search results");
+    // Add fullName to each user
+    const usersWithFullName = users.map(user => ({
+      ...user,
+      fullName: `${user.firstName} ${user.lastName}`
+    }));
+    
+    return ApiResponse.ok(res, usersWithFullName, "User search results");
   });
 }
 

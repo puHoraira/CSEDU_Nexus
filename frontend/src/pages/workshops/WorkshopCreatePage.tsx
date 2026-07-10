@@ -45,6 +45,7 @@ export function WorkshopCreatePage() {
   const [userSearchInput, setUserSearchInput] = useState('');
   const [userSearchResults, setUserSearchResults] = useState<Array<{ _id: string; fullName: string; email: string }>>([]);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [invitedUsersMap, setInvitedUsersMap] = useState<Map<string, { fullName: string; email: string }>>(new Map());
   const [speakers, setSpeakers]     = useState<Array<{ name: string; designation: string; organization: string; bio: string }>>([]);
   const [newSpeaker, setNewSpeaker] = useState({ name: '', designation: '', organization: '', bio: '' });
   const [selectedRoomId, setSelectedRoomId] = useState('');
@@ -197,6 +198,17 @@ export function WorkshopCreatePage() {
       toast.error("User already invited");
       return;
     }
+    
+    // Find the selected user from search results
+    const selectedUser = userSearchResults.find(u => u._id === userId);
+    if (selectedUser) {
+      // Store user info in map
+      setInvitedUsersMap(prev => new Map(prev).set(userId, { 
+        fullName: selectedUser.fullName, 
+        email: selectedUser.email 
+      }));
+    }
+    
     setForm(f => ({
       ...f,
       targetAudience: {
@@ -602,31 +614,34 @@ export function WorkshopCreatePage() {
               
               {form.targetAudience.invitedUsers.length > 0 ? (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                  {form.targetAudience.invitedUsers.map(userId => (
-                    <span 
-                      key={userId}
-                      style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: 6, 
-                        padding: '4px 10px', 
-                        borderRadius: 999, 
-                        fontSize: '0.78rem', 
-                        background: 'rgba(245,158,11,0.12)', 
-                        color: '#d97706', 
-                        border: '1px solid rgba(245,158,11,0.25)' 
-                      }}
-                    >
-                      {userId}
-                      <button 
-                        type="button" 
-                        onClick={() => removeInvitedUser(userId)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
+                  {form.targetAudience.invitedUsers.map(userId => {
+                    const userInfo = invitedUsersMap.get(userId);
+                    return (
+                      <span 
+                        key={userId}
+                        style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: 6, 
+                          padding: '4px 10px', 
+                          borderRadius: 999, 
+                          fontSize: '0.78rem', 
+                          background: 'rgba(245,158,11,0.12)', 
+                          color: '#d97706', 
+                          border: '1px solid rgba(245,158,11,0.25)' 
+                        }}
                       >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+                        {userInfo?.fullName || userId}
+                        <button 
+                          type="button" 
+                          onClick={() => removeInvitedUser(userId)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="ui-text-xs ui-text-muted">No users manually invited. Use this for private/exclusive workshops.</p>
