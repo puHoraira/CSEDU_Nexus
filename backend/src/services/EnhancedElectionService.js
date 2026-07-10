@@ -13,6 +13,7 @@ const { policyRegistry } = require("../policies");
 const { AuditService } = require("./AuditService");
 const { NotificationService } = require("./NotificationService");
 const { ElectionCommissionService } = require("./ElectionCommissionService");
+const { GovernanceService } = require("./GovernanceService");
 
 class EnhancedElectionService {
   
@@ -590,7 +591,7 @@ class EnhancedElectionService {
     };
   }
 
-  static async publishResults(electionId, phase, actorId, requestId) {
+  static async publishResults(electionId, phase, actorId, requestId, autoCreateAppointments = false) {
     const election = await Election.findById(electionId);
     if (!election) {
       throw new ApiError(404, "Election not found");
@@ -675,6 +676,99 @@ class EnhancedElectionService {
     }
 
     // Send notifications
+    // Optionally create appointments for winners
+    const createdAppointments = [];
+    const appointmentErrors = [];
+
+    if (autoCreateAppointments) {
+      try {
+        // Phase 1: map batch winners to executive member posts
+        if (phase === 1) {
+          // Load executive posts for assignment
+          const execPosts = await EcPost.find({ code: /EXECUTIVE_MEMBER/i, isActive: true }).sort({ displayOrder: 1 });
+          let postIndex = 0;
+
+          for (const batchResult of results) {
+            for (const winner of batchResult.winners) {
+              try {
+                const candidate = await ElectionCandidate.findById(winner.candidateId).populate('memberId');
+                if (!candidate || !candidate.memberId) {
+                  appointmentErrors.push({ candidateId: winner.candidateId, reason: 'Candidate or member not found' });
+                  continue;
+                }
+
+                // Find next available exec post for this term
+                let assignedPost = null;
+                const termId = election.termId;
+
+                for (let i = 0; i < execPosts.length; i++) {
+                  const idx = (postIndex + i) % execPosts.length;
+                  const post = execPosts[idx];
+                  const activeHolder = await require('../models/EcAppointment').EcAppointment.findOne({ termId, postId: post._id, endsOn: null });
+                  if (!activeHolder) {
+                    assignedPost = post;
+                    postIndex = idx + 1;
+                    break;
+                  }
+                }
+
+                if (!assignedPost) {
+                  appointmentErrors.push({ candidateId: winner.candidateId, reason: 'No available executive post to assign' });
+                  continue;
+                }
+
+                const appointPayload = {
+                  termId: election.termId,
+                  postId: assignedPost._id,
+                  memberId: candidate.memberId._id,
+                  startsOn: election.termId ? (await EcTerm.findById(election.termId)).startsOn : new Date(),
+                  source: 'Election'
+                };
+
+                const appointment = await GovernanceService.appointMember(appointPayload, actorId, requestId);
+                createdAppointments.push(appointment);
+              } catch (err) {
+                appointmentErrors.push({ candidateId: winner.candidateId, reason: err.message });
+              }
+            }
+          }
+
+        } else if (phase === 2) {
+          // Phase 2: winners are assigned to their specific posts
+          for (const postResult of results) {
+            if (!postResult.winner) continue;
+            try {
+              const candidate = await ElectionCandidate.findById(postResult.winner.candidateId).populate('memberId');
+              if (!candidate || !candidate.memberId) {
+                appointmentErrors.push({ candidateId: postResult.winner.candidateId, reason: 'Candidate or member not found' });
+                continue;
+              }
+
+              if (!candidate.postId) {
+                appointmentErrors.push({ candidateId: postResult.winner.candidateId, reason: 'Candidate has no postId' });
+                continue;
+              }
+
+              const appointPayload = {
+                termId: election.termId,
+                postId: candidate.postId,
+                memberId: candidate.memberId._id,
+                startsOn: election.termId ? (await EcTerm.findById(election.termId)).startsOn : new Date(),
+                source: 'Election'
+              };
+
+              const appointment = await GovernanceService.appointMember(appointPayload, actorId, requestId);
+              createdAppointments.push(appointment);
+            } catch (err) {
+              appointmentErrors.push({ candidateId: postResult.winner.candidateId, reason: err.message });
+            }
+          }
+        }
+      } catch (err) {
+        appointmentErrors.push({ reason: err.message });
+      }
+    }
+
     await NotificationService.createForRoleNames(["Member"], {
       title: `Election Results Published - Phase ${phase}`,
       message: `Results for ${election.name} Phase ${phase} have been published and are now available.`,
@@ -690,10 +784,10 @@ class EnhancedElectionService {
       resource: "Election",
       resourceId: election._id.toString(),
       requestId,
-      metadata: { phase, resultsCount: results.length }
+      metadata: { phase, resultsCount: results.length, createdAppointments: createdAppointments.map(a => a._id?.toString()).slice(0, 20) }
     });
 
-    return { election, results };
+    return { election, results, createdAppointments, appointmentErrors };
   }
 
   // Legacy methods for backward compatibility

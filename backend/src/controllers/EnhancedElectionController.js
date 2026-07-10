@@ -218,13 +218,14 @@ class EnhancedElectionController {
 
   static publishResults = asyncHandler(async (req, res) => {
     const { electionId } = req.params;
-    const { phase } = req.body;
-    
+    const { phase, autoCreateAppointments } = req.body;
+
     const result = await EnhancedElectionService.publishResults(
       electionId,
       phase,
       req.auth.userId,
-      req.requestMeta.requestId
+      req.requestMeta.requestId,
+      Boolean(autoCreateAppointments)
     );
     
     return res.json(

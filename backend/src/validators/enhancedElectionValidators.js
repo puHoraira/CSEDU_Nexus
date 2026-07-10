@@ -141,7 +141,8 @@ const enhancedElectionValidators = {
 
   // Results
   publishResults: z.object({
-    phase: z.number().int().min(1).max(2)
+    phase: z.number().int().min(1).max(2),
+    autoCreateAppointments: z.boolean().optional().default(false)
   }),
 
   // Announcements

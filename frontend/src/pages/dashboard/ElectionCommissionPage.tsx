@@ -48,6 +48,7 @@ export function ElectionCommissionPage() {
   const [decision, setDecision] = useState<"Approved" | "Rejected">("Approved");
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [autoCreateAppointments, setAutoCreateAppointments] = useState<boolean>(true);
 
   const elections = useQuery({
     queryKey: ["commission-elections", token],
@@ -133,10 +134,17 @@ export function ElectionCommissionPage() {
       apiRequest(`/enhanced-elections/${selectedElectionId}/publish-results`, {
         method: "POST",
         token,
-        body: JSON.stringify({ phase }),
+        body: JSON.stringify({ phase, autoCreateAppointments }),
       }),
-    onSuccess: async () => {
-      setMessage("Results published for the selected phase");
+    onSuccess: async (data: any) => {
+      let msg = "Results published for the selected phase";
+      if (data?.createdAppointments) {
+        msg += ` — ${data.createdAppointments.length} appointments created`;
+        if (data?.appointmentErrors && data.appointmentErrors.length > 0) {
+          msg += `, ${data.appointmentErrors.length} errors`;
+        }
+      }
+      setMessage(msg);
       await queryClient.invalidateQueries({ queryKey: ["commission-elections", token] });
       await queryClient.invalidateQueries({ queryKey: ["moderator-details", token] });
     },
@@ -360,6 +368,10 @@ export function ElectionCommissionPage() {
                 <Button type="button" variant="success" leftIcon={Trophy} onClick={() => publishMutation.mutate()} disabled={!selectedElectionId || publishMutation.isPending} isLoading={publishMutation.isPending}>
                   Publish current phase
                 </Button>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+                  <input type="checkbox" checked={autoCreateAppointments} onChange={(e) => setAutoCreateAppointments(e.target.checked)} />
+                  <span style={{ fontSize: '0.9rem' }}>Auto-create appointments</span>
+                </label>
               </div>
             </form>
           </div>
