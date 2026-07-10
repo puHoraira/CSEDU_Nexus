@@ -632,38 +632,6 @@ export function WorkshopCreatePage() {
                 <p className="ui-text-xs ui-text-muted">No users manually invited. Use this for private/exclusive workshops.</p>
               )}
             </div>
-              {form.targetAudience.invitedUsers.length > 0 ? (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {form.targetAudience.invitedUsers.map(userId => (
-                    <span 
-                      key={userId}
-                      style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: 6, 
-                        padding: '4px 10px', 
-                        borderRadius: 999, 
-                        fontSize: '0.78rem', 
-                        background: 'rgba(245,158,11,0.12)', 
-                        color: '#d97706', 
-                        border: '1px solid rgba(245,158,11,0.25)' 
-                      }}
-                    >
-                      {userId}
-                      <button 
-                        type="button" 
-                        onClick={() => removeInvitedUser(userId)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="ui-text-xs ui-text-muted">No users manually invited. Use this for private/exclusive workshops.</p>
-              )}
-            </div>
 
             <Alert variant="info">
               <strong>🔐 How filtering works:</strong> If you use multiple filters, users need to match at least one criterion. 
