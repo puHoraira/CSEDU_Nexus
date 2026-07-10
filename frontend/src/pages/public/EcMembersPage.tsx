@@ -416,4 +416,4 @@ const EcMembersPage: React.FC = () => {
   );
 };
 
-export default EcMembersPage;
+export { EcMembersPage };
