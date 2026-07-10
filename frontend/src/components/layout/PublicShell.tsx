@@ -20,6 +20,7 @@ export function PublicShell() {
           <Link to="/events">Events</Link>
           <Link to="/notices">Notices</Link>
           <Link to="/constitution">Constitution</Link>
+          <Link to="/ec-members">EC Members</Link>
           {user ? (
             <>
               <Link to="/dashboard/home" className="public-topbar__user-link" title={displayName || user.email}>

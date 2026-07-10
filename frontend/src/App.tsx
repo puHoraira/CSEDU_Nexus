@@ -10,6 +10,7 @@ import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
 import { ResendVerificationPage } from "./pages/auth/ResendVerificationPage";
 import { ConstitutionPage } from "./pages/public/ConstitutionPage";
+import { EcMembersPage } from "./pages/public/EcMembersPage";
 import { NoticesPage } from "./pages/public/NoticesPage";
 import { AboutPage } from "./pages/public/AboutPage";
 import { ContactPage } from "./pages/public/ContactPage";
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/events/:id" element={<EventDetailsPage />} />
         <Route path="/notices" element={<NoticesPage />} />
         <Route path="/constitution" element={<ConstitutionPage />} />
+        <Route path="/ec-members" element={<EcMembersPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/auth/login" element={<LoginPage />} />
