@@ -183,7 +183,7 @@ export function WorkshopCreatePage() {
     }
     
     try {
-      const users = await apiRequest<Array<{ _id: string; fullName: string; email: string }>>(`/admin/users?search=${query}`, { token });
+      const users = await apiRequest<Array<{ _id: string; fullName: string; email: string }>>(`/auth/users/search?search=${query}`, { token });
       setUserSearchResults(users || []);
       setShowUserDropdown(true);
     } catch (err) {

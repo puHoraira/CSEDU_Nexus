@@ -245,3 +245,23 @@ class AuthController {
 }
 
 module.exports = { AuthController };
+
+  static searchUsers = asyncHandler(async (req, res) => {
+    const { search } = req.query;
+    if (!search || search.length < 2) {
+      return ApiResponse.ok(res, [], "User search results");
+    }
+    
+    const { User } = require('../models/User');
+    const users = await User.find({
+      $or: [
+        { fullName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ],
+      isActive: true
+    })
+    .select('_id fullName email avatarUrl')
+    .limit(20);
+    
+    return ApiResponse.ok(res, users, "User search results");
+  });

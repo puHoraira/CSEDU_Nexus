@@ -35,6 +35,9 @@ router.post("/register-teacher",
 // Profile routes
 router.get("/me", authenticate, AuthController.me);
 
+// User search for invitations (accessible to all authenticated users)
+router.get("/users/search", authenticate, AuthController.searchUsers);
+
 router.patch("/profile", 
   authenticate, 
   validate(updateProfileSchema),

@@ -449,7 +449,8 @@ class WorkshopService {
   }
 
   static async getMyRegistration(workshopId, userId) {
-    return WorkshopRegistration.findOne({ workshopId, userId });
+    return WorkshopRegistration.findOne({ workshopId, userId })
+      .populate('seatAssignment.roomId', 'roomNumber roomName building floor');
   }
 
   static async listRegistrations(workshopId) {
