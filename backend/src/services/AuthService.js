@@ -354,11 +354,11 @@ class AuthService {
       registrationSource: "Web"
     });
 
-    const alumniRole = await Role.findOne({ name: "Alumni" });
-    if (!alumniRole) {
-      throw new ApiError(500, "Alumni role is missing. Run seed first.");
+    const teacherRole = await Role.findOne({ name: "Teacher" });
+    if (!teacherRole) {
+      throw new ApiError(500, "Teacher role is missing. Run seed first.");
     }
-    await UserRole.create({ userId: user._id, roleId: alumniRole._id });
+    await UserRole.create({ userId: user._id, roleId: teacherRole._id });
 
     const roles = await AccessService.getUserRoleNames(user._id);
     const accessToken = TokenService.createAccessToken({ sub: user._id.toString(), roles });
@@ -370,7 +370,7 @@ class AuthService {
       resource: "User",
       resourceId: user._id.toString(),
       requestId: requestMeta?.requestId,
-      metadata: { email: user.email, designation, mappedRole: "Alumni" },
+      metadata: { email: user.email, designation, mappedRole: "Teacher" },
     });
 
     // Send email verification

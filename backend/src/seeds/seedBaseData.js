@@ -30,6 +30,7 @@ async function seedRolesAndPermissions() {
     "General Member",
     "Moderator",
     "Chief Patron",
+    "Teacher",
     "Election Commissioner",
     "Alumni",
     "President",
