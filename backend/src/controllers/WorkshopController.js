@@ -237,6 +237,10 @@ class WorkshopController {
     const data = await WorkshopEngagementService.gradeSubmission(req.params.submissionId, req.body, req.auth.userId);
     return ApiResponse.ok(res, data, 'Submission graded');
   });
+  static leaderboard = asyncHandler(async (req, res) => {
+    const data = await WorkshopEngagementService.getLeaderboard(req.params.id, req.auth.userId);
+    return ApiResponse.ok(res, data, 'Workshop leaderboard');
+  });
 
   // ── Feedback & rating ──────────────────────────────────────────────────────
   static submitFeedback = asyncHandler(async (req, res) => {

@@ -78,6 +78,7 @@ router.delete('/:id/assignments/:assignmentId', authenticate, WorkshopController
 router.post('/:id/assignments/:assignmentId/submit', authenticate, validate(submissionSchema), WorkshopController.submitAssignment);
 router.get('/:id/my-submissions', authenticate, WorkshopController.mySubmissions);
 router.get('/:id/submissions', authenticate, WorkshopController.listSubmissions);
+router.get('/:id/leaderboard', authenticate, WorkshopController.leaderboard);
 router.post('/submissions/:submissionId/grade', authenticate, validate(gradeSchema), WorkshopController.gradeSubmission);
 
 // Feedback & rating

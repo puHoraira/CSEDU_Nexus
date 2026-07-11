@@ -73,8 +73,33 @@ class RoomController {
    */
   static getAvailableRooms = asyncHandler(async (req, res) => {
     const { startDate, endDate, minCapacity } = req.query;
-    const rooms = await RoomService.getAvailableRooms(startDate, endDate, minCapacity);
+    const { RoomBookingService } = require('../services/RoomBookingService');
+    const rooms = await RoomBookingService.getAvailableRooms(startDate, endDate, Number(minCapacity) || 0);
     return ApiResponse.ok(res, rooms, 'Available rooms retrieved successfully');
+  });
+
+  /**
+   * Get a room's booking schedule
+   * GET /api/v1/rooms/:id/schedule
+   */
+  static getRoomSchedule = asyncHandler(async (req, res) => {
+    const { RoomBookingService } = require('../services/RoomBookingService');
+    const schedule = await RoomBookingService.getRoomSchedule(req.params.id, { from: req.query.from, to: req.query.to });
+    return ApiResponse.ok(res, schedule, 'Room schedule retrieved successfully');
+  });
+
+  /**
+   * Check whether a set of rooms is free for a time window
+   * POST /api/v1/rooms/check-availability  { roomIds, startTime, endTime, excludeEventId?, excludeWorkshopId? }
+   */
+  static checkAvailability = asyncHandler(async (req, res) => {
+    const { RoomBookingService } = require('../services/RoomBookingService');
+    const { roomIds, startTime, endTime, excludeEventId, excludeWorkshopId } = req.body;
+    const result = await RoomBookingService.validateRooms(roomIds || [], startTime, endTime, {
+      excludeEventId: excludeEventId || undefined,
+      excludeWorkshopId: excludeWorkshopId || undefined,
+    });
+    return ApiResponse.ok(res, result, result.ok ? 'All rooms are available' : 'Some rooms have conflicts');
   });
 
   /**

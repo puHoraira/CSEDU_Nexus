@@ -50,10 +50,16 @@ export function WorkshopCreatePage() {
   const [newSpeaker, setNewSpeaker] = useState({ name: '', designation: '', organization: '', bio: '' });
   const [selectedRoomId, setSelectedRoomId] = useState('');
 
-  // Fetch available rooms
+  // Fetch rooms with time-aware availability for the chosen schedule.
   const { data: roomsData } = useQuery({
-    queryKey: ['rooms'],
-    queryFn: () => apiRequest('/rooms', { method: 'GET', token }),
+    queryKey: ['rooms-available', form.startDate, form.endDate],
+    queryFn: () => {
+      if (form.startDate && form.endDate) {
+        const qs = `?startDate=${encodeURIComponent(new Date(form.startDate).toISOString())}&endDate=${encodeURIComponent(new Date(form.endDate).toISOString())}`;
+        return apiRequest<any[]>(`/rooms/available${qs}`, { method: 'GET', token });
+      }
+      return apiRequest<any[]>('/rooms/available', { method: 'GET', token });
+    },
   });
 
   const createMut = useMutation({
@@ -229,6 +235,17 @@ export function WorkshopCreatePage() {
 
     if (form.roomAssignment.rooms.some(r => r.roomId === selectedRoomId)) {
       toast.error("Room already added.");
+      return;
+    }
+
+    // Block adding a room that's already booked for this time window.
+    const picked = (rooms as any[]).find((r: any) => r._id === selectedRoomId);
+    if (picked && picked.isAvailable === false) {
+      toast.error(`That room is already booked${picked.conflictWith ? ` by "${picked.conflictWith}"` : ''} during this time. Change the schedule or pick another room.`);
+      return;
+    }
+    if (!form.startDate || !form.endDate) {
+      toast.error("Set the workshop start and end time before reserving a room.");
       return;
     }
 
@@ -742,8 +759,9 @@ export function WorkshopCreatePage() {
                 >
                   <option value="">Select a room...</option>
                   {rooms.map((room: any) => (
-                    <option key={room._id} value={room._id}>
-                      {room.roomNumber} - {room.roomName} (Capacity: {room.capacity}, Mode: {room.seatManagementMode})
+                    <option key={room._id} value={room._id} disabled={room.isAvailable === false}>
+                      {room.roomNumber} - {room.roomName} (Capacity: {room.totalCapacity ?? room.capacity})
+                      {room.isAvailable === false ? ` — BOOKED${room.conflictWith ? ` by ${room.conflictWith}` : ''}` : ''}
                     </option>
                   ))}
                 </select>

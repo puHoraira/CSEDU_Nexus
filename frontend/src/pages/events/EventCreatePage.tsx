@@ -92,10 +92,20 @@ export function EventCreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState("");
 
-  // Fetch available rooms
+  // Fetch rooms with time-aware availability for the chosen event time.
+  // Events use a single start (eventDate); the backend reserves a 3h block,
+  // so we probe availability with the same window here.
   const { data: roomsData } = useQuery({
-    queryKey: ['rooms'],
-    queryFn: () => apiRequest('/rooms', { method: 'GET', token }),
+    queryKey: ['rooms-available-event', form.eventDate],
+    queryFn: () => {
+      if (form.eventDate) {
+        const start = new Date(form.eventDate);
+        const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
+        const qs = `?startDate=${encodeURIComponent(start.toISOString())}&endDate=${encodeURIComponent(end.toISOString())}`;
+        return apiRequest<any[]>(`/rooms/available${qs}`, { method: 'GET', token });
+      }
+      return apiRequest<any[]>('/rooms/available', { method: 'GET', token });
+    },
   });
 
   function formatValidationMessage(err: unknown) {
@@ -381,6 +391,16 @@ export function EventCreatePage() {
 
     if (form.roomAssignment?.rooms.some(r => r.roomId === selectedRoomId)) {
       setError("Room already added.");
+      return;
+    }
+
+    if (!form.eventDate) {
+      setError("Set the event date/time before reserving a room.");
+      return;
+    }
+    const picked = (rooms as any[]).find((r: any) => r._id === selectedRoomId);
+    if (picked && picked.isAvailable === false) {
+      setError(`That room is already booked${picked.conflictWith ? ` by "${picked.conflictWith}"` : ''} at this time. Change the event time or pick another room.`);
       return;
     }
 
@@ -788,8 +808,9 @@ export function EventCreatePage() {
                   >
                     <option value="">Select a room...</option>
                     {rooms.map((room: any) => (
-                      <option key={room._id} value={room._id}>
-                        {room.roomNumber} - {room.roomName} (Capacity: {room.capacity}, Mode: {room.seatManagementMode})
+                      <option key={room._id} value={room._id} disabled={room.isAvailable === false}>
+                        {room.roomNumber} - {room.roomName} (Capacity: {room.totalCapacity ?? room.capacity})
+                        {room.isAvailable === false ? ` — BOOKED${room.conflictWith ? ` by ${room.conflictWith}` : ''}` : ''}
                       </option>
                     ))}
                   </select>

@@ -9,8 +9,10 @@ const router = express.Router();
 router.get('/rooms', authenticate, RoomController.getAllRooms);
 router.get('/rooms/statistics', authenticate, authorize(['Moderator', 'Chief Patron']), RoomController.getRoomStatistics);
 router.get('/rooms/available', authenticate, RoomController.getAvailableRooms);
+router.post('/rooms/check-availability', authenticate, RoomController.checkAvailability);
 router.get('/rooms/:id', authenticate, RoomController.getRoomById);
 router.get('/rooms/:id/seat-map', authenticate, RoomController.getSeatMap);
+router.get('/rooms/:id/schedule', authenticate, RoomController.getRoomSchedule);
 
 // Admin-only routes
 router.post('/rooms', authenticate, authorize(['Moderator', 'Chief Patron']), RoomController.createRoom);

@@ -97,6 +97,22 @@ class EventService {
       createdBy: userId,
     });
 
+    // Reserve rooms for the event's time window (reject on conflict).
+    if (event.roomAssignment?.enabled && event.roomAssignment?.rooms?.length > 0) {
+      const { RoomBookingService } = require('./RoomBookingService');
+      const { start, end } = this.getEventWindow(event);
+      const roomIds = event.roomAssignment.rooms.map((r) => r.roomId);
+      try {
+        await RoomBookingService.syncOwnerBookings({
+          ownerType: 'Event', ownerId: event._id, roomIds,
+          startTime: start, endTime: end, title: event.title, bookedBy: userId,
+        });
+      } catch (err) {
+        await Event.findByIdAndDelete(event._id);
+        throw err;
+      }
+    }
+
     // Notify users based on target audience (if specified)
     if (event.targetAudience) {
       const hasTargeting = 
@@ -124,6 +140,19 @@ class EventService {
     return event;
   }
 
+  /**
+   * Resolve an event's room-booking window. Events have a start (eventDate)
+   * and optional endDate; default to a 3-hour block when no end is given.
+   */
+  static getEventWindow(event) {
+    const start = new Date(event.eventDate);
+    let end = event.endDate ? new Date(event.endDate) : null;
+    if (!end || end <= start) {
+      end = new Date(start.getTime() + 3 * 60 * 60 * 1000); // default 3h block
+    }
+    return { start, end };
+  }
+
   static async updateEvent(eventId, payload, actorId, requestId) {
     const event = await Event.findById(eventId);
     if (!event) {
@@ -135,19 +164,42 @@ class EventService {
       (key) => payload[key] !== undefined && String(payload[key]) !== String(event[key])
     );
 
+    // Capture pre-update booking state.
+    const prevWin = this.getEventWindow(event);
+    const prevRoomIds = (event.roomAssignment?.rooms || []).map((r) => r.roomId?.toString()).sort().join(",");
+
     if (payload.title !== undefined) event.title = payload.title;
     if (payload.description !== undefined) event.description = payload.description;
     if (payload.eventDate !== undefined) event.eventDate = payload.eventDate;
+    if (payload.endDate !== undefined) event.endDate = payload.endDate;
     if (payload.venue !== undefined) event.venue = payload.venue;
     if (payload.budget !== undefined) event.budget = payload.budget;
     if (payload.status !== undefined) event.status = payload.status;
     if (payload.visibility !== undefined) event.visibility = payload.visibility;
+    if (payload.roomAssignment !== undefined) event.roomAssignment = payload.roomAssignment;
     if (payload.targetAudience !== undefined) event.targetAudience = payload.targetAudience;
     if (payload.volunteerEligibility !== undefined) {
       event.volunteerEligibility = this.normalizeVolunteerEligibility(payload.volunteerEligibility);
     }
     if (payload.volunteerProgram !== undefined) {
       event.volunteerProgram = this.normalizeVolunteerProgram(payload.volunteerProgram);
+    }
+
+    // Re-reserve rooms if the room set or time window changed (reject on conflict).
+    const nextWin = this.getEventWindow(event);
+    const nextRoomIds = (event.roomAssignment?.rooms || []).map((r) => r.roomId?.toString()).sort().join(",");
+    const bookingChanged =
+      prevWin.start.getTime() !== nextWin.start.getTime() ||
+      prevWin.end.getTime() !== nextWin.end.getTime() ||
+      prevRoomIds !== nextRoomIds;
+
+    if (bookingChanged) {
+      const { RoomBookingService } = require('./RoomBookingService');
+      const roomIds = event.roomAssignment?.enabled ? (event.roomAssignment.rooms || []).map((r) => r.roomId) : [];
+      await RoomBookingService.syncOwnerBookings({
+        ownerType: 'Event', ownerId: event._id, roomIds,
+        startTime: nextWin.start, endTime: nextWin.end, title: event.title, bookedBy: actorId,
+      });
     }
 
     await event.save();

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Users, Clock, Search, QrCode, Download, FileText, Link2, Video, Plus, Trash2, BookOpen, CalendarClock, UserCheck, ListChecks, UserPlus } from 'lucide-react';
+import { CheckCircle, XCircle, Users, Clock, Search, QrCode, Download, FileText, Link2, Video, Plus, Trash2, BookOpen, CalendarClock, UserCheck, ListChecks, UserPlus, ClipboardList, Trophy } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -12,7 +12,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { Alert } from '../../components/ui/Alert';
 import { MaterialsManager } from '../../components/workshops/MaterialsManager';
-import { SessionsEditor, AttendanceGrid, ContentEditor } from '../../components/workshops/WorkshopManagerTools';
+import { SessionsEditor, AttendanceGrid, ContentEditor, SubmissionsReview, Leaderboard } from '../../components/workshops/WorkshopManagerTools';
 import { formatDateTime } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -40,7 +40,7 @@ export function WorkshopManagePage() {
   const qc = useQueryClient();
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatus] = useState('all');
-  const [activeTab, setActiveTab] = useState<'registrations' | 'agenda' | 'attendance' | 'tasks' | 'materials'>('registrations');
+  const [activeTab, setActiveTab] = useState<'registrations' | 'agenda' | 'attendance' | 'tasks' | 'submissions' | 'leaderboard' | 'materials'>('registrations');
 
   const { data: registrations = [], isLoading } = useQuery({
     queryKey: ['workshop-registrations', id, token],
@@ -228,6 +228,8 @@ export function WorkshopManagePage() {
           { key: 'agenda',        label: 'Agenda',        icon: CalendarClock },
           { key: 'attendance',    label: 'Attendance',    icon: UserCheck },
           { key: 'tasks',         label: 'Tasks',         icon: ListChecks },
+          { key: 'submissions',   label: 'Submissions',   icon: ClipboardList },
+          { key: 'leaderboard',   label: 'Leaderboard',   icon: Trophy },
           { key: 'materials',     label: 'Materials',     icon: BookOpen },
         ].map(tab => {
           const Icon = tab.icon;
@@ -407,6 +409,12 @@ export function WorkshopManagePage() {
 
       {/* ── TASKS TAB (prework + assignments) ── */}
       {activeTab === 'tasks' && id && <ContentEditor workshopId={id} token={token} />}
+
+      {/* ── SUBMISSIONS TAB ── */}
+      {activeTab === 'submissions' && id && <SubmissionsReview workshopId={id} token={token} />}
+
+      {/* ── LEADERBOARD TAB ── */}
+      {activeTab === 'leaderboard' && id && <Leaderboard workshopId={id} token={token} />}
 
       {/* ── MATERIALS TAB ── */}
       {activeTab === 'materials' && (

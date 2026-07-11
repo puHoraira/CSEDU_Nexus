@@ -18,7 +18,24 @@ class WorkshopService {
 
   static async createWorkshop(data, userId) {
     const workshop = await Workshop.create({ ...data, createdBy: userId });
-    
+
+    // Reserve rooms for the workshop's time window (reject on conflict).
+    if (workshop.roomAssignment?.enabled && workshop.roomAssignment?.rooms?.length > 0) {
+      const { RoomBookingService } = require('./RoomBookingService');
+      const roomIds = workshop.roomAssignment.rooms.map((r) => r.roomId);
+      try {
+        await RoomBookingService.syncOwnerBookings({
+          ownerType: 'Workshop', ownerId: workshop._id, roomIds,
+          startTime: workshop.startDate, endTime: workshop.endDate,
+          title: workshop.title, bookedBy: userId,
+        });
+      } catch (err) {
+        // Roll back the just-created workshop so we don't leave an orphan.
+        await Workshop.findByIdAndDelete(workshop._id);
+        throw err;
+      }
+    }
+
     // Notify users based on target audience (if specified)
     if (workshop.targetAudience) {
       const hasTargeting = 
@@ -165,6 +182,11 @@ class WorkshopService {
     const w = await Workshop.findById(id);
     if (!w) throw new ApiError(404, 'Workshop not found');
 
+    // Capture pre-update room/schedule state to detect booking-relevant changes.
+    const prevStart = w.startDate ? new Date(w.startDate).getTime() : null;
+    const prevEnd = w.endDate ? new Date(w.endDate).getTime() : null;
+    const prevRoomIds = (w.roomAssignment?.rooms || []).map((r) => r.roomId?.toString()).sort().join(",");
+
     // Notify on any meaningful change to schedule/venue/status/link/deadline.
     const watched = ['startDate', 'endDate', 'venue', 'status', 'onlineLink', 'registrationDeadline', 'isOnline'];
     const changesRequireNotification = watched.some(
@@ -172,6 +194,24 @@ class WorkshopService {
     );
 
     Object.assign(w, data);
+
+    // Re-reserve rooms if the room set or time window changed (reject on conflict).
+    const nextStart = w.startDate ? new Date(w.startDate).getTime() : null;
+    const nextEnd = w.endDate ? new Date(w.endDate).getTime() : null;
+    const nextRoomIds = (w.roomAssignment?.rooms || []).map((r) => r.roomId?.toString()).sort().join(",");
+    const bookingChanged = prevStart !== nextStart || prevEnd !== nextEnd || prevRoomIds !== nextRoomIds;
+
+    if (bookingChanged) {
+      const { RoomBookingService } = require('./RoomBookingService');
+      const roomIds = w.roomAssignment?.enabled ? (w.roomAssignment.rooms || []).map((r) => r.roomId) : [];
+      // This throws ApiError(409) on conflict BEFORE we persist the change.
+      await RoomBookingService.syncOwnerBookings({
+        ownerType: 'Workshop', ownerId: w._id, roomIds,
+        startTime: w.startDate, endTime: w.endDate,
+        title: w.title, bookedBy: userId,
+      });
+    }
+
     await w.save();
 
     // Notify followers, registered participants, AND the whole targeted
@@ -197,6 +237,9 @@ class WorkshopService {
   }
 
   static async deleteWorkshop(id) {
+    // Release any room reservations this workshop held.
+    const { RoomBookingService } = require('./RoomBookingService');
+    await RoomBookingService.releaseOwnerBookings('Workshop', id).catch(() => {});
     await Workshop.findByIdAndDelete(id);
   }
 
