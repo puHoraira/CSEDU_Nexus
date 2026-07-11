@@ -1,5 +1,15 @@
 const { z } = require("zod");
 
+// Accept both hosted image URLs (http/https) and base64 data URLs
+// (our upload endpoint returns data:*;base64,... stored in MongoDB).
+const imageStringSchema = z
+  .string()
+  .trim()
+  .refine(
+    (v) => /^https?:\/\//i.test(v) || /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(v),
+    { message: "Image must be a URL or a base64 image data URL" }
+  );
+
 const volunteerEligibilitySchema = z.object({
   allowedYears: z.array(z.coerce.number().int().min(1).max(5)).max(5).optional(),
   allowedBatches: z.array(z.coerce.number().int().min(1)).max(30).optional(),
@@ -65,7 +75,7 @@ const reviewVolunteerSchema = z.object({
 
 const createEventPostSchema = z.object({
   content: z.string().trim().min(3).max(2000),
-  images: z.array(z.string().url()).max(5).optional().default([]),
+  images: z.array(imageStringSchema).max(6).optional().default([]),
   isAnnouncement: z.boolean().optional().default(false),
 });
 

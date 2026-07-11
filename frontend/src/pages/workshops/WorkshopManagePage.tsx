@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Users, Clock, Search, QrCode, Download, FileText, Link2, Video, Plus, Trash2, BookOpen } from 'lucide-react';
+import { CheckCircle, XCircle, Users, Clock, Search, QrCode, Download, FileText, Link2, Video, Plus, Trash2, BookOpen, CalendarClock, UserCheck, ListChecks, UserPlus } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { Alert } from '../../components/ui/Alert';
 import { MaterialsManager } from '../../components/workshops/MaterialsManager';
+import { SessionsEditor, AttendanceGrid, ContentEditor } from '../../components/workshops/WorkshopManagerTools';
 import { formatDateTime } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -39,7 +40,7 @@ export function WorkshopManagePage() {
   const qc = useQueryClient();
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatus] = useState('all');
-  const [activeTab, setActiveTab] = useState<'registrations' | 'materials'>('registrations');
+  const [activeTab, setActiveTab] = useState<'registrations' | 'agenda' | 'attendance' | 'tasks' | 'materials'>('registrations');
 
   const { data: registrations = [], isLoading } = useQuery({
     queryKey: ['workshop-registrations', id, token],
@@ -88,6 +89,35 @@ export function WorkshopManagePage() {
     onSuccess: async () => { await qc.invalidateQueries({ queryKey: ['workshop', id] }); },
     onError: e => { throw new Error(normalizeApiError(e)); },
   });
+
+  const promoteMut = useMutation({
+    mutationFn: () => apiRequest<{ promoted: number }>(`/workshops/${id}/registrations/promote-waitlist`, { method: 'POST', token }),
+    onSuccess: async (d) => { await qc.invalidateQueries({ queryKey: ['workshop-registrations', id, token] }); toast.success(`${d.promoted} promoted from waitlist`); },
+    onError: e => toast.error(normalizeApiError(e)),
+  });
+
+  const bulkMut = useMutation({
+    mutationFn: (action: 'approve' | 'reject') =>
+      apiRequest(`/workshops/${id}/registrations/bulk`, {
+        method: 'POST', token,
+        body: JSON.stringify({ action, registrationIds: registrations.filter(r => r.status === 'Pending').map(r => r._id), reason: action === 'reject' ? 'Bulk rejected' : undefined }),
+      }),
+    onSuccess: async (d: any) => { await qc.invalidateQueries({ queryKey: ['workshop-registrations', id, token] }); toast.success(`${d.success} updated`); },
+    onError: e => toast.error(normalizeApiError(e)),
+  });
+
+  const exportServerCsv = async () => {
+    try {
+      const res = await fetch(`${(import.meta as any).env?.VITE_API_URL || '/api/v1'}/workshops/${id}/registrations/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'registrations.csv'; a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast.error('Export failed'); }
+  };
 
   const filtered = registrations.filter(r => {
     const matchSearch = !search || r.participantName.toLowerCase().includes(search.toLowerCase()) || r.participantEmail.toLowerCase().includes(search.toLowerCase());
@@ -195,6 +225,9 @@ export function WorkshopManagePage() {
       <div style={{ display: 'flex', gap: 4, padding: 4, background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', alignSelf: 'flex-start' }}>
         {[
           { key: 'registrations', label: 'Registrations', icon: Users },
+          { key: 'agenda',        label: 'Agenda',        icon: CalendarClock },
+          { key: 'attendance',    label: 'Attendance',    icon: UserCheck },
+          { key: 'tasks',         label: 'Tasks',         icon: ListChecks },
           { key: 'materials',     label: 'Materials',     icon: BookOpen },
         ].map(tab => {
           const Icon = tab.icon;
@@ -238,6 +271,20 @@ export function WorkshopManagePage() {
                   <option value="Waitlisted">Waitlisted</option>
                   <option value="Attended">Attended</option>
                 </select>
+              </div>
+              <div className="ui-flex ui-flex-gap-2" style={{ marginTop: 12, flexWrap: 'wrap' }}>
+                <Button size="sm" variant="primary" leftIcon={CheckCircle} isLoading={bulkMut.isPending}
+                  disabled={counts.pending === 0}
+                  onClick={() => { if (confirm(`Approve all ${counts.pending} pending?`)) bulkMut.mutate('approve'); }}>
+                  Approve All Pending ({counts.pending})
+                </Button>
+                <Button size="sm" variant="outline" leftIcon={UserPlus} isLoading={promoteMut.isPending}
+                  onClick={() => promoteMut.mutate()}>
+                  Promote Waitlist
+                </Button>
+                <Button size="sm" variant="secondary" leftIcon={Download} onClick={exportServerCsv}>
+                  Export CSV
+                </Button>
               </div>
             </div>
           </div>
@@ -351,6 +398,15 @@ export function WorkshopManagePage() {
         )}
         </>
       )}
+
+      {/* ── AGENDA TAB ── */}
+      {activeTab === 'agenda' && id && <SessionsEditor workshopId={id} token={token} />}
+
+      {/* ── ATTENDANCE TAB ── */}
+      {activeTab === 'attendance' && id && <AttendanceGrid workshopId={id} token={token} />}
+
+      {/* ── TASKS TAB (prework + assignments) ── */}
+      {activeTab === 'tasks' && id && <ContentEditor workshopId={id} token={token} />}
 
       {/* ── MATERIALS TAB ── */}
       {activeTab === 'materials' && (

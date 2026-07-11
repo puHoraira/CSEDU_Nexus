@@ -44,6 +44,29 @@ const workshopRegistrationSchema = new mongoose.Schema({
   checkedInAt: { type: Date },
   checkedInBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
+  // Per-session attendance (references Workshop.sessions._id)
+  sessionAttendance: [{
+    sessionId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    attended:  { type: Boolean, default: false },
+    markedAt:  { type: Date },
+    markedBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  }],
+
+  // Pre-work checklist completion (references Workshop.prework._id)
+  preworkCompleted: [{ type: mongoose.Schema.Types.ObjectId }],
+
+  // Completion tracking
+  completionPercentage: { type: Number, default: 0 },
+  isCompleted:          { type: Boolean, default: false },
+  completedAt:          { type: Date },
+
+  // Certificate
+  certificateId:     { type: mongoose.Schema.Types.ObjectId, ref: 'WorkshopCertificate' },
+  certificateIssued: { type: Boolean, default: false },
+
+  // Reminder guard
+  reminderSent: { type: Boolean, default: false },
+
   // Notes
   notes: { type: String },
 }, { timestamps: true });

@@ -275,20 +275,14 @@ class EventService {
       userRoles
     );
 
-    // Also apply legacy targetYears filtering
-    if (member) {
-      filteredEvents = filteredEvents.filter(ev => {
-        const targetYears = ev.targetYears || [];
-        
-        // No target years or includes All_Years - show to everyone
-        if (targetYears.length === 0 || targetYears.includes("All_Years")) {
-          return true;
-        }
-        
-        // Check if user's year level is in target years
-        return targetYears.includes(member.academicYearLevel);
-      });
-    }
+    // Also apply legacy targetYears filtering (hide from non-matching users).
+    filteredEvents = filteredEvents.filter((ev) => {
+      const targetYears = Array.isArray(ev.targetYears) ? ev.targetYears : [];
+      // No targeting or "All_Years" → visible to everyone.
+      if (targetYears.length === 0 || targetYears.includes("All_Years")) return true;
+      // Targeted by year: requires a member record whose year level matches.
+      return Boolean(member && targetYears.includes(member.academicYearLevel));
+    });
 
     // Add back events created by user that weren't in filtered list
     eventsObjects.forEach(event => {

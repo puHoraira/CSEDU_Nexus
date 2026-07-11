@@ -17,6 +17,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { Alert } from '../../components/ui/Alert';
 import { Countdown } from '../../components/ui/Countdown';
+import { CommunityFeed } from '../../components/feed/CommunityFeed';
+import { WorkshopAgenda, WorkshopPrework, WorkshopAssignments, WorkshopFeedback as WorkshopFeedbackSection, WorkshopCompletion } from '../../components/workshops/WorkshopEngagement';
 import { formatDateTime } from '../../lib/utils';
 import { usePosterGenerator } from '../../hooks/usePosterGenerator';
 import toast from 'react-hot-toast';
@@ -32,6 +34,11 @@ type Workshop = {
   materialsLocked?: boolean;
   materialsCount?: number;
   prerequisites: string[]; learningOutcomes: string[];
+  sessions?: Array<{ _id: string; title: string; description?: string; startTime?: string; endTime?: string; location?: string; isOnline?: boolean; speaker?: string; order?: number }>;
+  prework?: Array<{ _id: string; title: string; description?: string; url?: string; required?: boolean }>;
+  assignments?: Array<{ _id: string; title: string; description?: string; dueDate?: string; maxPoints?: number; allowFile?: boolean; allowLink?: boolean }>;
+  feedbackEnabled?: boolean;
+  ratingStats?: { averageRating: number; totalRatings: number };
   stats: { totalRegistrations: number; totalApproved: number; totalAttendees: number };
   createdBy: { _id: string; firstName: string; lastName: string; avatarUrl?: string };
 };
@@ -40,6 +47,7 @@ type Registration = {
   _id: string; status: string; paymentStatus: string; paymentRequired: boolean;
   paymentAmount: number; qrCodeData?: string; checkedIn: boolean; checkedInAt?: string;
   rejectionReason?: string;
+  completionPercentage?: number; isCompleted?: boolean; preworkCompleted?: string[]; certificateIssued?: boolean;
 };
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'error' | 'neutral' | 'primary'> = {
@@ -128,6 +136,7 @@ export function WorkshopDetailPage() {
     && !registrationDeadlinePassed;
   const isManager = user?.roles.some(r => ['President', 'Vice President', 'General Secretary', 'AGS (Organization)', 'Moderator'].includes(r));
   const canEdit = isManager || workshop.createdBy._id === user?.id;
+  const isParticipant = Boolean(myReg && ['Approved', 'Attended'].includes(myReg.status));
 
   // Pre-fill form with user data
   const handleOpenRegForm = () => {
@@ -181,6 +190,24 @@ export function WorkshopDetailPage() {
               <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{workshop.description}</p>
             </div>
           </div>
+
+          {/* Agenda / Sessions */}
+          <WorkshopAgenda sessions={workshop.sessions || []} />
+
+          {/* Pre-work checklist */}
+          <WorkshopPrework
+            workshopId={id!} token={token}
+            prework={workshop.prework || []}
+            myReg={myReg as any}
+            isParticipant={isParticipant}
+          />
+
+          {/* Assignments */}
+          <WorkshopAssignments
+            workshopId={id!} token={token}
+            assignments={workshop.assignments || []}
+            isParticipant={isParticipant}
+          />
 
           {/* Learning Outcomes */}
           {workshop.learningOutcomes.length > 0 && (
@@ -333,10 +360,35 @@ export function WorkshopDetailPage() {
               </div>
             </div>
           )}
+
+          {/* ── Community: announcements + discussion (with images) ── */}
+          <CommunityFeed
+            baseUrl={`/workshops/${id}`}
+            queryKey={['workshop-feed', id, token ?? undefined]}
+            token={token}
+            user={user}
+            canAnnounce={Boolean(isManager)}
+            canDiscuss={Boolean(isManager) || (myReg ? ['Approved', 'Attended', 'Pending', 'Waitlisted'].includes(myReg.status) : false)}
+            discussionHint="Registered participants can join the discussion"
+          />
+
+          {/* ── Feedback & ratings ── */}
+          {(workshop.feedbackEnabled !== false) && (
+            <WorkshopFeedbackSection
+              workshopId={id!} token={token}
+              isParticipant={isParticipant}
+              workshopStatus={workshop.status}
+            />
+          )}
         </div>
 
         {/* ── Sidebar ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* My progress + certificate */}
+          {isParticipant && (
+            <WorkshopCompletion workshopId={id!} token={token} myReg={myReg as any} />
+          )}
+
           {/* Workshop Details */}
           <div className="ui-card">
             <div className="ui-card__header"><h3 className="ui-card__title">Workshop Details</h3></div>
@@ -451,6 +503,14 @@ export function WorkshopDetailPage() {
                   <Button variant="primary" fullWidth leftIcon={CreditCard} isLoading={payMut.isPending}
                     onClick={() => payMut.mutate()}>
                     Pay ৳{myReg.paymentAmount}
+                  </Button>
+                )}
+
+                {/* Join Online — approved + online workshop */}
+                {workshop.isOnline && workshop.onlineLink && ['Approved', 'Attended'].includes(myReg.status) && (
+                  <Button variant="primary" fullWidth leftIcon={Video}
+                    onClick={() => window.open(workshop.onlineLink!, '_blank', 'noopener,noreferrer')}>
+                    Join Online Session
                   </Button>
                 )}
 

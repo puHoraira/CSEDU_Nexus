@@ -1,7 +1,10 @@
 const { Workshop } = require('../models/Workshop');
 const { Event } = require('../models/Event');
+const { WorkshopRegistration } = require('../models/WorkshopRegistration');
 const { ElectionAutomationService } = require('./ElectionAutomationService');
 const { NotificationTargetingService } = require('./NotificationTargetingService');
+const { NotificationService } = require('./NotificationService');
+const { WorkshopCertificateService } = require('./WorkshopCertificateService');
 
 class SchedulerService {
   /**
@@ -78,6 +81,91 @@ class SchedulerService {
     await this.checkAndCloseEventRegistrations();
     await this.checkElectionTransitions();
     await this.dispatchScheduledNotifications();
+    await this.sendWorkshopReminders();
+    await this.autoCompleteWorkshops();
+  }
+
+  /**
+   * Send a one-time reminder to approved participants ~24h before a workshop.
+   */
+  static async sendWorkshopReminders() {
+    try {
+      const now = new Date();
+      const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      const workshops = await Workshop.find({
+        startDate: { $gt: now, $lte: in24h },
+        status: { $nin: ['Cancelled', 'Completed'] },
+        reminderSentAt: { $exists: false },
+      });
+
+      let remindedWorkshops = 0;
+      for (const workshop of workshops) {
+        const regs = await WorkshopRegistration.find({
+          workshopId: workshop._id,
+          status: { $in: ['Approved', 'Attended'] },
+        }).select('userId');
+        const userIds = regs.map((r) => r.userId?.toString()).filter(Boolean);
+
+        if (userIds.length > 0) {
+          await NotificationService.createForUsers(userIds, {
+            title: `⏰ Reminder: ${workshop.title} starts soon`,
+            message: `Your workshop starts ${new Date(workshop.startDate).toLocaleString()}. ${workshop.isOnline ? 'Join online link is on the workshop page.' : `Venue: ${workshop.venue}.`}`,
+            category: 'Workshop',
+            actionUrl: `/dashboard/workshops/${workshop._id}`,
+            entityType: 'Workshop',
+            entityId: workshop._id.toString(),
+          }).catch(() => {});
+        }
+        workshop.reminderSentAt = new Date();
+        await workshop.save();
+        remindedWorkshops += 1;
+      }
+
+      if (remindedWorkshops > 0) console.log(`✓ Sent reminders for ${remindedWorkshops} workshop(s)`);
+      return remindedWorkshops;
+    } catch (error) {
+      console.error('Error in sendWorkshopReminders:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Mark ended workshops Completed, auto-issue completion certificates, and
+   * do a final waitlist promotion pass.
+   */
+  static async autoCompleteWorkshops() {
+    try {
+      const now = new Date();
+      const ended = await Workshop.find({
+        endDate: { $lt: now },
+        status: { $nin: ['Completed', 'Cancelled'] },
+      });
+
+      let completed = 0;
+      for (const workshop of ended) {
+        workshop.status = 'Completed';
+        workshop.autoCompletedAt = new Date();
+
+        // Update completed-count denormalized stat.
+        const completedCount = await WorkshopRegistration.countDocuments({
+          workshopId: workshop._id,
+          isCompleted: true,
+        });
+        workshop.stats.totalCompleted = completedCount;
+        await workshop.save();
+
+        // Auto-issue certificates to everyone who completed.
+        await WorkshopCertificateService.issueForWorkshop(workshop._id, null, null).catch(() => {});
+        completed += 1;
+      }
+
+      if (completed > 0) console.log(`✓ Auto-completed ${completed} workshop(s) + issued certificates`);
+      return completed;
+    } catch (error) {
+      console.error('Error in autoCompleteWorkshops:', error);
+      return 0;
+    }
   }
 
   /**

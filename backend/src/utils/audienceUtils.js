@@ -127,44 +127,9 @@ function annotateAudienceRelevance(items, member) {
  * @returns {Array} Filtered items
  */
 function filterByAudience(items, member = null, userId = null, userRoles = []) {
-  return items.filter(item => {
-    const ta = item.targetAudience || {};
-    const hasYears    = Array.isArray(ta.allowedYears)   && ta.allowedYears.length > 0;
-    const hasBatches  = Array.isArray(ta.allowedBatches) && ta.allowedBatches.length > 0;
-    const hasRoles    = Array.isArray(ta.allowedRoles)   && ta.allowedRoles.length > 0;
-    const hasInvites  = Array.isArray(ta.invitedUsers)   && ta.invitedUsers.length > 0;
-
-    // If no targeting at all, it's open to all
-    if (!hasYears && !hasBatches && !hasRoles && !hasInvites) return true;
-
-    // Check if user is explicitly invited (bypasses other filters)
-    if (hasInvites && userId) {
-      const isInvited = ta.invitedUsers.some(id => id.toString() === userId.toString());
-      if (isInvited) return true;
-    }
-
-    // Check role-based access
-    if (hasRoles) {
-      const hasRole = userRoles.some(role => ta.allowedRoles.includes(role));
-      if (!hasRole) return false; // User doesn't have required role
-    }
-
-    // Check year/batch (if member info available)
-    if (member) {
-      const yearMatch   = !hasYears   || ta.allowedYears.includes(member.currentYear);
-      const batchMatch  = !hasBatches || ta.allowedBatches.includes(member.batch);
-
-      // If we're filtering by year/batch, user must match
-      if (hasYears || hasBatches) {
-        return yearMatch && batchMatch;
-      }
-    }
-
-    // If we only have role filtering and user passed role check, show it
-    if (hasRoles && !hasYears && !hasBatches) return true;
-
-    return true; // Default: show it
-  });
+  return items.filter((item) =>
+    isUserInAudience(item.targetAudience, member, userId, userRoles)
+  );
 }
 
 /**
