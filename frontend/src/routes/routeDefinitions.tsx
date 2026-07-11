@@ -58,6 +58,7 @@ import  YearPromotionPage  from "../pages/admin/YearPromotionPage";
 import { RoomManagementPage } from "../pages/admin/RoomManagementPage";
 import { RoomDetailsPage } from "../pages/admin/RoomDetailsPage";
 import { EnhancedAdminDashboard } from "../pages/admin/EnhancedAdminDashboard";
+import { StudentDetailsPage } from "../pages/admin/StudentDetailsPage";
 
 type RouteDef = {
   path: string;
@@ -100,6 +101,11 @@ export const routeDefinitions: RouteDef[] = [
     path: "/dashboard/admin/roles",
     element: <AdminRoleManagementPage />,
     requiredRoles: ["System Admin"],
+  },
+  {
+    path: "/dashboard/admin/students/:id",
+    element: <StudentDetailsPage />,
+    requiredRoles: ["System Admin", "Moderator", "Chief Patron"],
   },
   {
     path: "/dashboard/admin/year-promotion",
