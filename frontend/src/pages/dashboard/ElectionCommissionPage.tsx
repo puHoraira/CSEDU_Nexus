@@ -10,6 +10,7 @@ import { Button } from "../../components/ui/Button";
 import { Alert } from "../../components/ui/Alert";
 import { Spinner } from "../../components/ui/Spinner";
 import { EmptyState } from "../../components/ui/EmptyState";
+import { Phase1BatchPanel } from "../../components/elections/Phase1BatchPanel";
 import toast from "react-hot-toast";
 
 type Election = {
@@ -284,6 +285,14 @@ export function ElectionCommissionPage() {
             </p>
           </div>
         </div>
+      ) : null}
+
+      {/* Phase 1 per-batch sub-elections control panel */}
+      {selectedElectionId && selectedElection &&
+        (selectedElection.status === "Draft" ||
+         selectedElection.status === "Setup" ||
+         selectedElection.status.includes("Phase1")) ? (
+        <Phase1BatchPanel electionId={selectedElectionId} token={token} />
       ) : null}
 
       <div style={{ display: "grid", gap: 18 }}>

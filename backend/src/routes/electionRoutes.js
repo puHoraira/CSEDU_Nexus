@@ -50,6 +50,13 @@ router.get("/:electionId/my-votes", authenticate, ElectionController.getMyVotes)
 router.get("/:electionId/results", authenticate, ElectionController.results);
 router.post("/:electionId/publish-results", authenticate, authorize("election.results.publish"), ElectionController.publishResults);
 
+// Phase 1 per-batch sub-elections
+router.get("/:electionId/batches", authenticate, authorize("election.read"), ElectionController.listBatches);
+router.post("/:electionId/batches/init", authenticate, authorize("election.commission.manage"), ElectionController.initBatches);
+router.patch("/:electionId/batches/:batchKey/status", authenticate, authorize("election.commission.manage"), ElectionController.setBatchStatus);
+router.patch("/:electionId/batches/:batchKey", authenticate, authorize("election.commission.manage"), ElectionController.updateBatch);
+router.post("/:electionId/batches/:batchKey/appoint", authenticate, authorize("election.results.publish"), ElectionController.appointBatch);
+
 // Generic get by ID LAST to avoid catching other routes
 router.get("/:id", authenticate, authorize("election.read"), ElectionController.get);
 

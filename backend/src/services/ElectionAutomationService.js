@@ -218,6 +218,21 @@ class ElectionAutomationService {
    */
   static async processElection(election) {
     if (!election || election.isArchived) return { changed: false };
+
+    // Per-batch Phase 1: auto-close any batch sub-elections whose window ended.
+    if (election.usePerBatchPhase1 && Array.isArray(election.phase1Batches) && election.phase1Batches.length > 0
+        && ["Phase1_Active", "Setup", "Draft"].includes(election.status)) {
+      try {
+        const { Phase1BatchService } = require("./Phase1BatchService");
+        const closed = await Phase1BatchService.processElectionBatches(election);
+        if (closed > 0) return { changed: true, action: "batch_closed", closed };
+      } catch (err) {
+        console.error("[ElectionAutomation] batch processing error:", err.message);
+      }
+      // If Phase 1 is per-batch, the shared-window logic below doesn't apply.
+      if (election.status === "Phase1_Active") return { changed: false };
+    }
+
     if (!this.isActive(election)) return { changed: false };
 
     const { end } = this.getPhaseWindow(election);

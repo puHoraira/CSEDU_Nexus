@@ -1,5 +1,36 @@
 const mongoose = require("mongoose");
 
+// A per-batch sub-election within Phase 1. Each batch independently elects
+// its representatives (Constitution ARTICLE XIV). Commissioners activate /
+// pause / edit each batch; automation tallies + closes on its own deadline.
+const phase1BatchSchema = new mongoose.Schema(
+  {
+    batch: { type: String, required: true }, // e.g. "2022"
+    label: { type: String, default: "" },    // display name, e.g. "Batch 2022"
+    votingStart: { type: Date, default: null },
+    votingEnd: { type: Date, default: null },
+    maxVotesPerVoter: { type: Number, default: 5 },
+    repSeats: { type: Number, default: 5 },   // how many reps this batch elects
+    status: {
+      type: String,
+      enum: ["Not_Started", "Active", "Paused", "Completed", "Cancelled"],
+      default: "Not_Started",
+    },
+    resultsPublishedAt: { type: Date, default: null },
+    winners: [{
+      candidateId: { type: mongoose.Schema.Types.ObjectId, ref: "ElectionCandidate" },
+      memberId: { type: mongoose.Schema.Types.ObjectId, ref: "Member" },
+      votes: { type: Number, default: 0 },
+      percentage: { type: Number, default: 0 },
+      rank: { type: Number },
+      appointed: { type: Boolean, default: false },
+    }],
+    totalVotes: { type: Number, default: 0 },
+    totalVoters: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+
 const electionSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -35,6 +66,15 @@ const electionSchema = new mongoose.Schema(
       maxVotesPerVoter: { type: Number, default: 5 },
       eligibleBatches: [{ type: String }], // e.g., ["2020", "2021", "2022", "2023"]
     },
+
+    // Per-batch sub-elections for Phase 1. Each batch is independently
+    // activatable/pausable and auto-closes on its own deadline. When ALL
+    // batch sub-elections complete, the election auto-advances to Phase1_Completed.
+    phase1Batches: { type: [phase1BatchSchema], default: [] },
+
+    // Whether Phase 1 runs as independent per-batch sub-elections (new flow)
+    // or a single shared window (legacy). Defaults to per-batch.
+    usePerBatchPhase1: { type: Boolean, default: true },
     
     // Phase 2: Office Bearers (Posts 1-11)
     phase2: {

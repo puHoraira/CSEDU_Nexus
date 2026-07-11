@@ -207,14 +207,41 @@ class ElectionService {
     return candidate;
   }
 
-  static async listCandidates(electionId) {
-    const election = await Election.findById(electionId).select("_id phase");
+  static async listCandidates(electionId, options = {}) {
+    const election = await Election.findById(electionId).select("_id phase currentPhase usePerBatchPhase1 phase1Batches");
     if (!election) throw new ApiError(404, "Election not found");
 
-    return ElectionCandidate.find({ electionId })
-      .populate({ path: "memberId", select: "studentId batch currentYear status userId", populate: { path: "userId", select: "firstName lastName email" } })
+    const candidates = await ElectionCandidate.find({ electionId })
+      .populate({ path: "memberId", select: "studentId batch currentYear status userId", populate: { path: "userId", select: "firstName lastName email avatarUrl" } })
       .populate("postId", "title code displayOrder")
       .sort({ createdAt: 1 });
+
+    // Voter-scoped ballot: in Phase 1, a voter may only see candidates from
+    // their own batch (Constitution ARTICLE XIV — batch representative voting).
+    // Commissioners/managers omit scopeToVoter to see everyone.
+    if (options.scopeToVoter && options.requestingUserId) {
+      const phase = election.currentPhase || election.phase || 1;
+      if (phase === 1) {
+        const voter = await Member.findOne({ userId: options.requestingUserId }).select("batch");
+        if (voter?.batch == null) return []; // can't resolve batch → leak nothing
+        const voterBatch = voter.batch.toString();
+
+        // If per-batch sub-elections exist, only expose candidates when the
+        // voter's own batch sub-election is currently Active.
+        if (election.usePerBatchPhase1 && Array.isArray(election.phase1Batches) && election.phase1Batches.length > 0) {
+          const sub = election.phase1Batches.find((b) => b.batch === voterBatch);
+          if (!sub || sub.status !== "Active") return [];
+        }
+
+        return candidates.filter((c) => {
+          const denorm = c.batch != null ? c.batch.toString() : null;
+          const memberBatch = c.memberId?.batch != null ? c.memberId.batch.toString() : null;
+          return denorm === voterBatch || memberBatch === voterBatch;
+        });
+      }
+    }
+
+    return candidates;
   }
 
   static async castVote(payload, actorId, requestId) {
@@ -290,9 +317,34 @@ class ElectionService {
         throw new ApiError(400, "Phase 1 vote is restricted to candidates from your own batch");
       }
 
-      const votesCast = await Vote.countDocuments({ electionId: payload.electionId, voterMemberId: voter._id });
-      if (votesCast >= 5) {
-        throw new ApiError(400, "Phase 1 allows a maximum of 5 votes per voter");
+      // Per-batch sub-election gating: the voter's batch sub-election must be Active.
+      if (election.usePerBatchPhase1 && Array.isArray(election.phase1Batches) && election.phase1Batches.length > 0) {
+        const voterBatch = voter.batch != null ? voter.batch.toString() : null;
+        const sub = election.phase1Batches.find((b) => b.batch === voterBatch);
+        if (!sub) {
+          throw new ApiError(400, "No active representative election for your batch");
+        }
+        if (sub.status !== "Active") {
+          throw new ApiError(400, `Voting for Batch ${voterBatch} is currently ${sub.status.replace("_", " ")}`);
+        }
+        // Per-batch voting window.
+        if (sub.votingStart && sub.votingEnd) {
+          const nowB = new Date();
+          if (nowB < new Date(sub.votingStart) || nowB > new Date(sub.votingEnd)) {
+            throw new ApiError(400, `Batch ${voterBatch} voting is outside its time window`);
+          }
+        }
+        // Per-batch vote cap.
+        const maxVotes = sub.maxVotesPerVoter || 5;
+        const votesCast = await Vote.countDocuments({ electionId: payload.electionId, voterMemberId: voter._id });
+        if (votesCast >= maxVotes) {
+          throw new ApiError(400, `You may cast at most ${maxVotes} votes in Phase 1`);
+        }
+      } else {
+        const votesCast = await Vote.countDocuments({ electionId: payload.electionId, voterMemberId: voter._id });
+        if (votesCast >= 5) {
+          throw new ApiError(400, "Phase 1 allows a maximum of 5 votes per voter");
+        }
       }
     }
 

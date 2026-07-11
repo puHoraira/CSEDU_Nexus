@@ -63,8 +63,8 @@ export function ElectionVotePage() {
   });
 
   const { data: candidates = [], isLoading } = useQuery({
-    queryKey: ["election-candidates", id, token],
-    queryFn: () => apiRequest<CandidateRow[]>(`/elections/${id}/candidates`, { token }),
+    queryKey: ["election-candidates", "ballot", id, token],
+    queryFn: () => apiRequest<CandidateRow[]>(`/elections/${id}/candidates?scope=ballot`, { token }),
     enabled: Boolean(hasValidId && token),
     retry: false,
   });

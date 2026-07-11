@@ -1,6 +1,7 @@
 const { ApiResponse } = require("../core/ApiResponse");
 const { asyncHandler } = require("../core/asyncHandler");
 const { ElectionService } = require("../services/ElectionService");
+const { Phase1BatchService } = require("../services/Phase1BatchService");
 
 class ElectionController {
   static create = asyncHandler(async (req, res) => {
@@ -30,7 +31,10 @@ class ElectionController {
   });
 
   static listCandidates = asyncHandler(async (req, res) => {
-    const rows = await ElectionService.listCandidates(req.params.electionId);
+    const rows = await ElectionService.listCandidates(req.params.electionId, {
+      scopeToVoter: req.query.scope === "ballot",
+      requestingUserId: req.auth?.userId || null,
+    });
     return ApiResponse.ok(res, rows, "Election candidates");
   });
 
@@ -88,6 +92,32 @@ class ElectionController {
   static getMyVotes = asyncHandler(async (req, res) => {
     const votes = await ElectionService.getMyVotes(req.params.electionId, req.auth.userId);
     return ApiResponse.ok(res, votes, "Your votes");
+  });
+
+  // ── Phase 1 per-batch sub-elections ──────────────────────────────────────
+  static listBatches = asyncHandler(async (req, res) => {
+    const data = await Phase1BatchService.listBatches(req.params.electionId);
+    return ApiResponse.ok(res, data, "Phase 1 batch sub-elections");
+  });
+
+  static initBatches = asyncHandler(async (req, res) => {
+    const data = await Phase1BatchService.initBatches(req.params.electionId, req.body || {}, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, data, "Batches initialized");
+  });
+
+  static setBatchStatus = asyncHandler(async (req, res) => {
+    const data = await Phase1BatchService.setBatchStatus(req.params.electionId, req.params.batchKey, req.body.status, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, data, "Batch status updated");
+  });
+
+  static updateBatch = asyncHandler(async (req, res) => {
+    const data = await Phase1BatchService.updateBatch(req.params.electionId, req.params.batchKey, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, data, "Batch updated");
+  });
+
+  static appointBatch = asyncHandler(async (req, res) => {
+    const data = await Phase1BatchService.manualAppointBatch(req.params.electionId, req.params.batchKey, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, data, "Batch winners appointed");
   });
 }
 

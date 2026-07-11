@@ -126,8 +126,8 @@ export function ElectionVotingPage() {
   });
 
   const { data: candidates = [], isLoading: candidatesLoading } = useQuery({
-    queryKey: ['election-candidates', id, token],
-    queryFn: () => apiRequest<Candidate[]>(`/elections/${id}/candidates`, { token }),
+    queryKey: ['election-candidates', 'ballot', id, token],
+    queryFn: () => apiRequest<Candidate[]>(`/elections/${id}/candidates?scope=ballot`, { token }),
     enabled: Boolean(id && token) && !authLoading,
   });
 
@@ -429,10 +429,20 @@ export function ElectionVotingPage() {
       )}
 
       {/* ── Candidate Selection ─────────────────────────────────────────── */}
+      {isPhase1 && approvedCandidates.length > 0 && (
+        <div className="ui-card" style={{ background: 'var(--accent-bg, rgba(107,163,255,0.06))' }}>
+          <div className="ui-card__body" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Users size={16} style={{ color: 'var(--accent)' }} />
+            <span className="ui-text-sm" style={{ color: 'var(--muted)' }}>
+              You are viewing candidates from <strong>your own batch only</strong>. Phase 1 voting is batch-restricted per the constitution.
+            </span>
+          </div>
+        </div>
+      )}
       {Object.entries(groupedCandidates).map(([group, groupCandidates]) => (
         <div key={group} className="ui-card">
           <div className="ui-card__header">
-            <h3 className="ui-card__title">{isPhase1 ? `Batch ${group}` : group}</h3>
+            <h3 className="ui-card__title">{isPhase1 ? `Batch ${group} — Your Batch` : group}</h3>
             <span className="ui-badge ui-badge--info">{groupCandidates.length} candidates</span>
           </div>
           <div className="ui-card__body">
