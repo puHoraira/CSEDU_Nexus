@@ -167,9 +167,63 @@ function filterByAudience(items, member = null, userId = null, userRoles = []) {
   });
 }
 
+/**
+ * Does the item have ANY custom targeting (batch / year / role / invited users)?
+ * @param {object} targetAudience
+ * @returns {boolean}
+ */
+function hasTargeting(targetAudience) {
+  const ta = targetAudience || {};
+  return (
+    (Array.isArray(ta.allowedYears) && ta.allowedYears.length > 0) ||
+    (Array.isArray(ta.allowedBatches) && ta.allowedBatches.length > 0) ||
+    (Array.isArray(ta.allowedRoles) && ta.allowedRoles.length > 0) ||
+    (Array.isArray(ta.invitedUsers) && ta.invitedUsers.length > 0)
+  );
+}
+
+/**
+ * Single source of truth for "can this user access this targeted item?".
+ * Covers the whole custom system: invited users OR batch OR year OR role.
+ * An item with no targeting is open to everyone.
+ *
+ * @param {object} targetAudience - { allowedYears, allowedBatches, allowedRoles, invitedUsers }
+ * @param {object|null} member    - { batch, currentYear }
+ * @param {string|null} userId
+ * @param {Array<string>} userRoles
+ * @returns {boolean}
+ */
+function isUserInAudience(targetAudience, member = null, userId = null, userRoles = []) {
+  const ta = targetAudience || {};
+  if (!hasTargeting(ta)) return true; // open to all
+
+  const allowedYears = Array.isArray(ta.allowedYears) ? ta.allowedYears : [];
+  const allowedBatches = Array.isArray(ta.allowedBatches) ? ta.allowedBatches : [];
+  const allowedRoles = Array.isArray(ta.allowedRoles) ? ta.allowedRoles : [];
+  const invitedUsers = Array.isArray(ta.invitedUsers) ? ta.invitedUsers : [];
+
+  // Explicitly invited → always allowed.
+  if (invitedUsers.length > 0 && userId) {
+    if (invitedUsers.some((id) => id.toString() === userId.toString())) return true;
+  }
+
+  // Role match.
+  if (allowedRoles.length > 0 && userRoles.some((r) => allowedRoles.includes(r))) return true;
+
+  // Batch / year match (needs member context).
+  if (member) {
+    if (allowedYears.length > 0 && allowedYears.includes(member.currentYear)) return true;
+    if (allowedBatches.length > 0 && allowedBatches.includes(member.batch)) return true;
+  }
+
+  return false;
+}
+
 module.exports = { 
   checkAudienceEligibility, 
   buildAudienceFilter, 
   annotateAudienceRelevance,
-  filterByAudience 
+  filterByAudience,
+  hasTargeting,
+  isUserInAudience,
 };

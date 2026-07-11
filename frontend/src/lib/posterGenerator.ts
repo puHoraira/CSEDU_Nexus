@@ -1,56 +1,135 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
+export type PosterType = 'election' | 'event' | 'workshop';
+export type PosterTheme = 'blue' | 'gold' | 'green' | 'purple' | 'crimson' | 'midnight';
+
 export interface PosterData {
-  type: 'election' | 'event' | 'workshop';
+  type: PosterType;
   title: string;
   subtitle?: string;
   date: string;
+  /** Optional explicit end date (workshops span multiple days). */
+  endDate?: string;
   time?: string;
   location?: string;
+  /** Online / In-person / Hybrid */
+  mode?: string;
   description?: string;
+  /** Registration deadline (ISO or human string). */
+  registrationDeadline?: string;
+  /** Fee label, e.g. "Free" or "৳500". */
+  fee?: string;
+  /** Capacity / seats label, e.g. "120 seats". */
+  capacity?: string;
+  /** Difficulty / audience level, e.g. "Beginner". */
+  level?: string;
+  /** Category / track, e.g. "AI & ML". */
+  category?: string;
+  /** Organizer / host line. */
+  organizer?: string;
+  /** Call-to-action line, e.g. "Register now at ...". */
+  cta?: string;
+  /** Free-form highlight chips. */
   additionalInfo?: string[];
-  theme?: 'blue' | 'gold' | 'green' | 'purple';
+  theme?: PosterTheme;
+}
+
+type ThemePalette = {
+  primary: string;
+  secondary: string;
+  accent: string;
+  gradient: string;
+  ink: string;
+};
+
+const THEMES: Record<PosterTheme, ThemePalette> = {
+  blue:     { primary: '#2563eb', secondary: '#1e40af', accent: '#60a5fa', ink: '#0b1220', gradient: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)' },
+  gold:     { primary: '#d97706', secondary: '#b45309', accent: '#fbbf24', ink: '#1c1206', gradient: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)' },
+  green:    { primary: '#059669', secondary: '#047857', accent: '#34d399', ink: '#04140e', gradient: 'linear-gradient(135deg, #10b981 0%, #047857 100%)' },
+  purple:   { primary: '#7c3aed', secondary: '#6d28d9', accent: '#a78bfa', ink: '#140a24', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' },
+  crimson:  { primary: '#e11d48', secondary: '#9f1239', accent: '#fb7185', ink: '#1a060c', gradient: 'linear-gradient(135deg, #f43f5e 0%, #9f1239 100%)' },
+  midnight: { primary: '#0ea5e9', secondary: '#0369a1', accent: '#38bdf8', ink: '#020617', gradient: 'linear-gradient(135deg, #0ea5e9 0%, #1e3a8a 100%)' },
+};
+
+export const POSTER_THEMES: Array<{ id: PosterTheme; label: string; swatch: string }> = [
+  { id: 'blue', label: 'Ocean', swatch: '#2563eb' },
+  { id: 'gold', label: 'Amber', swatch: '#d97706' },
+  { id: 'green', label: 'Emerald', swatch: '#059669' },
+  { id: 'purple', label: 'Violet', swatch: '#7c3aed' },
+  { id: 'crimson', label: 'Crimson', swatch: '#e11d48' },
+  { id: 'midnight', label: 'Midnight', swatch: '#0ea5e9' },
+];
+
+// ── Crisp inline SVG icons (render reliably in html2canvas, unlike emoji) ──
+const ICONS = {
+  calendar: `<path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/>`,
+  clock: `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`,
+  pin: `<path d="M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>`,
+  tag: `<path d="M20.6 13.4 12 22l-9-9V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/>`,
+  ticket: `<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2v0a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 2 2 0 0 0 0-4 2 2 0 0 1 0-4Z"/>`,
+  users: `<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/>`,
+  level: `<path d="M4 20V10M10 20V4M16 20v-7M22 20h-20"/>`,
+  globe: `<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z"/>`,
+  hourglass: `<path d="M6 3h12M6 21h12M8 3c0 5 8 6 8 9s-8 4-8 9M16 3c0 5-8 6-8 9"/>`,
+  spark: `<path d="M12 2v6M12 16v6M2 12h6M16 12h6M5 5l4 4M15 15l4 4M19 5l-4 4M9 15l-4 4"/>`,
+};
+
+function icon(name: keyof typeof ICONS, color = '#fff', size = 34): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+}
+
+const esc = (s?: string) =>
+  (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function parseDate(value?: string): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function fmtLong(value?: string, fallback = ''): string {
+  const d = parseDate(value);
+  return d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' }) : (value || fallback);
+}
+
+function fmtRange(start?: string, end?: string): string {
+  const s = parseDate(start);
+  const e = parseDate(end);
+  if (s && e && s.toDateString() !== e.toDateString()) {
+    const opt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    return `${s.toLocaleDateString('en-US', opt)} – ${e.toLocaleDateString('en-US', { ...opt, year: 'numeric' })}`;
+  }
+  return fmtLong(start);
 }
 
 export async function generatePoster(data: PosterData): Promise<string> {
-  // Create a temporary container
   const container = document.createElement('div');
   container.style.position = 'absolute';
   container.style.left = '-9999px';
+  container.style.top = '0';
   container.style.width = '1080px';
-  container.style.height = '1080px';
+  container.style.height = '1350px'; // 4:5 portrait — ideal for social feeds
   document.body.appendChild(container);
-
-  // Render the poster
   container.innerHTML = createPosterHTML(data);
 
   try {
-    // Generate canvas from HTML
     const canvas = await html2canvas(container, {
       scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: null,
+      width: 1080,
+      height: 1350,
     });
-
-    // Convert to data URL
-    const imageData = canvas.toDataURL('image/png');
-
-    // Cleanup
+    return canvas.toDataURL('image/png');
+  } finally {
     document.body.removeChild(container);
-
-    return imageData;
-  } catch (error) {
-    document.body.removeChild(container);
-    throw error;
   }
 }
 
 export async function downloadPoster(data: PosterData, filename?: string): Promise<void> {
   const imageData = await generatePoster(data);
-  
-  // Create download link
   const link = document.createElement('a');
   link.href = imageData;
   link.download = filename || `${data.type}-poster-${Date.now()}.png`;
@@ -59,926 +138,255 @@ export async function downloadPoster(data: PosterData, filename?: string): Promi
 
 export async function downloadPosterAsPDF(data: PosterData, filename?: string): Promise<void> {
   const imageData = await generatePoster(data);
-  
-  // Create PDF
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'px',
-    format: [1080, 1080],
-  });
-
-  pdf.addImage(imageData, 'PNG', 0, 0, 1080, 1080);
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [1080, 1350] });
+  pdf.addImage(imageData, 'PNG', 0, 0, 1080, 1350);
   pdf.save(filename || `${data.type}-poster-${Date.now()}.pdf`);
 }
 
 function createPosterHTML(data: PosterData): string {
-  const themes = {
-    blue: {
-      primary: '#2563eb',
-      secondary: '#1e40af',
-      accent: '#60a5fa',
-      gradient: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
-    },
-    gold: {
-      primary: '#d97706',
-      secondary: '#b45309',
-      accent: '#fbbf24',
-      gradient: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-    },
-    green: {
-      primary: '#059669',
-      secondary: '#047857',
-      accent: '#10b981',
-      gradient: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-    },
-    purple: {
-      primary: '#7c3aed',
-      secondary: '#6d28d9',
-      accent: '#a78bfa',
-      gradient: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
-    },
-  };
-
-  const theme = themes[data.theme || 'blue'];
-
-  if (data.type === 'election') {
-    return createElectionPoster(data, theme);
-  } else if (data.type === 'event') {
-    return createEventPoster(data, theme);
-  } else {
-    return createWorkshopPoster(data, theme);
-  }
+  const theme = THEMES[data.theme || 'blue'];
+  if (data.type === 'election') return createElectionPoster(data, theme);
+  if (data.type === 'workshop') return createWorkshopPoster(data, theme);
+  return createEventPoster(data, theme);
 }
 
-function createElectionPoster(data: PosterData, theme: any): string {
+// Shared building blocks ----------------------------------------------------
+
+function logoBar(invert: boolean): string {
+  const f = invert ? 'filter: brightness(0) invert(1);' : '';
   return `
-    <div style="
-      width: 1080px;
-      height: 1080px;
-      background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #2a2f4a 100%);
-      position: relative;
-      overflow: hidden;
-      font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-    ">
-      <!-- Animated Background Pattern -->
-      <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 0;">
-        <defs>
-          <pattern id="dots" width="30" height="30" patternUnits="userSpaceOnUse">
-            <circle cx="15" cy="15" r="2" fill="#ffffff"/>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#dots)"/>
-      </svg>
-
-      <!-- Decorative Glow Elements -->
-      <div style="
-        position: absolute;
-        top: -200px;
-        right: -200px;
-        width: 600px;
-        height: 600px;
-        background: radial-gradient(circle, ${theme.primary}40, transparent 70%);
-        filter: blur(100px);
-      "></div>
-      <div style="
-        position: absolute;
-        bottom: -250px;
-        left: -250px;
-        width: 700px;
-        height: 700px;
-        background: radial-gradient(circle, ${theme.accent}30, transparent 70%);
-        filter: blur(120px);
-      "></div>
-
-      <!-- Top Header with Logos -->
-      <div style="
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        padding: 45px 70px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
-        backdrop-filter: blur(10px);
-        z-index: 10;
-      ">
-        <div style="display: flex; align-items: center; gap: 30px;">
-          <img src="/images/du_logo.png" style="height: 90px; filter: brightness(0) invert(1) drop-shadow(0 6px 16px rgba(0,0,0,0.4));" />
-          <div style="width: 2px; height: 70px; background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.3), transparent);"></div>
-          <img src="/images/cseduStudentCLubLogo.png" style="height: 90px; drop-shadow(0 6px 16px rgba(0,0,0,0.4));" />
-          <div style="width: 2px; height: 70px; background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.3), transparent);"></div>
-          <img src="/images/csedu_logo.png" style="height: 90px; filter: brightness(0) invert(1) drop-shadow(0 6px 16px rgba(0,0,0,0.4));" />
-        </div>
-        <div style="
-          background: ${theme.gradient};
-          padding: 16px 36px;
-          border-radius: 60px;
-          font-size: 17px;
-          font-weight: 800;
-          color: #ffffff;
-          text-transform: uppercase;
-          letter-spacing: 2.5px;
-          box-shadow: 0 12px 32px rgba(0,0,0,0.4);
-          border: 2px solid rgba(255,255,255,0.1);
-        ">ELECTION ${new Date(data.date).getFullYear()}</div>
-      </div>
-
-      <!-- Main Hero Section -->
-      <div style="
-        position: absolute;
-        top: 250px;
-        left: 70px;
-        right: 70px;
-        z-index: 5;
-      ">
-        <!-- Title with Gradient -->
-        <div style="margin-bottom: 60px;">
-          <div style="
-            font-size: 110px;
-            font-weight: 900;
-            color: #ffffff;
-            margin: 0;
-            line-height: 0.95;
-            letter-spacing: -3px;
-            text-shadow: 0 6px 30px rgba(0, 0, 0, 0.7);
-            margin-bottom: 15px;
-          ">YOUR VOTE</div>
-          <div style="
-            font-size: 110px;
-            font-weight: 900;
-            background: ${theme.gradient};
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin: 0;
-            line-height: 0.95;
-            letter-spacing: -3px;
-            text-shadow: 0 0 40px ${theme.primary}60;
-            filter: drop-shadow(0 8px 32px ${theme.primary}40);
-          ">MATTERS</div>
-          <div style="
-            margin-top: 25px;
-            font-size: 26px;
-            color: rgba(255, 255, 255, 0.8);
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            line-height: 1.5;
-          ">Shape the future of CSEDU Students' Club</div>
-        </div>
-
-        <!-- Info Cards Grid -->
-        <div style="
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 28px;
-          margin-bottom: 35px;
-        ">
-          <!-- Date Card -->
-          <div style="
-            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
-            backdrop-filter: blur(30px);
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 28px;
-            padding: 38px;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-            position: relative;
-            overflow: hidden;
-          ">
-            <div style="position: absolute; top: 0; right: 0; width: 150px; height: 150px; background: ${theme.gradient}; opacity: 0.1; border-radius: 0 28px 0 50%;"></div>
-            <div style="display: flex; align-items: center; gap: 22px; position: relative; z-index: 1;">
-              <div style="
-                width: 70px;
-                height: 70px;
-                background: ${theme.gradient};
-                border-radius: 20px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 36px;
-                flex-shrink: 0;
-                box-shadow: 0 8px 24px ${theme.primary}50;
-              ">📅</div>
-              <div style="flex: 1;">
-                <div style="
-                  font-size: 15px;
-                  color: rgba(255, 255, 255, 0.6);
-                  font-weight: 700;
-                  text-transform: uppercase;
-                  letter-spacing: 1.5px;
-                  margin-bottom: 8px;
-                ">Election Date</div>
-                <div style="
-                  font-size: 34px;
-                  font-weight: 900;
-                  color: #ffffff;
-                  line-height: 1.1;
-                  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                ">${new Date(data.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Time Card -->
-          <div style="
-            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
-            backdrop-filter: blur(30px);
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 28px;
-            padding: 38px;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-            position: relative;
-            overflow: hidden;
-          ">
-            <div style="position: absolute; top: 0; right: 0; width: 150px; height: 150px; background: ${theme.gradient}; opacity: 0.1; border-radius: 0 28px 0 50%;"></div>
-            <div style="display: flex; align-items: center; gap: 22px; position: relative; z-index: 1;">
-              <div style="
-                width: 70px;
-                height: 70px;
-                background: ${theme.gradient};
-                border-radius: 20px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 36px;
-                flex-shrink: 0;
-                box-shadow: 0 8px 24px ${theme.primary}50;
-              ">⏰</div>
-              <div style="flex: 1;">
-                <div style="
-                  font-size: 15px;
-                  color: rgba(255, 255, 255, 0.6);
-                  font-weight: 700;
-                  text-transform: uppercase;
-                  letter-spacing: 1.5px;
-                  margin-bottom: 8px;
-                ">Voting Hours</div>
-                <div style="
-                  font-size: 34px;
-                  font-weight: 900;
-                  color: #ffffff;
-                  line-height: 1.1;
-                  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                ">${data.time || '9:00 AM - 5:00 PM'}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Call to Action Banner -->
-        <div style="
-          background: ${theme.gradient};
-          border-radius: 28px;
-          padding: 45px 50px;
-          text-align: center;
-          box-shadow: 0 20px 60px ${theme.primary}40, 0 0 0 2px rgba(255,255,255,0.1);
-          position: relative;
-          overflow: hidden;
-        ">
-          <div style="position: absolute; top: -100px; right: -100px; width: 300px; height: 300px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
-          <div style="position: absolute; bottom: -80px; left: -80px; width: 250px; height: 250px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
-          <div style="position: relative; z-index: 1;">
-            <div style="
-              font-size: 32px;
-              font-weight: 900;
-              color: #ffffff;
-              margin-bottom: 14px;
-              text-transform: uppercase;
-              letter-spacing: 1.5px;
-              text-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            ">Every Voice Counts</div>
-            <div style="
-              font-size: 20px;
-              color: rgba(255, 255, 255, 0.95);
-              line-height: 1.6;
-              font-weight: 500;
-            ">Exercise your democratic right. Be the change you want to see.</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Footer Section -->
-      <div style="
-        position: absolute;
-        bottom: 50px;
-        left: 70px;
-        right: 70px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-top: 35px;
-        border-top: 2px solid rgba(255, 255, 255, 0.12);
-      ">
-        <div style="
-          color: rgba(255, 255, 255, 0.75);
-          font-size: 17px;
-          font-weight: 700;
-          line-height: 1.6;
-          letter-spacing: 0.5px;
-        ">
-          <div style="margin-bottom: 4px;">COMPUTER SCIENCE & ENGINEERING</div>
-          <div>UNIVERSITY OF DHAKA</div>
-        </div>
-        <div style="
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        ">
-          <div style="
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            padding: 10px 24px;
-            border-radius: 50px;
-            border: 1px solid rgba(255,255,255,0.2);
-          ">
-            <div style="
-              color: rgba(255, 255, 255, 0.9);
-              font-size: 15px;
-              font-weight: 700;
-              letter-spacing: 1px;
-            ">#CSEDUSC${new Date(data.date).getFullYear()}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+    <div style="display:flex;justify-content:center;align-items:center;gap:46px;">
+      <img src="/images/du_logo.png" style="height:78px;${f}" />
+      <div style="width:2px;height:60px;background:${invert ? 'rgba(255,255,255,0.25)' : 'rgba(15,23,42,0.15)'};"></div>
+      <img src="/images/cseduStudentCLubLogo.png" style="height:78px;" />
+      <div style="width:2px;height:60px;background:${invert ? 'rgba(255,255,255,0.25)' : 'rgba(15,23,42,0.15)'};"></div>
+      <img src="/images/csedu_logo.png" style="height:78px;${f}" />
+    </div>`;
 }
 
-function createEventPoster(data: PosterData, theme: any): string {
-  const dateObj = new Date(data.date);
+/** A compact info tile with an icon, label, and value. */
+function infoTile(
+  ic: keyof typeof ICONS,
+  label: string,
+  value: string,
+  theme: ThemePalette,
+  opts: { dark?: boolean } = {}
+): string {
+  const dark = opts.dark;
   return `
     <div style="
-      width: 1080px;
-      height: 1080px;
-      background: #ffffff;
-      position: relative;
-      overflow: hidden;
-      font-family: 'Segoe UI', 'Inter', -apple-system, sans-serif;
+      display:flex;align-items:center;gap:18px;
+      background:${dark ? 'rgba(255,255,255,0.07)' : '#ffffff'};
+      border:2px solid ${dark ? 'rgba(255,255,255,0.14)' : theme.primary + '22'};
+      border-radius:22px;padding:24px 26px;
+      box-shadow:${dark ? 'inset 0 1px 0 rgba(255,255,255,0.08)' : '0 8px 26px rgba(15,23,42,0.08)'};
     ">
-      <!-- Decorative Background -->
-      <div style="
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 350px;
-        background: ${theme.gradient};
-        clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
-      "></div>
+      <div style="width:60px;height:60px;border-radius:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${theme.gradient};box-shadow:0 8px 20px ${theme.primary}44;">
+        ${icon(ic, '#ffffff', 30)}
+      </div>
+      <div style="min-width:0;">
+        <div style="font-size:14px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:${dark ? 'rgba(255,255,255,0.6)' : '#94a3b8'};margin-bottom:6px;">${esc(label)}</div>
+        <div style="font-size:24px;font-weight:800;line-height:1.15;color:${dark ? '#ffffff' : '#0f172a'};">${esc(value)}</div>
+      </div>
+    </div>`;
+}
 
-      <!-- Top Logos -->
-      <div style="
-        position: absolute;
-        top: 50px;
-        left: 60px;
-        right: 60px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 40px;
-        z-index: 10;
-      ">
-        <img src="/images/du_logo.png" style="height: 85px; filter: brightness(0) invert(1) drop-shadow(0 4px 12px rgba(0,0,0,0.2));" />
-        <img src="/images/cseduStudentCLubLogo.png" style="height: 85px; drop-shadow(0 4px 12px rgba(0,0,0,0.2));" />
-        <img src="/images/csedu_logo.png" style="height: 85px; filter: brightness(0) invert(1) drop-shadow(0 4px 12px rgba(0,0,0,0.2));" />
+function chip(text: string, theme: ThemePalette): string {
+  return `
+    <div style="display:inline-flex;align-items:center;gap:8px;background:#ffffff;border:2px solid ${theme.primary};border-radius:999px;padding:11px 22px;font-size:16px;font-weight:800;color:${theme.primary};box-shadow:0 4px 12px rgba(15,23,42,0.06);">
+      ${icon('spark', theme.primary, 16)} ${esc(text)}
+    </div>`;
+}
+
+function ribbon(text: string, theme: ThemePalette): string {
+  return `
+    <div style="display:inline-flex;align-items:center;gap:12px;background:${theme.gradient};padding:13px 34px;border-radius:999px;box-shadow:0 10px 26px ${theme.primary}44;">
+      ${icon('spark', '#ffffff', 22)}
+      <span style="font-size:18px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:4px;">${esc(text)}</span>
+    </div>`;
+}
+
+// Event poster --------------------------------------------------------------
+
+function createEventPoster(data: PosterData, theme: ThemePalette): string {
+  const tiles: string[] = [];
+  tiles.push(infoTile('calendar', 'Date', fmtRange(data.date, data.endDate), theme));
+  if (data.time) tiles.push(infoTile('clock', 'Time', data.time, theme));
+  if (data.location) tiles.push(infoTile('pin', data.mode || 'Venue', data.location, theme));
+  if (data.registrationDeadline) tiles.push(infoTile('hourglass', 'Register By', fmtLong(data.registrationDeadline), theme));
+  if (data.fee) tiles.push(infoTile('ticket', 'Entry', data.fee, theme));
+  if (data.capacity) tiles.push(infoTile('users', 'Capacity', data.capacity, theme));
+
+  const highlightChips = (data.additionalInfo || []).filter(Boolean);
+
+  return `
+    <div style="width:1080px;height:1350px;background:#ffffff;position:relative;overflow:hidden;font-family:'Inter','Segoe UI',-apple-system,sans-serif;">
+      <!-- Top hero band -->
+      <div style="position:absolute;top:0;left:0;right:0;height:560px;background:${theme.gradient};clip-path:polygon(0 0,100% 0,100% 82%,0 100%);"></div>
+      <div style="position:absolute;top:-160px;right:-160px;width:520px;height:520px;background:radial-gradient(circle,rgba(255,255,255,0.18),transparent 70%);"></div>
+      <div style="position:absolute;top:40px;left:40px;right:40px;height:480px;border:2px solid rgba(255,255,255,0.22);border-radius:34px;pointer-events:none;"></div>
+
+      <!-- Logos -->
+      <div style="position:absolute;top:64px;left:60px;right:60px;z-index:10;">
+        ${logoBar(true)}
       </div>
 
-      <!-- Main Title -->
-      <div style="
-        position: absolute;
-        top: 200px;
-        left: 60px;
-        right: 60px;
-        text-align: center;
-        z-index: 10;
-      ">
-        <div style="
-          display: inline-block;
-          background: rgba(255, 255, 255, 0.15);
-          backdrop-filter: blur(10px);
-          padding: 8px 24px;
-          border-radius: 50px;
-          margin-bottom: 25px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-        ">
-          <span style="
-            font-size: 18px;
-            font-weight: 700;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-          ">UPCOMING EVENT</span>
-        </div>
-
-        <h1 style="
-          font-size: 76px;
-          font-weight: 900;
-          color: #ffffff;
-          margin: 0 0 20px 0;
-          line-height: 1.1;
-          text-transform: uppercase;
-          letter-spacing: -1px;
-          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-          padding: 0 40px;
-        ">${data.title}</h1>
-        
-        ${data.subtitle ? `
-          <p style="
-            font-size: 26px;
-            color: rgba(255, 255, 255, 0.95);
-            margin: 0;
-            font-weight: 500;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-          ">${data.subtitle}</p>
-        ` : ''}
+      <!-- Ribbon + title -->
+      <div style="position:absolute;top:210px;left:70px;right:70px;text-align:center;z-index:10;">
+        <div style="margin-bottom:26px;">${ribbon(data.category ? `${esc(data.category)} Event` : 'Upcoming Event', theme)}</div>
+        <h1 style="font-size:78px;font-weight:900;color:#fff;margin:0 0 18px;line-height:1.02;letter-spacing:-1.5px;text-transform:uppercase;text-shadow:0 6px 26px rgba(0,0,0,0.28);">${esc(data.title)}</h1>
+        ${data.subtitle ? `<p style="font-size:27px;color:rgba(255,255,255,0.95);margin:0;font-weight:600;text-shadow:0 2px 10px rgba(0,0,0,0.2);">${esc(data.subtitle)}</p>` : ''}
       </div>
 
-      <!-- Info Cards -->
-      <div style="
-        position: absolute;
-        top: 520px;
-        left: 60px;
-        right: 60px;
-      ">
-        <div style="
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 30px;
-          margin-bottom: 40px;
-        ">
-          <!-- Date & Time Card -->
-          <div style="
-            background: #ffffff;
-            border-radius: 24px;
-            padding: 35px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            border: 2px solid ${theme.primary}20;
-          ">
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 20px;
-            ">
-              <div style="
-                width: 70px;
-                height: 70px;
-                background: ${theme.gradient};
-                border-radius: 18px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 36px;
-                flex-shrink: 0;
-              ">📅</div>
-              <div style="flex: 1;">
-                <div style="
-                  font-size: 14px;
-                  color: #64748b;
-                  font-weight: 600;
-                  text-transform: uppercase;
-                  letter-spacing: 1px;
-                  margin-bottom: 8px;
-                ">Date & Time</div>
-                <div style="
-                  font-size: 24px;
-                  font-weight: 800;
-                  color: #0f172a;
-                  line-height: 1.2;
-                  margin-bottom: 4px;
-                ">${dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
-                ${data.time ? `
-                  <div style="
-                    font-size: 18px;
-                    color: ${theme.primary};
-                    font-weight: 600;
-                  ">${data.time}</div>
-                ` : ''}
-              </div>
-            </div>
-          </div>
-
-          <!-- Location Card -->
-          ${data.location ? `
-            <div style="
-              background: #ffffff;
-              border-radius: 24px;
-              padding: 35px;
-              box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-              border: 2px solid ${theme.primary}20;
-            ">
-              <div style="
-                display: flex;
-                align-items: center;
-                gap: 20px;
-              ">
-                <div style="
-                  width: 70px;
-                  height: 70px;
-                  background: ${theme.gradient};
-                  border-radius: 18px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 36px;
-                  flex-shrink: 0;
-                ">📍</div>
-                <div style="flex: 1;">
-                  <div style="
-                    font-size: 14px;
-                    color: #64748b;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    margin-bottom: 8px;
-                  ">Venue</div>
-                  <div style="
-                    font-size: 22px;
-                    font-weight: 800;
-                    color: #0f172a;
-                    line-height: 1.3;
-                  ">${data.location}</div>
-                </div>
-              </div>
-            </div>
-          ` : ''}
+      <!-- Info tiles -->
+      <div style="position:absolute;top:640px;left:70px;right:70px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;">
+          ${tiles.join('')}
         </div>
 
         ${data.description ? `
-          <div style="
-            background: linear-gradient(135deg, ${theme.primary}08, ${theme.accent}08);
-            border-radius: 24px;
-            padding: 40px;
-            border: 2px solid ${theme.primary}20;
-            text-align: center;
-          ">
-            <p style="
-              font-size: 22px;
-              color: #334155;
-              line-height: 1.7;
-              margin: 0;
-              font-weight: 500;
-            ">${data.description}</p>
-          </div>
-        ` : ''}
+          <div style="margin-top:26px;background:linear-gradient(135deg,${theme.primary}0d,${theme.accent}0d);border:2px solid ${theme.primary}22;border-radius:24px;padding:34px 38px;">
+            <p style="font-size:22px;color:#334155;line-height:1.65;margin:0;font-weight:500;text-align:center;">${esc(data.description)}</p>
+          </div>` : ''}
+
+        ${highlightChips.length ? `
+          <div style="margin-top:26px;display:flex;justify-content:center;gap:14px;flex-wrap:wrap;">
+            ${highlightChips.map((c) => chip(c, theme)).join('')}
+          </div>` : ''}
+
+        ${data.cta ? `
+          <div style="margin-top:26px;text-align:center;">
+            <div style="display:inline-block;background:${theme.gradient};color:#fff;font-size:22px;font-weight:800;padding:18px 46px;border-radius:999px;box-shadow:0 14px 34px ${theme.primary}44;">${esc(data.cta)}</div>
+          </div>` : ''}
       </div>
 
       <!-- Footer -->
-      <div style="
-        position: absolute;
-        bottom: 50px;
-        left: 60px;
-        right: 60px;
-        text-align: center;
-        padding-top: 30px;
-        border-top: 2px solid #e2e8f0;
-      ">
-        <div style="
-          font-size: 18px;
-          color: #64748b;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-        ">COMPUTER SCIENCE & ENGINEERING • UNIVERSITY OF DHAKA</div>
-      </div>
-    </div>
-  `;
-}
-
-function createWorkshopPoster(data: PosterData, theme: any): string {
-  const dateObj = new Date(data.date);
-  const monthShort = dateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-  const day = dateObj.getDate();
-  const year = dateObj.getFullYear();
-  
-  return `
-    <div style="
-      width: 1080px;
-      height: 1080px;
-      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-      position: relative;
-      overflow: hidden;
-      font-family: 'Segoe UI', 'Inter', -apple-system, sans-serif;
-    ">
-      <!-- Decorative Background Pattern -->
-      <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 0;">
-        <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <circle cx="20" cy="20" r="1" fill="${theme.primary}"/>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)"/>
-      </svg>
-
-      <!-- Top Accent Bar -->
-      <div style="
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 12px;
-        background: ${theme.gradient};
-      "></div>
-
-      <!-- University Logos Section -->
-      <div style="
-        position: absolute;
-        top: 50px;
-        left: 60px;
-        right: 60px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 60px;
-        padding: 30px;
-        background: #ffffff;
-        border-radius: 24px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-        border: 2px solid ${theme.primary}15;
-      ">
-        <img src="/images/du_logo.png" style="height: 95px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));" />
-        <div style="width: 2px; height: 80px; background: linear-gradient(to bottom, transparent, ${theme.primary}30, transparent);"></div>
-        <img src="/images/cseduStudentCLubLogo.png" style="height: 95px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));" />
-        <div style="width: 2px; height: 80px; background: linear-gradient(to bottom, transparent, ${theme.primary}30, transparent);"></div>
-        <img src="/images/csedu_logo.png" style="height: 95px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));" />
-      </div>
-
-      <!-- Workshop Badge -->
-      <div style="
-        position: absolute;
-        top: 240px;
-        left: 60px;
-        right: 60px;
-        text-align: center;
-      ">
-        <div style="
-          display: inline-flex;
-          align-items: center;
-          gap: 12px;
-          background: ${theme.gradient};
-          padding: 14px 36px;
-          border-radius: 50px;
-          box-shadow: 0 8px 24px ${theme.primary}40;
-        ">
-          <span style="font-size: 28px;">🎓</span>
-          <span style="
-            font-size: 18px;
-            font-weight: 800;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-          ">WORKSHOP</span>
-        </div>
-      </div>
-
-      <!-- Main Title -->
-      <div style="
-        position: absolute;
-        top: 320px;
-        left: 60px;
-        right: 60px;
-        text-align: center;
-      ">
-        <h1 style="
-          font-size: 68px;
-          font-weight: 900;
-          color: #0f172a;
-          margin: 0 0 20px 0;
-          line-height: 1.1;
-          text-transform: uppercase;
-          letter-spacing: -1px;
-          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        ">${data.title}</h1>
-        
-        ${data.subtitle ? `
-          <p style="
-            font-size: 26px;
-            color: #64748b;
-            margin: 0;
-            font-weight: 600;
-            line-height: 1.4;
-          ">${data.subtitle}</p>
-        ` : ''}
-      </div>
-
-      <!-- Info Cards Section -->
-      <div style="
-        position: absolute;
-        top: 540px;
-        left: 60px;
-        right: 60px;
-      ">
-        <!-- Date & Time Row -->
-        <div style="
-          display: flex;
-          gap: 30px;
-          margin-bottom: 30px;
-        ">
-          <!-- Calendar Date Card -->
-          <div style="
-            flex: 1;
-            background: #ffffff;
-            border-radius: 24px;
-            padding: 0;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
-            border: 3px solid ${theme.primary};
-            overflow: hidden;
-          ">
-            <div style="
-              background: ${theme.gradient};
-              padding: 16px;
-              text-align: center;
-            ">
-              <div style="
-                font-size: 16px;
-                font-weight: 800;
-                color: #ffffff;
-                text-transform: uppercase;
-                letter-spacing: 2px;
-              ">${monthShort}</div>
-            </div>
-            <div style="
-              padding: 24px;
-              text-align: center;
-            ">
-              <div style="
-                font-size: 64px;
-                font-weight: 900;
-                color: ${theme.primary};
-                line-height: 1;
-                margin-bottom: 8px;
-              ">${day}</div>
-              <div style="
-                font-size: 20px;
-                font-weight: 700;
-                color: #64748b;
-              ">${year}</div>
-            </div>
-          </div>
-
-          <!-- Time & Venue Card -->
-          <div style="
-            flex: 2;
-            background: #ffffff;
-            border-radius: 24px;
-            padding: 32px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
-            border: 2px solid ${theme.primary}20;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-          ">
-            ${data.time ? `
-              <div style="display: flex; align-items: center; gap: 20px;">
-                <div style="
-                  width: 60px;
-                  height: 60px;
-                  background: ${theme.gradient};
-                  border-radius: 16px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 32px;
-                  flex-shrink: 0;
-                ">⏰</div>
-                <div>
-                  <div style="
-                    font-size: 14px;
-                    color: #94a3b8;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    letter-spacing: 1.5px;
-                    margin-bottom: 6px;
-                  ">TIME</div>
-                  <div style="
-                    font-size: 24px;
-                    font-weight: 800;
-                    color: #0f172a;
-                  ">${data.time}</div>
-                </div>
-              </div>
-            ` : ''}
-            
-            ${data.location ? `
-              <div style="display: flex; align-items: center; gap: 20px;">
-                <div style="
-                  width: 60px;
-                  height: 60px;
-                  background: ${theme.gradient};
-                  border-radius: 16px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 32px;
-                  flex-shrink: 0;
-                ">📍</div>
-                <div>
-                  <div style="
-                    font-size: 14px;
-                    color: #94a3b8;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    letter-spacing: 1.5px;
-                    margin-bottom: 6px;
-                  ">VENUE</div>
-                  <div style="
-                    font-size: 22px;
-                    font-weight: 800;
-                    color: #0f172a;
-                    line-height: 1.3;
-                  ">${data.location}</div>
-                </div>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-
-        <!-- Description Card -->
-        ${data.description ? `
-          <div style="
-            background: ${theme.gradient};
-            border-radius: 24px;
-            padding: 40px;
-            text-align: center;
-            box-shadow: 0 12px 40px ${theme.primary}30;
-            margin-bottom: 30px;
-            position: relative;
-            overflow: hidden;
-          ">
-            <div style="
-              position: absolute;
-              top: -50px;
-              right: -50px;
-              width: 200px;
-              height: 200px;
-              background: rgba(255, 255, 255, 0.1);
-              border-radius: 50%;
-            "></div>
-            <p style="
-              font-size: 22px;
-              color: #ffffff;
-              line-height: 1.7;
-              margin: 0;
-              font-weight: 600;
-              position: relative;
-              z-index: 1;
-            ">${data.description}</p>
-          </div>
-        ` : ''}
-
-        <!-- Tags -->
-        ${data.additionalInfo && data.additionalInfo.length > 0 ? `
-          <div style="
-            display: flex;
-            justify-content: center;
-            gap: 16px;
-            flex-wrap: wrap;
-          ">
-            ${data.additionalInfo.map(info => `
-              <div style="
-                background: #ffffff;
-                border: 2px solid ${theme.primary};
-                border-radius: 50px;
-                padding: 12px 24px;
-                font-size: 16px;
-                color: ${theme.primary};
-                font-weight: 700;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-              ">
-                <span style="font-size: 18px;">✓</span>
-                ${info}
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-      </div>
-
-      <!-- Footer -->
-      <div style="
-        position: absolute;
-        bottom: 40px;
-        left: 60px;
-        right: 60px;
-        text-align: center;
-        padding: 24px;
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-        border: 2px solid ${theme.primary}15;
-      ">
-        <div style="
-          font-size: 16px;
-          color: #64748b;
-          font-weight: 700;
-          letter-spacing: 1px;
-          line-height: 1.6;
-        ">
-          <div style="color: #0f172a; font-size: 18px; margin-bottom: 4px;">COMPUTER SCIENCE & ENGINEERING</div>
+      <div style="position:absolute;bottom:44px;left:70px;right:70px;display:flex;justify-content:space-between;align-items:center;padding-top:24px;border-top:2px solid #eef2f7;">
+        <div style="font-size:16px;color:#64748b;font-weight:800;letter-spacing:0.4px;line-height:1.5;">
+          <div style="color:#0f172a;">COMPUTER SCIENCE &amp; ENGINEERING</div>
           <div>UNIVERSITY OF DHAKA</div>
         </div>
+        <div style="font-size:15px;font-weight:800;color:${theme.primary};background:${theme.primary}12;padding:9px 20px;border-radius:999px;">
+          ${esc(data.organizer || "CSEDU Students' Club")}
+        </div>
       </div>
-    </div>
-  `;
+    </div>`;
+}
+
+// Workshop poster -----------------------------------------------------------
+
+function createWorkshopPoster(data: PosterData, theme: ThemePalette): string {
+  const start = parseDate(data.date);
+  const monthShort = start ? start.toLocaleDateString('en-US', { month: 'short' }).toUpperCase() : '';
+  const day = start ? start.getDate() : '';
+  const year = start ? start.getFullYear() : '';
+
+  const rows: string[] = [];
+  if (data.time) rows.push(infoTile('clock', 'Time', data.time, theme));
+  if (data.location) rows.push(infoTile(data.mode === 'Online' ? 'globe' : 'pin', data.mode || 'Venue', data.location, theme));
+  if (data.registrationDeadline) rows.push(infoTile('hourglass', 'Register By', fmtLong(data.registrationDeadline), theme));
+
+  const metaChips: string[] = [];
+  if (data.fee) metaChips.push(data.fee);
+  if (data.level) metaChips.push(data.level);
+  if (data.capacity) metaChips.push(data.capacity);
+  (data.additionalInfo || []).forEach((c) => c && metaChips.push(c));
+
+  return `
+    <div style="width:1080px;height:1350px;background:linear-gradient(160deg,#ffffff 0%,#f6f8fc 100%);position:relative;overflow:hidden;font-family:'Inter','Segoe UI',-apple-system,sans-serif;">
+      <div style="position:absolute;top:0;left:0;right:0;height:14px;background:${theme.gradient};"></div>
+      <div style="position:absolute;top:-140px;left:-140px;width:420px;height:420px;background:radial-gradient(circle,${theme.primary}18,transparent 70%);"></div>
+      <div style="position:absolute;bottom:-160px;right:-160px;width:460px;height:460px;background:radial-gradient(circle,${theme.accent}20,transparent 70%);"></div>
+
+      <!-- Logo panel -->
+      <div style="position:absolute;top:56px;left:60px;right:60px;padding:26px;background:#fff;border-radius:24px;box-shadow:0 10px 34px rgba(15,23,42,0.08);border:2px solid ${theme.primary}14;">
+        ${logoBar(false)}
+      </div>
+
+      <!-- Badge -->
+      <div style="position:absolute;top:236px;left:60px;right:60px;text-align:center;">
+        ${ribbon(data.category ? `${esc(data.category)} Workshop` : 'Hands-on Workshop', theme)}
+      </div>
+
+      <!-- Title -->
+      <div style="position:absolute;top:322px;left:60px;right:60px;text-align:center;">
+        <h1 style="font-size:70px;font-weight:900;color:#0f172a;margin:0 0 16px;line-height:1.04;letter-spacing:-1.5px;text-transform:uppercase;">${esc(data.title)}</h1>
+        ${data.subtitle ? `<p style="font-size:26px;color:#64748b;margin:0;font-weight:600;line-height:1.4;">${esc(data.subtitle)}</p>` : ''}
+      </div>
+
+      <!-- Date block + details -->
+      <div style="position:absolute;top:560px;left:60px;right:60px;">
+        <div style="display:flex;gap:26px;align-items:stretch;">
+          <!-- Calendar tile -->
+          <div style="flex:0 0 220px;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 12px 36px rgba(15,23,42,0.1);border:3px solid ${theme.primary};">
+            <div style="background:${theme.gradient};padding:16px;text-align:center;font-size:18px;font-weight:900;color:#fff;letter-spacing:3px;">${monthShort}</div>
+            <div style="padding:22px;text-align:center;">
+              <div style="font-size:82px;font-weight:900;color:${theme.primary};line-height:1;">${day}</div>
+              <div style="font-size:20px;font-weight:800;color:#64748b;margin-top:6px;">${year}</div>
+              ${data.endDate && parseDate(data.endDate)?.toDateString() !== start?.toDateString() ? `<div style="margin-top:8px;font-size:14px;font-weight:700;color:${theme.primary};background:${theme.primary}12;border-radius:999px;padding:4px 10px;display:inline-block;">Multi-day</div>` : ''}
+            </div>
+          </div>
+          <!-- Detail rows -->
+          <div style="flex:1;display:flex;flex-direction:column;gap:16px;">
+            ${rows.join('') || infoTile('calendar', 'Date', fmtRange(data.date, data.endDate), theme)}
+          </div>
+        </div>
+
+        ${data.description ? `
+          <div style="margin-top:24px;background:${theme.gradient};border-radius:24px;padding:34px 40px;position:relative;overflow:hidden;box-shadow:0 12px 36px ${theme.primary}30;">
+            <div style="position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:rgba(255,255,255,0.12);border-radius:50%;"></div>
+            <p style="font-size:22px;color:#fff;line-height:1.65;margin:0;font-weight:600;position:relative;z-index:1;text-align:center;">${esc(data.description)}</p>
+          </div>` : ''}
+
+        ${metaChips.length ? `
+          <div style="margin-top:24px;display:flex;justify-content:center;gap:14px;flex-wrap:wrap;">
+            ${metaChips.map((c) => chip(c, theme)).join('')}
+          </div>` : ''}
+      </div>
+
+      <!-- Footer -->
+      <div style="position:absolute;bottom:40px;left:60px;right:60px;text-align:center;padding:22px;background:rgba(255,255,255,0.85);border-radius:20px;border:2px solid ${theme.primary}14;">
+        <div style="color:#0f172a;font-size:18px;font-weight:800;margin-bottom:3px;">COMPUTER SCIENCE &amp; ENGINEERING</div>
+        <div style="font-size:15px;color:#64748b;font-weight:700;letter-spacing:0.5px;">UNIVERSITY OF DHAKA · ${esc(data.organizer || "CSEDU Students' Club")}</div>
+      </div>
+    </div>`;
+}
+
+// Election poster (kept, adapted to 4:5 canvas) -----------------------------
+
+function createElectionPoster(data: PosterData, theme: ThemePalette): string {
+  const year = parseDate(data.date)?.getFullYear() ?? new Date().getFullYear();
+  return `
+    <div style="width:1080px;height:1350px;background:linear-gradient(160deg,#0a0e27 0%,#151a35 55%,#20264a 100%);position:relative;overflow:hidden;font-family:'Inter','Segoe UI',-apple-system,sans-serif;">
+      <div style="position:absolute;top:-200px;right:-200px;width:620px;height:620px;background:radial-gradient(circle,${theme.primary}40,transparent 70%);filter:blur(90px);"></div>
+      <div style="position:absolute;bottom:-240px;left:-240px;width:700px;height:700px;background:radial-gradient(circle,${theme.accent}30,transparent 70%);filter:blur(110px);"></div>
+
+      <div style="position:absolute;top:60px;left:60px;right:60px;display:flex;justify-content:space-between;align-items:center;z-index:10;">
+        ${logoBar(true)}
+        <div style="background:${theme.gradient};padding:14px 30px;border-radius:999px;font-size:16px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:2px;box-shadow:0 10px 26px rgba(0,0,0,0.4);">Election ${year}</div>
+      </div>
+
+      <div style="position:absolute;top:300px;left:70px;right:70px;z-index:5;">
+        <div style="font-size:118px;font-weight:900;color:#fff;line-height:0.95;letter-spacing:-3px;text-shadow:0 6px 30px rgba(0,0,0,0.7);">YOUR VOTE</div>
+        <div style="font-size:118px;font-weight:900;background:${theme.gradient};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:0.95;letter-spacing:-3px;">MATTERS</div>
+        <div style="margin-top:24px;font-size:27px;color:rgba(255,255,255,0.82);font-weight:600;">${esc(data.subtitle || "Shape the future of CSEDU Students' Club")}</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px;">
+          ${infoTile('calendar', 'Election Date', fmtLong(data.date), theme, { dark: true })}
+          ${infoTile('clock', 'Voting Hours', data.time || '9:00 AM – 5:00 PM', theme, { dark: true })}
+        </div>
+
+        <div style="margin-top:34px;background:${theme.gradient};border-radius:26px;padding:42px 46px;text-align:center;box-shadow:0 20px 56px ${theme.primary}44;">
+          <div style="font-size:30px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">Every Voice Counts</div>
+          <div style="font-size:20px;color:rgba(255,255,255,0.95);line-height:1.6;font-weight:500;">${esc(data.description || 'Exercise your democratic right. Be the change you want to see.')}</div>
+        </div>
+      </div>
+
+      <div style="position:absolute;bottom:50px;left:70px;right:70px;display:flex;justify-content:space-between;align-items:center;padding-top:30px;border-top:2px solid rgba(255,255,255,0.12);">
+        <div style="color:rgba(255,255,255,0.75);font-size:17px;font-weight:700;line-height:1.5;">
+          <div>COMPUTER SCIENCE &amp; ENGINEERING</div><div>UNIVERSITY OF DHAKA</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);padding:10px 24px;border-radius:999px;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.9);font-size:15px;font-weight:700;letter-spacing:1px;">#CSEDUSC${year}</div>
+      </div>
+    </div>`;
 }

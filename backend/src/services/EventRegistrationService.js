@@ -7,6 +7,7 @@ const { AuditService } = require("./AuditService");
 const { NotificationService } = require("./NotificationService");
 const { PaymentFactory } = require("./payment/PaymentFactory");
 const { RoomService } = require("./RoomService");
+const { isUserInAudience, hasTargeting } = require("../utils/audienceUtils");
 
 class EventRegistrationService {
   /**
@@ -16,6 +17,28 @@ class EventRegistrationService {
     const event = await Event.findById(eventId);
     if (!event) {
       throw new ApiError(404, "Event not found");
+    }
+
+    // Enforce custom targeting (batch/year/role/invited) at registration time.
+    const legacyYears = Array.isArray(event.targetYears)
+      ? event.targetYears.filter((y) => y && y !== "All_Years")
+      : [];
+    if (hasTargeting(event.targetAudience) || legacyYears.length > 0) {
+      const { UserRole } = require("../models/UserRole");
+      const [audMember, userRoleRecords] = await Promise.all([
+        Member.findOne({ userId }).select("batch currentYear academicYearLevel"),
+        UserRole.find({ userId }).populate("roleId"),
+      ]);
+      const userRoles = userRoleRecords.map((ur) => ur.roleId?.roleName).filter(Boolean);
+      const isCreator =
+        event.createdBy && event.createdBy.toString() === userId.toString();
+      const managerRoles = ["System Admin", "Moderator", "Chief Patron", "President", "General Secretary"];
+      const isManager = isCreator || userRoles.some((r) => managerRoles.includes(r));
+      const audienceOk = isUserInAudience(event.targetAudience, audMember, userId, userRoles);
+      const legacyOk = legacyYears.length === 0 || (audMember && legacyYears.includes(audMember.academicYearLevel));
+      if (!isManager && !(audienceOk && legacyOk)) {
+        throw new ApiError(403, "This event is restricted to a specific audience and you are not eligible to register.");
+      }
     }
 
     // Check if registration is required

@@ -1,12 +1,12 @@
 const express = require('express');
 const { WorkshopController } = require('../controllers/WorkshopController');
-const { authenticate }       = require('../middleware/auth');
+const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Public
-router.get('/',    WorkshopController.list);
-router.get('/:id', WorkshopController.detail);
+// Public (audience gating applied inside the controller when user context exists)
+router.get('/',    optionalAuthenticate, WorkshopController.list);
+router.get('/:id', optionalAuthenticate, WorkshopController.detail);
 
 // Payment callbacks (no auth — called by SSLCommerz)
 router.post('/payment/success', WorkshopController.paymentSuccess);
@@ -40,6 +40,7 @@ router.get('/registrations/:regId',      authenticate, WorkshopController.getReg
 router.post('/check-in', authenticate, WorkshopController.checkIn);
 
 // Materials management
+router.get('/:id/materials',           authenticate, WorkshopController.getMaterials);
 router.post('/:id/materials',          authenticate, WorkshopController.addMaterial);
 router.put('/:id/materials/:index',    authenticate, WorkshopController.editMaterial);
 router.delete('/:id/materials/:index', authenticate, WorkshopController.removeMaterial);

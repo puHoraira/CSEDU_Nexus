@@ -16,6 +16,15 @@ const createEcTermSchema = z.object({
   status: z.enum(["Draft", "Active", "Closed"]).default("Draft"),
 });
 
+const updateEcTermSchema = z
+  .object({
+    name: z.string().min(3).optional(),
+    startsOn: z.string().datetime().optional(),
+    endsOn: z.string().datetime().optional(),
+    status: z.enum(["Draft", "Active", "Closed"]).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "Provide at least one field to update" });
+
 const appointEcMemberSchema = z.object({
   termId: z.string().min(10),
   postId: z.string().min(10),
@@ -70,6 +79,7 @@ const updateConstitutionArticleSchema = z
 module.exports = {
   createEcPostSchema,
   createEcTermSchema,
+  updateEcTermSchema,
   appointEcMemberSchema,
   createProposalSchema,
   reviewProposalSchema,

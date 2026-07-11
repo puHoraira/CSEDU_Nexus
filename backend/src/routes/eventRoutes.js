@@ -1,6 +1,6 @@
 const express = require("express");
 const { EventController } = require("../controllers/EventController");
-const { authenticate } = require("../middleware/auth");
+const { authenticate, optionalAuthenticate } = require("../middleware/auth");
 const { authorize } = require("../middleware/authorize");
 const { validate } = require("../middleware/validate");
 const { createEventSchema, updateEventSchema, volunteerSchema } = require("../validators/eventValidators");
@@ -13,8 +13,8 @@ const {
 
 const router = express.Router();
 
-router.get("/", EventController.list);
-router.get("/:id", EventController.detail);
+router.get("/", optionalAuthenticate, EventController.list);
+router.get("/:id", optionalAuthenticate, EventController.detail);
 router.get("/:id/feed", EventController.feed);
 router.post("/", authenticate, authorize("event.create"), validate(createEventSchema), EventController.create);
 router.patch("/:id", authenticate, authorize("event.create"), validate(updateEventSchema), EventController.update);

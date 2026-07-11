@@ -4,43 +4,57 @@ const { UserRole } = require("../models/UserRole");
 const { User } = require("../models/User");
 const { Member } = require("../models/Member");
 const { ApiError } = require("../core/ApiError");
+const { notificationHub } = require("./NotificationHub");
 
 class NotificationService {
   static normalizeUserIds(userIds = []) {
     return [...new Set((userIds || []).map((item) => item?.toString()).filter(Boolean))];
   }
 
-  static async createForUser(recipientUserId, payload = {}) {
-    if (!recipientUserId) return null;
-
-    return Notification.create({
+  /**
+   * Normalize a payload into the canonical notification shape so every
+   * notification — entity-driven or admin broadcast — has consistent fields.
+   */
+  static buildDoc(recipientUserId, payload = {}) {
+    return {
       recipientUserId,
       title: payload.title,
       message: payload.message,
       category: payload.category || "System",
+      priority: payload.priority || "Normal",
       actionUrl: payload.actionUrl || "",
       entityType: payload.entityType || "",
       entityId: payload.entityId || "",
       metadata: payload.metadata || {},
-    });
+      targetType: payload.targetType || "Individual",
+      sentBy: payload.sentBy || null,
+      senderRole: payload.senderRole || "",
+      batchId: payload.batchId || "",
+      isSent: true,
+      sentAt: new Date(),
+      expiresAt: payload.expiresAt || null,
+    };
+  }
+
+  static async createForUser(recipientUserId, payload = {}) {
+    if (!recipientUserId) return null;
+
+    const notification = await Notification.create(this.buildDoc(recipientUserId, payload));
+    // Observer push (real-time). No-op if the user has no live connection.
+    notificationHub.publishToUser(recipientUserId, notification);
+    return notification;
   }
 
   static async createForUsers(userIds, payload = {}) {
     const normalized = this.normalizeUserIds(userIds);
     if (normalized.length === 0) return [];
 
-    const docs = normalized.map((userId) => ({
-      recipientUserId: userId,
-      title: payload.title,
-      message: payload.message,
-      category: payload.category || "System",
-      actionUrl: payload.actionUrl || "",
-      entityType: payload.entityType || "",
-      entityId: payload.entityId || "",
-      metadata: payload.metadata || {},
-    }));
+    const docs = normalized.map((userId) => this.buildDoc(userId, payload));
+    const created = await Notification.insertMany(docs);
 
-    return Notification.insertMany(docs);
+    // Fan out real-time pushes to any connected observers.
+    created.forEach((doc) => notificationHub.publishToUser(doc.recipientUserId, doc));
+    return created;
   }
 
   static async getUserIdsByRoleNames(roleNames = []) {
@@ -282,6 +296,44 @@ class NotificationService {
     return { unreadCount };
   }
 
+  /**
+   * Open a Server-Sent Events stream for a user. The response stays open and
+   * receives `notification` and `unread-count` events pushed by NotificationHub
+   * (the observer core). Returns nothing; it owns the response lifecycle.
+   */
+  static async openStream(req, res, userId) {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no", // disable proxy buffering (nginx)
+    });
+    res.write("retry: 10000\n\n"); // client auto-reconnect hint
+
+    // Send the current unread count immediately so the bell is correct on connect.
+    const { unreadCount } = await this.getUnreadCount(userId);
+    res.write(`event: unread-count\ndata: ${JSON.stringify({ unreadCount })}\n\n`);
+
+    const unsubscribe = notificationHub.addConnection(userId, res);
+
+    // Heartbeat keeps the connection alive through idle proxies.
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(": ping\n\n");
+      } catch (_err) {
+        cleanup();
+      }
+    }, 25000);
+
+    const cleanup = () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    };
+
+    req.on("close", cleanup);
+    req.on("error", cleanup);
+  }
+
   static async markAsRead(notificationId, userId) {
     const item = await Notification.findOne({ _id: notificationId, recipientUserId: userId });
     if (!item) {
@@ -292,6 +344,9 @@ class NotificationService {
       item.isRead = true;
       item.readAt = new Date();
       await item.save();
+      // Push the new unread count to the user's live observers.
+      const { unreadCount } = await this.getUnreadCount(userId);
+      notificationHub.publishUnreadCount(userId, unreadCount);
     }
 
     return item;
@@ -302,6 +357,8 @@ class NotificationService {
       { recipientUserId: userId, isRead: false },
       { isRead: true, readAt: new Date() }
     );
+
+    notificationHub.publishUnreadCount(userId, 0);
 
     return {
       updated: result.modifiedCount || 0,

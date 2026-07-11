@@ -3,8 +3,17 @@ const { Member } = require("../models/Member");
 const { User } = require("../models/User");
 const { ApiError } = require("../core/ApiError");
 const { v4: uuidv4 } = require("uuid");
+const { notificationHub } = require("./NotificationHub");
 
 class NotificationTargetingService {
+  /** Push a batch of freshly-created notifications to live observers. */
+  static _pushLive(notifications = []) {
+    for (const n of notifications) {
+      if (n.isSent !== false) {
+        notificationHub.publishToUser(n.recipientUserId, n);
+      }
+    }
+  }
   /**
    * Send general notification to all active members
    */
@@ -42,6 +51,7 @@ class NotificationTargetingService {
           targetType: "General",
           targetYears: ["All_Years"],
           sentBy: senderId,
+          senderRole: payload.senderRole || "",
           batchId,
           totalRecipients: members.length,
           scheduledFor,
@@ -53,6 +63,7 @@ class NotificationTargetingService {
     }
 
     const createdNotifications = await Notification.insertMany(notifications);
+    this._pushLive(createdNotifications);
 
     return {
       batchId,
@@ -109,6 +120,7 @@ class NotificationTargetingService {
           targetType: "Year_Wise",
           targetYears,
           sentBy: senderId,
+          senderRole: payload.senderRole || "",
           batchId,
           totalRecipients: members.length,
           scheduledFor,
@@ -120,6 +132,7 @@ class NotificationTargetingService {
     }
 
     const createdNotifications = await Notification.insertMany(notifications);
+    this._pushLive(createdNotifications);
 
     return {
       batchId,
@@ -176,6 +189,7 @@ class NotificationTargetingService {
           targetType: "Custom_Group",
           targetMembers,
           sentBy: senderId,
+          senderRole: payload.senderRole || "",
           batchId,
           totalRecipients: members.length,
           scheduledFor,
@@ -187,6 +201,7 @@ class NotificationTargetingService {
     }
 
     const createdNotifications = await Notification.insertMany(notifications);
+    this._pushLive(createdNotifications);
 
     return {
       batchId,
@@ -230,6 +245,7 @@ class NotificationTargetingService {
       metadata,
       targetType: "Individual",
       sentBy: senderId,
+      senderRole: payload.senderRole || "",
       batchId: uuidv4(),
       totalRecipients: 1,
       scheduledFor,
@@ -237,6 +253,10 @@ class NotificationTargetingService {
       sentAt: !scheduledFor ? new Date() : null,
       expiresAt
     });
+
+    if (notification.isSent) {
+      notificationHub.publishToUser(notification.recipientUserId, notification);
+    }
 
     return notification;
   }
@@ -366,6 +386,7 @@ class NotificationTargetingService {
       notification.isSent = true;
       notification.sentAt = now;
       await notification.save();
+      notificationHub.publishToUser(notification.recipientUserId, notification);
       sentCount++;
     }
 

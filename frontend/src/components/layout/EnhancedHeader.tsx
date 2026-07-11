@@ -9,6 +9,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { formatRelativeTime } from '../../lib/utils';
+import { categoryMeta, tint } from '../../lib/notifications';
 import toast from 'react-hot-toast';
 
 type UnreadPayload = { unreadCount: number };
@@ -46,7 +47,7 @@ export function EnhancedHeader({ onMobileMenuToggle }: Props) {
   const previewQ = useQuery({
     queryKey: ['notif-preview', token],
     queryFn: () => apiRequest<NotifPreview>('/notifications?limit=5', { token }),
-    enabled: Boolean(token) && notifOpen,
+    enabled: Boolean(token),
   });
   const markAllMut = useMutation({
     mutationFn: () => apiRequest('/notifications/read-all', { method: 'PATCH', token }),
@@ -155,16 +156,31 @@ export function EnhancedHeader({ onMobileMenuToggle }: Props) {
                   {!previewQ.isLoading && notifs.length === 0 && (
                     <div className="ui-empty ui-empty--sm"><p className="ui-text-sm ui-text-muted">{t('header.noNotifications')}</p></div>
                   )}
-                  {notifs.map(n => (
-                    <div key={n._id} className={`ui-notif-item ${!n.isRead ? 'ui-notif-item--unread' : ''}`}>
-                      <div className="ui-flex ui-flex-between">
-                        <div className="ui-notif-item__title">{n.title}</div>
-                        {!n.isRead && <div className="ui-notif-item__dot" />}
+                  {notifs.map(n => {
+                    const meta = categoryMeta(n.category);
+                    const Icon = meta.icon;
+                    return (
+                      <div key={n._id} className={`ui-notif-item ${!n.isRead ? 'ui-notif-item--unread' : ''}`}>
+                        <div className="ui-flex ui-flex-gap-2" style={{ alignItems: 'flex-start' }}>
+                          <div style={{
+                            width: 30, height: 30, borderRadius: 8, flexShrink: 0, marginTop: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: tint(meta.color, 0.14), color: meta.color,
+                          }}>
+                            <Icon size={15} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="ui-flex ui-flex-between">
+                              <div className="ui-notif-item__title">{n.title}</div>
+                              {!n.isRead && <div className="ui-notif-item__dot" />}
+                            </div>
+                            <div className="ui-notif-item__msg">{n.message}</div>
+                            <div className="ui-notif-item__time">{formatRelativeTime(n.createdAt)}</div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="ui-notif-item__msg">{n.message}</div>
-                      <div className="ui-notif-item__time">{formatRelativeTime(n.createdAt)}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="ui-notif-panel__footer">

@@ -11,30 +11,30 @@ import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { formatRelativeTime } from '../../lib/utils';
+import { categoryMeta, priorityMeta, tint, type NotificationRow } from '../../lib/notifications';
 import toast from 'react-hot-toast';
 
-type NotificationRow = {
-  _id: string; title: string; message: string;
-  category: 'System' | 'Meeting' | 'Membership' | 'Governance' | 'Certificate' | 'Event';
-  actionUrl?: string; isRead: boolean; createdAt: string;
-};
 type NotificationListPayload = {
   items: NotificationRow[]; page: number; limit: number; total: number; unreadCount: number;
 };
 
-const categoryVariant: Record<string, 'primary' | 'success' | 'warning' | 'error' | 'neutral'> = {
-  System:     'neutral',
-  Meeting:    'primary',
-  Membership: 'success',
-  Governance: 'warning',
-  Certificate:'info' as any,
-  Event:      'success',
-};
+/** Group notifications into Today / Yesterday / Earlier buckets. */
+function bucketOf(dateStr: string): 'Today' | 'Yesterday' | 'Earlier' {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday);
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  if (d >= startOfToday) return 'Today';
+  if (d >= startOfYesterday) return 'Yesterday';
+  return 'Earlier';
+}
 
 export function NotificationsPage() {
-  const { token, loading } = useAuth();
+  const { token } = useAuth();
   const qc = useQueryClient();
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
 
   const listQuery = useQuery({
     queryKey: ['notifications', token, unreadOnly],
@@ -61,14 +61,97 @@ export function NotificationsPage() {
     onError: e => toast.error(normalizeApiError(e)),
   });
 
-  const rows = useMemo(() => listQuery.data?.items ?? [], [listQuery.data]);
+  const allRows = useMemo(() => listQuery.data?.items ?? [], [listQuery.data]);
   const unreadCount = listQuery.data?.unreadCount ?? 0;
+
+  // Distinct categories present, for the filter chips.
+  const categories = useMemo(() => {
+    const set = new Set(allRows.map(r => r.category));
+    return ['All', ...Array.from(set)];
+  }, [allRows]);
+
+  const rows = useMemo(
+    () => (categoryFilter === 'All' ? allRows : allRows.filter(r => r.category === categoryFilter)),
+    [allRows, categoryFilter]
+  );
+
+  // Group filtered rows by date bucket, preserving order.
+  const grouped = useMemo(() => {
+    const buckets: Record<string, NotificationRow[]> = { Today: [], Yesterday: [], Earlier: [] };
+    for (const r of rows) buckets[bucketOf(r.createdAt)].push(r);
+    return (['Today', 'Yesterday', 'Earlier'] as const)
+      .map(label => ({ label, items: buckets[label] }))
+      .filter(g => g.items.length > 0);
+  }, [rows]);
+
+  const renderRow = (row: NotificationRow, isLast: boolean) => {
+    const meta = categoryMeta(row.category);
+    const pmeta = priorityMeta(row.priority);
+    const Icon = meta.icon;
+    return (
+      <motion.div
+        key={row._id}
+        initial={{ opacity: 0, x: -8 }}
+        animate={{ opacity: 1, x: 0 }}
+        style={{
+          display: 'flex', alignItems: 'flex-start', gap: 14,
+          padding: '14px 20px',
+          borderBottom: isLast ? 'none' : '1px solid var(--border)',
+          borderLeft: `3px solid ${row.isRead ? 'transparent' : meta.color}`,
+          background: row.isRead ? 'transparent' : tint(meta.color, 0.06),
+          transition: 'background 0.18s',
+        }}
+      >
+        {/* Category icon */}
+        <div style={{
+          width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: tint(meta.color, 0.14), color: meta.color, marginTop: 2,
+        }}>
+          <Icon size={18} />
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
+            <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)' }}>{row.title}</h4>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              {pmeta.emphasize && <Badge variant={pmeta.variant} size="sm">{pmeta.label}</Badge>}
+              <Badge variant="neutral" size="sm">{meta.label}</Badge>
+            </div>
+          </div>
+          <p style={{ margin: '0 0 6px', fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.5 }}>{row.message}</p>
+          <span style={{ fontSize: '0.72rem', color: 'var(--muted)', opacity: 0.7 }}>{formatRelativeTime(row.createdAt)}</span>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {row.actionUrl && (
+            <Link to={row.actionUrl}>
+              <button className="ui-btn ui-btn--sm ui-btn--ghost" title="Open">
+                <ExternalLink size={13} />
+              </button>
+            </Link>
+          )}
+          {!row.isRead && (
+            <button
+              className="ui-btn ui-btn--sm ui-btn--outline"
+              disabled={markReadMut.isPending}
+              onClick={() => markReadMut.mutate(row._id)}
+            >
+              Mark read
+            </button>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
     <div className="ui-page">
       <PageHeader
         title="Notifications"
-        description="All alerts, updates, and direct workflow links"
+        description="Live alerts, updates, and direct workflow links"
         actions={
           <Button
             variant="outline"
@@ -84,7 +167,7 @@ export function NotificationsPage() {
 
       {/* Filter bar */}
       <div className="ui-card">
-        <div className="ui-card__body" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div className="ui-card__body" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button
             className={`ui-btn ui-btn--sm ${unreadOnly ? 'ui-btn--primary' : 'ui-btn--outline'}`}
             onClick={() => setUnreadOnly(v => !v)}
@@ -94,6 +177,30 @@ export function NotificationsPage() {
           </button>
           <span className="ui-badge ui-badge--primary">{unreadCount} unread</span>
           <span className="ui-badge ui-badge--neutral">{listQuery.data?.total ?? 0} total</span>
+
+          {/* Category chips */}
+          {categories.length > 2 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginLeft: 'auto' }}>
+              {categories.map(cat => {
+                const active = categoryFilter === cat;
+                const color = cat === 'All' ? 'var(--accent)' : categoryMeta(cat).color;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(cat)}
+                    style={{
+                      padding: '5px 11px', borderRadius: 999, fontSize: '0.76rem', fontWeight: 600,
+                      cursor: 'pointer', border: `1px solid ${active ? color : 'var(--border)'}`,
+                      background: active ? tint(cat === 'All' ? '#6ba3ff' : categoryMeta(cat).color, 0.16) : 'transparent',
+                      color: active ? color : 'var(--muted)',
+                    }}
+                  >
+                    {cat === 'All' ? 'All' : categoryMeta(cat).label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -110,66 +217,22 @@ export function NotificationsPage() {
           <EmptyState
             icon={Bell}
             title="No notifications"
-            description={unreadOnly ? 'No unread notifications' : 'You\'re all caught up!'}
+            description={unreadOnly ? 'No unread notifications' : "You're all caught up!"}
           />
         </div>
       )}
 
-      {/* List */}
-      {!listQuery.isLoading && rows.length > 0 && (
-        <div className="ui-card" style={{ padding: 0 }}>
-          {rows.map((row, i) => (
-            <motion.div
-              key={row._id}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.03 }}
-              style={{
-                display: 'flex', alignItems: 'flex-start', gap: 14,
-                padding: '14px 20px',
-                borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none',
-                background: row.isRead ? 'transparent' : 'rgba(107,163,255,0.05)',
-                transition: 'background 0.18s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = row.isRead ? 'transparent' : 'rgba(107,163,255,0.05)'; }}
-            >
-              {/* Unread dot */}
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: row.isRead ? 'transparent' : 'var(--accent)', flexShrink: 0, marginTop: 6 }} />
-
-              {/* Content */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)' }}>{row.title}</h4>
-                  <Badge variant={categoryVariant[row.category] ?? 'neutral'} size="sm">{row.category}</Badge>
-                </div>
-                <p style={{ margin: '0 0 6px', fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.5 }}>{row.message}</p>
-                <span style={{ fontSize: '0.72rem', color: 'var(--muted)', opacity: 0.7 }}>{formatRelativeTime(row.createdAt)}</span>
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                {row.actionUrl && (
-                  <Link to={row.actionUrl}>
-                    <button className="ui-btn ui-btn--sm ui-btn--ghost" title="Open">
-                      <ExternalLink size={13} />
-                    </button>
-                  </Link>
-                )}
-                {!row.isRead && (
-                  <button
-                    className="ui-btn ui-btn--sm ui-btn--outline"
-                    disabled={markReadMut.isPending}
-                    onClick={() => markReadMut.mutate(row._id)}
-                  >
-                    Mark read
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ))}
+      {/* Grouped list */}
+      {!listQuery.isLoading && grouped.map(group => (
+        <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <h3 style={{ margin: '4px 2px', fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>
+            {group.label}
+          </h3>
+          <div className="ui-card" style={{ padding: 0 }}>
+            {group.items.map((row, i) => renderRow(row, i === group.items.length - 1))}
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }

@@ -485,8 +485,18 @@ export function ModernEventDetailPage() {
                     title: event.title,
                     subtitle: event.shortDescription,
                     date: event.eventDate,
+                    endDate: event.endDate,
+                    time: new Date(event.eventDate).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
                     location: event.venue,
-                    description: event.description.substring(0, 120),
+                    category: event.category,
+                    fee: event.registrationRequired
+                      ? (event.registrationSettings?.registrationFee ? `৳${event.registrationSettings.registrationFee}` : 'Free')
+                      : undefined,
+                    capacity: event.registrationSettings?.maxParticipants
+                      ? `${event.registrationSettings.maxParticipants} seats`
+                      : undefined,
+                    description: event.description.substring(0, 160),
+                    cta: event.registrationRequired ? 'Register now!' : undefined,
                     theme: 'gold',
                   })}>
                   Generate Poster

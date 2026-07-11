@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Calendar, MapPin, Users, DollarSign, Clock,
   CheckCircle, XCircle, Download, QrCode, Video,
-  User2, Tag, Target, List, CreditCard, Bell, Image, Edit2
+  User2, Tag, Target, List, CreditCard, Bell, Image, Edit2, Lock
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
@@ -17,7 +17,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Spinner } from '../../components/ui/Spinner';
 import { Alert } from '../../components/ui/Alert';
 import { Countdown } from '../../components/ui/Countdown';
-import { formatDate, formatDateTime } from '../../lib/utils';
+import { formatDateTime } from '../../lib/utils';
 import { usePosterGenerator } from '../../hooks/usePosterGenerator';
 import toast from 'react-hot-toast';
 
@@ -29,6 +29,8 @@ type Workshop = {
   status: string; requiresApproval: boolean; registrationDeadline?: string;
   speakers: Array<{ name: string; designation?: string; organization?: string; bio?: string; avatarUrl?: string }>;
   materials: Array<{ title: string; url: string; type: string }>;
+  materialsLocked?: boolean;
+  materialsCount?: number;
   prerequisites: string[]; learningOutcomes: string[];
   stats: { totalRegistrations: number; totalApproved: number; totalAttendees: number };
   createdBy: { _id: string; firstName: string; lastName: string; avatarUrl?: string };
@@ -68,8 +70,8 @@ export function WorkshopDetailPage() {
 
   const registerMut = useMutation({
     mutationFn: () => apiRequest(`/workshops/${id}/register`, { method: 'POST', token, body: JSON.stringify(regForm) }),
-    onSuccess: (data) => {
-      Promise.all(invalidateQueries.workshops.detail(qc, id!, token));
+    onSuccess: (data: any) => {
+      Promise.all(invalidateQueries.workshops.detail(qc, id!, token ?? ''));
       setShowRegForm(false);
       
       // Show success message with seat assignment if available
@@ -251,22 +253,21 @@ export function WorkshopDetailPage() {
             </div>
           )}
 
-          {/* Materials (only for approved/attended) */}
-          {workshop.materials.length > 0 && myReg && ['Approved', 'Attended'].includes(myReg.status) && (
+          {/* Materials — unlocked for approved/attended registrants */}
+          {workshop.materials.length > 0 && (
             <div className="ui-card">
               <div className="ui-card__header">
                 <h3 className="ui-card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Download size={17} style={{ color: 'var(--accent)' }} /> Workshop Materials
+                  <Download size={17} style={{ color: 'var(--accent)' }} /> Workshop Resources
                 </h3>
+                <Badge variant="success">{workshop.materials.length} available</Badge>
               </div>
               <div className="ui-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {workshop.materials.map((m, i) => (
                   <div
                     key={i}
                     onClick={() => {
-                      // Handle base64 data URLs differently
                       if (m.url.startsWith('data:')) {
-                        // Download the file
                         const link = document.createElement('a');
                         link.href = m.url;
                         link.download = m.title || 'download';
@@ -274,7 +275,6 @@ export function WorkshopDetailPage() {
                         link.click();
                         document.body.removeChild(link);
                       } else {
-                        // Open regular URL in new tab
                         window.open(m.url, '_blank', 'noopener,noreferrer');
                       }
                     }}
@@ -293,6 +293,43 @@ export function WorkshopDetailPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Materials — locked state (resources exist but not yet accessible) */}
+          {workshop.materialsLocked && (workshop.materialsCount ?? 0) > 0 && (
+            <div className="ui-card">
+              <div className="ui-card__header">
+                <h3 className="ui-card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Lock size={17} style={{ color: 'var(--muted)' }} /> Workshop Resources
+                </h3>
+                <Badge variant="neutral">{workshop.materialsCount} locked</Badge>
+              </div>
+              <div className="ui-card__body">
+                <div style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
+                  gap: 10, padding: '24px 16px', borderRadius: 14,
+                  border: '1px dashed var(--border)', background: 'var(--surface-soft)',
+                }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', color: 'var(--muted)' }}>
+                    <Lock size={20} />
+                  </div>
+                  <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>
+                    {workshop.materialsCount} resource{(workshop.materialsCount ?? 0) > 1 ? 's' : ''} available after approval
+                  </p>
+                  <p className="ui-text-sm ui-text-muted" style={{ margin: 0, maxWidth: 380 }}>
+                    Slides, code, and other materials unlock once your registration is approved.
+                    {myReg
+                      ? ` Your registration is currently "${myReg.status}".`
+                      : ' Register for this workshop to get access.'}
+                  </p>
+                  {!myReg && canRegister && (
+                    <Button leftIcon={CheckCircle} onClick={handleOpenRegForm} style={{ marginTop: 4 }}>
+                      Register to Unlock
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -516,14 +553,19 @@ export function WorkshopDetailPage() {
                 type: 'workshop',
                 title: workshop.title,
                 subtitle: workshop.shortDescription,
-                date: `${formatDate(workshop.startDate)} - ${formatDate(workshop.endDate)}`,
+                date: workshop.startDate,
+                endDate: workshop.endDate,
+                time: `${new Date(workshop.startDate).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`,
                 location: workshop.isOnline ? 'Online' : workshop.venue,
-                description: workshop.description.substring(0, 120),
-                additionalInfo: [
-                  workshop.isFree ? 'Free' : `৳${workshop.fee}`,
-                  workshop.level,
-                  `${spotsLeft} spots left`,
-                ],
+                mode: workshop.isOnline ? 'Online' : 'In-person',
+                category: workshop.category,
+                level: workshop.level,
+                fee: workshop.isFree ? 'Free' : `৳${workshop.fee}`,
+                capacity: `${workshop.capacity} seats`,
+                registrationDeadline: workshop.registrationDeadline,
+                description: workshop.description?.substring(0, 160),
+                cta: canRegister ? 'Register now!' : undefined,
+                additionalInfo: [`${spotsLeft} spots left`],
                 theme: 'green',
               })}>
               Generate Poster
@@ -623,9 +665,11 @@ export function WorkshopDetailPage() {
                 <div style={{ padding: '24px' }}>
                   {/* Registration deadline warning */}
                   {registrationDeadlinePassed && (
-                    <Alert variant="error" style={{ marginBottom: '16px' }}>
-                      Registration deadline has passed ({workshop.registrationDeadline ? formatDateTime(workshop.registrationDeadline) : ''})
-                    </Alert>
+                    <div style={{ marginBottom: '16px' }}>
+                      <Alert variant="error">
+                        Registration deadline has passed ({workshop.registrationDeadline ? formatDateTime(workshop.registrationDeadline) : ''})
+                      </Alert>
+                    </div>
                   )}
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

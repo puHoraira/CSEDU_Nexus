@@ -1,15 +1,28 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ShieldCheck, Users, Vote, Play, Square, Trophy, History, ClipboardList, CalendarDays, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Users, Vote, Play, Square, Trophy, History, ClipboardList, ArrowRight, CheckCircle2, Clock, Zap } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { apiRequest, normalizeApiError } from "../../lib/api";
-import { PageScreen } from "../../components/ui/PageScreen";
+import { PageHeader } from "../../components/layout/PageHeader";
+import { StatsCard } from "../../components/ui/StatsCard";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Alert } from "../../components/ui/Alert";
 import { Spinner } from "../../components/ui/Spinner";
+import { EmptyState } from "../../components/ui/EmptyState";
+import toast from "react-hot-toast";
 
-type Election = { _id: string; name: string; phase: number; status: "Draft" | "Active" | "Closed" | string };
+type Election = {
+  _id: string;
+  name: string;
+  phase: number;
+  currentPhase?: number;
+  status: "Draft" | "Active" | "Closed" | string;
+  startsOn?: string | null;
+  endsOn?: string | null;
+  phase1?: { votingStart?: string | null; votingEnd?: string | null };
+  phase2?: { votingStart?: string | null; votingEnd?: string | null };
+};
 type Candidate = {
   id: string;
   status: string;
@@ -39,6 +52,56 @@ function statusLabel(status?: string) {
   return status;
 }
 
+/** Map an election status to a 0-based step index in the workflow. */
+function stepIndex(status?: string): number {
+  if (!status || status === "Draft" || status === "Setup") return 0;
+  if (status.includes("Phase1_Active") || status === "Active") return 1;
+  if (status === "Phase1_Completed") return 2;
+  if (status.includes("Phase2_Active")) return 3;
+  if (status.includes("Completed")) return 4;
+  return 0;
+}
+
+const WORKFLOW_STEPS = ["Setup", "Phase 1 Voting", "Phase 1 Done", "Phase 2 Voting", "Completed"];
+
+function WorkflowStepper({ status }: { status?: string }) {
+  const active = stepIndex(status);
+  return (
+    <div className="ui-flex ui-flex-wrap" style={{ gap: 0, alignItems: "center" }}>
+      {WORKFLOW_STEPS.map((label, i) => {
+        const done = i < active;
+        const current = i === active;
+        const color = done ? "var(--accent)" : current ? "var(--accent)" : "var(--border)";
+        return (
+          <div key={label} className="ui-flex" style={{ alignItems: "center", flex: i < WORKFLOW_STEPS.length - 1 ? 1 : "0 0 auto", minWidth: 0 }}>
+            <div className="ui-flex ui-flex-gap-2" style={{ alignItems: "center", flexShrink: 0 }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "0.72rem", fontWeight: 700,
+                background: done ? "var(--accent)" : current ? "var(--accent-glow)" : "var(--surface-soft)",
+                color: done ? "#fff" : current ? "var(--accent)" : "var(--muted)",
+                border: `1px solid ${current || done ? "var(--accent)" : "var(--border)"}`,
+              }}>
+                {done ? "✓" : i + 1}
+              </div>
+              <span style={{
+                fontSize: "0.78rem", fontWeight: current ? 700 : 500, whiteSpace: "nowrap",
+                color: current || done ? "var(--text)" : "var(--muted)",
+              }}>
+                {label}
+              </span>
+            </div>
+            {i < WORKFLOW_STEPS.length - 1 && (
+              <div style={{ flex: 1, height: 2, margin: "0 10px", background: color, minWidth: 16, borderRadius: 2 }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ElectionCommissionPage() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -47,7 +110,6 @@ export function ElectionCommissionPage() {
   const [candidateId, setCandidateId] = useState("");
   const [decision, setDecision] = useState<"Approved" | "Rejected">("Approved");
   const [reason, setReason] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
   const [autoCreateAppointments, setAutoCreateAppointments] = useState<boolean>(true);
 
   const elections = useQuery({
@@ -108,11 +170,11 @@ export function ElectionCommissionPage() {
         body: JSON.stringify({ currentPhase: nextPhase, status: nextStatus }),
       }),
     onSuccess: async () => {
-      setMessage("Election phase updated");
+      toast.success("Election phase updated");
       await queryClient.invalidateQueries({ queryKey: ["commission-elections", token] });
       await queryClient.invalidateQueries({ queryKey: ["moderator-details", token] });
     },
-    onError: (error) => setMessage(normalizeApiError(error)),
+    onError: (error) => toast.error(normalizeApiError(error)),
   });
 
   const reviewMutation = useMutation({
@@ -123,10 +185,10 @@ export function ElectionCommissionPage() {
         body: JSON.stringify({ status: decision, reason, comments: "Reviewed from commission workflow board" }),
       }),
     onSuccess: async () => {
-      setMessage("Candidate decision saved");
+      toast.success("Candidate decision saved");
       await queryClient.invalidateQueries({ queryKey: ["moderator-details", token] });
     },
-    onError: (error) => setMessage(normalizeApiError(error)),
+    onError: (error) => toast.error(normalizeApiError(error)),
   });
 
   const publishMutation = useMutation({
@@ -139,56 +201,89 @@ export function ElectionCommissionPage() {
     onSuccess: async (data: any) => {
       let msg = "Results published for the selected phase";
       if (data?.createdAppointments) {
-        msg += ` — ${data.createdAppointments.length} appointments created`;
+        msg += ` — ${data.createdAppointments.length} appointment(s) auto-created`;
         if (data?.appointmentErrors && data.appointmentErrors.length > 0) {
-          msg += `, ${data.appointmentErrors.length} errors`;
+          msg += `, ${data.appointmentErrors.length} error(s)`;
         }
       }
-      setMessage(msg);
+      toast.success(msg);
       await queryClient.invalidateQueries({ queryKey: ["commission-elections", token] });
       await queryClient.invalidateQueries({ queryKey: ["moderator-details", token] });
     },
-    onError: (error) => setMessage(normalizeApiError(error)),
+    onError: (error) => toast.error(normalizeApiError(error)),
   });
 
   function handleReviewSubmit(event: FormEvent) {
     event.preventDefault();
     if (!candidateId) {
-      setMessage("Select a candidate first");
+      toast.error("Select a candidate first");
       return;
     }
     reviewMutation.mutate();
   }
 
-  const stats = [
-    { label: "Pending candidates", value: pendingCandidates.length, icon: ClipboardList, color: "#7c3aed" },
-    { label: "Phase 1 queue", value: phase1Candidates.length, icon: Users, color: "#0ea5e9" },
-    { label: "Phase 2 queue", value: phase2Candidates.length, icon: Vote, color: "#f59e0b" },
-    { label: "Audit entries", value: moderatorDetails.data?.recentAudit?.length || 0, icon: History, color: "#10b981" },
-  ];
-
   const phase2Visible = Boolean(selectedElection && (selectedElection.phase === 2 || selectedElection.status.includes("Phase2") || selectedElection.status === "Closed"));
 
-  return (
-    <PageScreen title="Election Commission" subtitle="Workflow board for setup, candidate review, phase activation, publication, and audit trail.">
-      {message ? <Alert variant="info">{message}</Alert> : null}
+  // Derive the active voting window + automation state for the selected election.
+  const automation = useMemo(() => {
+    if (!selectedElection) return null;
+    const p = selectedElection.currentPhase || selectedElection.phase || 1;
+    const cfg = p === 1 ? selectedElection.phase1 : selectedElection.phase2;
+    const end = cfg?.votingEnd || selectedElection.endsOn || null;
+    const isActive = ["Active", "Phase1_Active", "Phase2_Active"].includes(selectedElection.status);
+    const endDate = end ? new Date(end) : null;
+    const now = new Date();
+    let state: "no-window" | "counting" | "due" | "idle" = "idle";
+    if (isActive && endDate) state = endDate > now ? "counting" : "due";
+    else if (isActive && !endDate) state = "no-window";
+    return { phase: p, endDate, isActive, state };
+  }, [selectedElection]);
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
-        {stats.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="ui-card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: `${color}18`, color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Icon size={20} />
-            </div>
-            <div>
-              <p style={{ margin: 0, fontSize: "1.4rem", fontWeight: 800, lineHeight: 1 }}>{value}</p>
-              <p style={{ margin: "4px 0 0", fontSize: "0.76rem", color: "var(--muted)" }}>{label}</p>
-            </div>
-          </div>
-        ))}
+  return (
+    <div className="ui-page">
+      <PageHeader
+        title="Election Commission"
+        description="Setup, candidate review, phase activation, and one-click publication — with automatic phase transitions."
+        breadcrumbs={[{ label: "Dashboard", href: "/dashboard/home" }, { label: "Election Commission" }]}
+      />
+
+      <div className="ui-grid-4">
+        <StatsCard title="Pending candidates" value={pendingCandidates.length} icon={ClipboardList} color="primary" />
+        <StatsCard title="Phase 1 queue" value={phase1Candidates.length} icon={Users} color="info" />
+        <StatsCard title="Phase 2 queue" value={phase2Candidates.length} icon={Vote} color="warning" />
+        <StatsCard title="Audit entries" value={moderatorDetails.data?.recentAudit?.length || 0} icon={History} color="success" />
       </div>
 
       {!selectedElectionId ? (
-        <Alert variant="warning">Select an election to manage its phase workflow. Phase 1 must run first; Phase 2 is activated only after Phase 1 completes.</Alert>
+        <Alert variant="warning">Select an election below to manage its phase workflow. Phase 1 (batch representatives) must run first; Phase 2 (office bearers) unlocks only after Phase 1 completes.</Alert>
+      ) : null}
+
+      {/* Automation status */}
+      {selectedElection && automation ? (
+        <div className="ui-card">
+          <div className="ui-card__header">
+            <h3 className="ui-card__title ui-flex ui-flex-gap-2" style={{ alignItems: "center" }}><Zap size={17} /> Automation</h3>
+            <Badge variant={automation.state === "counting" ? "success" : automation.state === "due" ? "warning" : "neutral"}>
+              {automation.state === "counting" ? "Auto-close armed" : automation.state === "due" ? "Closing shortly" : automation.state === "no-window" ? "No window set" : "Idle"}
+            </Badge>
+          </div>
+          <div className="ui-card__body">
+            <div className="ui-flex ui-flex-gap-3 ui-flex-wrap ui-text-sm">
+              <span className="ui-flex ui-flex-gap-2" style={{ alignItems: "center" }}>
+                <Clock size={15} style={{ color: "var(--muted)" }} />
+                {automation.endDate
+                  ? <>Phase {automation.phase} voting ends <strong>{automation.endDate.toLocaleString()}</strong></>
+                  : <>No voting window configured for Phase {automation.phase}</>}
+              </span>
+            </div>
+            <p className="ui-text-sm ui-text-muted" style={{ margin: "12px 0 0", lineHeight: 1.6 }}>
+              {automation.state === "counting" && "When the window ends, the system automatically tallies votes, records winners, and advances the phase — no manual close needed."}
+              {automation.state === "due" && "The voting window has ended. Results are finalized automatically on the next read or hourly check; you can also publish now below."}
+              {automation.state === "no-window" && "Set a voting window (startsOn/endsOn) so the phase can auto-close. Without it you must close the stage manually."}
+              {automation.state === "idle" && "Open a phase to arm automatic tallying and transitions."}
+            </p>
+          </div>
+        </div>
       ) : null}
 
       <div style={{ display: "grid", gap: 18 }}>
@@ -200,10 +295,15 @@ export function ElectionCommissionPage() {
             </Badge>
           </div>
           <div className="ui-card__body">
+            {selectedElection && (
+              <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid var(--border)" }}>
+                <WorkflowStepper status={selectedElection.status} />
+              </div>
+            )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 14 }}>
-              <label className="field">
-                <span>Election</span>
-                <select value={selectedElectionId} onChange={(e) => setSelectedElectionId(e.target.value)}>
+              <label className="ui-input-wrap">
+                <span className="ui-input-label">Election</span>
+                <select className="ui-select" value={selectedElectionId} onChange={(e) => setSelectedElectionId(e.target.value)}>
                   <option value="">Select election</option>
                   {(elections.data || []).map((item) => (
                     <option key={item._id} value={item._id}>
@@ -212,9 +312,9 @@ export function ElectionCommissionPage() {
                   ))}
                 </select>
               </label>
-              <label className="field">
-                <span>Target phase</span>
-                <select value={String(phase)} onChange={(e) => setPhase(Number(e.target.value))}>
+              <label className="ui-input-wrap">
+                <span className="ui-input-label">Target phase</span>
+                <select className="ui-select" value={String(phase)} onChange={(e) => setPhase(Number(e.target.value))}>
                   <option value="1">Phase 1 - Batch Representatives</option>
                   <option value="2">Phase 2 - Executive Posts</option>
                 </select>
@@ -269,7 +369,7 @@ export function ElectionCommissionPage() {
               <p style={{ marginTop: 0, color: "var(--muted)" }}>Batch-wise representative nominations are reviewed here before the main election opens.</p>
               <div style={{ display: "grid", gap: 12 }}>
                 {Object.keys(phase1ByBatch).length === 0 ? (
-                  <div className="empty-state">No Phase 1 candidates awaiting review.</div>
+                  <EmptyState icon={Users} title="No Phase 1 candidates" description="Batch representative nominations awaiting review will appear here." size="sm" />
                 ) : (
                   Object.entries(phase1ByBatch).map(([batch, items]) => (
                     <div key={batch} style={{ padding: 14, borderRadius: 14, border: "1px solid var(--border)", background: "var(--surface)" }}>
@@ -302,7 +402,7 @@ export function ElectionCommissionPage() {
               {phase2Visible ? (
                 <div style={{ display: "grid", gap: 12 }}>
                   {Object.keys(phase2ByPost).length === 0 ? (
-                    <div className="empty-state">No Phase 2 candidates awaiting review.</div>
+                    <EmptyState icon={Vote} title="No Phase 2 candidates" description="Office-bearer nominations awaiting review will appear here." size="sm" />
                   ) : (
                     Object.entries(phase2ByPost).map(([post, items]) => (
                       <div key={post} style={{ padding: 14, borderRadius: 14, border: "1px solid var(--border)", background: "var(--surface)" }}>
@@ -386,7 +486,7 @@ export function ElectionCommissionPage() {
             {moderatorDetails.isLoading ? (
               <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}><Spinner size="md" /></div>
             ) : (moderatorDetails.data?.recentAudit || []).length === 0 ? (
-              <div className="empty-state">No audit entries found.</div>
+              <EmptyState icon={History} title="No audit entries" size="sm" />
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {(moderatorDetails.data?.recentAudit || []).map((row) => (
@@ -403,6 +503,6 @@ export function ElectionCommissionPage() {
           </div>
         </section>
       </div>
-    </PageScreen>
+    </div>
   );
 }

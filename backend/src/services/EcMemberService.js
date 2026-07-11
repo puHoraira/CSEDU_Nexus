@@ -7,6 +7,13 @@ const { Member } = require("../models/Member");
 const { ApiError } = require("../core/ApiError");
 
 class EcMemberService {
+  /** Compose a display name from a populated user object. */
+  static composeName(user) {
+    if (!user) return "";
+    const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+    return name || user.email || "";
+  }
+
   static async getCurrentElectionForTerm(termId) {
     if (!termId) return null;
 
@@ -99,7 +106,7 @@ class EcMemberService {
         select: 'studentId batch currentYear academicYearLevel',
         populate: {
           path: 'userId',
-          select: 'fullName email phone avatarUrl'
+          select: 'firstName lastName email phone avatarUrl'
         }
       })
       .sort({ 'postId.displayOrder': 1 })
@@ -139,7 +146,7 @@ class EcMemberService {
           batch: apt.memberId?.batch,
           currentYear: apt.memberId?.currentYear,
           academicYearLevel: apt.memberId?.academicYearLevel,
-          fullName: apt.memberId?.userId?.fullName,
+          fullName: this.composeName(apt.memberId?.userId),
           email: apt.memberId?.userId?.email,
           phone: apt.memberId?.userId?.phone,
           avatarUrl: apt.memberId?.userId?.avatarUrl
@@ -158,7 +165,7 @@ class EcMemberService {
             batch: item.memberId?.batch,
             currentYear: item.memberId?.currentYear,
             academicYearLevel: item.memberId?.academicYearLevel,
-            fullName: item.memberId?.userId?.fullName,
+            fullName: this.composeName(item.memberId?.userId),
             email: item.memberId?.userId?.email,
             phone: item.memberId?.userId?.phone,
             avatarUrl: item.memberId?.userId?.avatarUrl
@@ -195,7 +202,7 @@ class EcMemberService {
         select: 'studentId batch currentYear academicYearLevel',
         populate: {
           path: 'userId',
-          select: 'fullName email phone avatarUrl'
+          select: 'firstName lastName email phone avatarUrl'
         }
       })
       .sort({ 'postId.displayOrder': 1 })
@@ -218,7 +225,7 @@ class EcMemberService {
           batch: apt.memberId?.batch,
           currentYear: apt.memberId?.currentYear,
           academicYearLevel: apt.memberId?.academicYearLevel,
-          fullName: apt.memberId?.userId?.fullName,
+          fullName: this.composeName(apt.memberId?.userId),
           email: apt.memberId?.userId?.email,
           phone: apt.memberId?.userId?.phone,
           avatarUrl: apt.memberId?.userId?.avatarUrl
@@ -330,7 +337,7 @@ class EcMemberService {
           select: 'studentId batch',
           populate: {
             path: 'userId',
-            select: 'fullName email avatarUrl'
+            select: 'firstName lastName email avatarUrl'
           }
         })
         .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
@@ -350,7 +357,7 @@ class EcMemberService {
           memberId: apt.memberId?._id,
           studentId: apt.memberId?.studentId,
           batch: apt.memberId?.batch,
-          fullName: apt.memberId?.userId?.fullName,
+          fullName: this.composeName(apt.memberId?.userId),
           email: apt.memberId?.userId?.email,
           avatarUrl: apt.memberId?.userId?.avatarUrl
         },
@@ -438,7 +445,7 @@ class EcMemberService {
         { studentId: { $regex: searchTerm, $options: 'i' } }
       ]
     })
-      .populate('userId', 'fullName email')
+      .populate('userId', 'firstName lastName email')
       .select('_id studentId userId')
       .limit(20)
       .lean();
@@ -463,7 +470,7 @@ class EcMemberService {
       return {
         memberId: member._id,
         studentId: member.studentId,
-        fullName: member.userId?.fullName,
+        fullName: this.composeName(member.userId),
         email: member.userId?.email,
         ecHistory: memberAppointments.map(apt => ({
           term: apt.termId?.name,

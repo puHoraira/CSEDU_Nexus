@@ -360,6 +360,11 @@ class GovernanceService {
       throw new ApiError(409, "EC term overlaps an existing term");
     }
 
+    // Constitution ARTICLE XIII: only one committee/term may be Active at once.
+    if (payload.status === "Active") {
+      await EcTerm.updateMany({ status: "Active" }, { status: "Closed" });
+    }
+
     const term = await EcTerm.create(payload);
     await AuditService.log({
       actorId,
@@ -367,8 +372,78 @@ class GovernanceService {
       resource: "EcTerm",
       resourceId: term._id.toString(),
       requestId,
+      metadata: { name: term.name, status: term.status },
     });
     return term;
+  }
+
+  /**
+   * Update an EC term (rename, adjust dates, or change status).
+   * Enforces the constitution's single-active-term rule: activating a term
+   * automatically closes any other currently-active term.
+   */
+  static async updateTerm(termId, payload, actorId, requestId) {
+    const term = await EcTerm.findById(termId);
+    if (!term) throw new ApiError(404, "EC term not found");
+
+    const nextStartsOn = payload.startsOn ? new Date(payload.startsOn) : term.startsOn;
+    const nextEndsOn = payload.endsOn ? new Date(payload.endsOn) : term.endsOn;
+    if (nextEndsOn.getTime() <= nextStartsOn.getTime()) {
+      throw new ApiError(400, "End date-time must be later than start date-time");
+    }
+
+    // Reject overlap with a DIFFERENT term.
+    const overlapping = await EcTerm.findOne({
+      _id: { $ne: term._id },
+      startsOn: { $lte: nextEndsOn },
+      endsOn: { $gte: nextStartsOn },
+    });
+    if (overlapping) {
+      throw new ApiError(409, `EC term overlaps "${overlapping.name}"`);
+    }
+
+    const activating = payload.status === "Active" && term.status !== "Active";
+    if (activating) {
+      await EcTerm.updateMany({ _id: { $ne: term._id }, status: "Active" }, { status: "Closed" });
+    }
+
+    if (payload.name !== undefined) term.name = payload.name;
+    if (payload.startsOn !== undefined) term.startsOn = nextStartsOn;
+    if (payload.endsOn !== undefined) term.endsOn = nextEndsOn;
+    if (payload.status !== undefined) term.status = payload.status;
+    await term.save();
+
+    await AuditService.log({
+      actorId,
+      action: activating ? "EC_TERM_ACTIVATED" : "EC_TERM_UPDATED",
+      resource: "EcTerm",
+      resourceId: term._id.toString(),
+      requestId,
+      metadata: { name: term.name, status: term.status },
+    });
+    return term;
+  }
+
+  /** Delete a term only when it has no appointments. */
+  static async deleteTerm(termId, actorId, requestId) {
+    const term = await EcTerm.findById(termId);
+    if (!term) throw new ApiError(404, "EC term not found");
+
+    const appointmentCount = await EcAppointment.countDocuments({ termId: term._id });
+    if (appointmentCount > 0) {
+      throw new ApiError(409, `Cannot delete a term with ${appointmentCount} appointment(s). Close it instead.`);
+    }
+
+    await term.deleteOne();
+    await AuditService.log({
+      actorId,
+      action: "EC_TERM_DELETED",
+      resource: "EcTerm",
+      resourceId: termId,
+      requestId,
+      metadata: { name: term.name },
+    });
+    return { deleted: true };
   }
 
   static async appointMember(payload, actorId, requestId) {

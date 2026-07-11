@@ -6,6 +6,9 @@ const { NotificationController } = require("../controllers/NotificationControlle
 
 const router = express.Router();
 
+// Real-time stream (SSE). Auth via ?token= query since EventSource can't set headers.
+router.get("/stream", NotificationController.stream);
+
 // User notification endpoints (public for authenticated users)
 router.get("/", authenticate, NotificationController.list);
 router.get("/unread-count", authenticate, NotificationController.unreadCount);

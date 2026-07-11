@@ -92,6 +92,19 @@ class GovernanceController {
     return ApiResponse.created(res, item, "EC term created");
   });
 
+  static updateTerm = asyncHandler(async (req, res) => {
+    const payload = { ...req.body };
+    if (req.body.startsOn) payload.startsOn = new Date(req.body.startsOn);
+    if (req.body.endsOn) payload.endsOn = new Date(req.body.endsOn);
+    const item = await GovernanceService.updateTerm(req.params.id, payload, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "EC term updated");
+  });
+
+  static deleteTerm = asyncHandler(async (req, res) => {
+    const result = await GovernanceService.deleteTerm(req.params.id, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, result, "EC term deleted");
+  });
+
   static appointMember = asyncHandler(async (req, res) => {
     const payload = { ...req.body, startsOn: new Date(req.body.startsOn) };
     const item = await GovernanceService.appointMember(payload, req.auth.userId, req.requestMeta.requestId);

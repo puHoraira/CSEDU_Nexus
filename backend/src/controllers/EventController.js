@@ -31,7 +31,8 @@ class EventController {
   });
 
   static detail = asyncHandler(async (req, res) => {
-    const event = await EventService.getEventById(req.params.id);
+    const userId = req.auth?.userId || null;
+    const event = await EventService.getEventById(req.params.id, userId);
     return ApiResponse.ok(res, event, "Event");
   });
 

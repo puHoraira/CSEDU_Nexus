@@ -5,10 +5,15 @@ const { ElectionCandidate } = require("../models/ElectionCandidate");
 const { Vote } = require("../models/Vote");
 const { Member } = require("../models/Member");
 const { EcPost } = require("../models/EcPost");
+const { EcTerm } = require("../models/EcTerm");
+const { EcAppointment } = require("../models/EcAppointment");
 const { VoteRecording } = require("../models/VoteRecording");
 const { policyRegistry } = require("../policies");
 const { AuditService } = require("./AuditService");
 const { VideoRecordingService } = require("./VideoRecordingService");
+const { ElectionAutomationService } = require("./ElectionAutomationService");
+const { GovernanceService } = require("./GovernanceService");
+const { NotificationService } = require("./NotificationService");
 
 class ElectionService {
   static async createElection(payload, actorId, requestId) {
@@ -49,10 +54,14 @@ class ElectionService {
   static async getElection(electionId) {
     const election = await Election.findById(electionId);
     if (!election) throw new ApiError(404, "Election not found");
+    // Lazily apply any due auto-transition so reads never show a stale window.
+    await ElectionAutomationService.processElection(election).catch(() => {});
     return election;
   }
 
   static async listElections(requestingUserId = null) {
+    // Apply any due auto-transitions before listing so statuses are fresh.
+    await ElectionAutomationService.runAutomationCheck().catch(() => {});
     const elections = await Election.find({}).sort({ createdAt: -1 });
     
     if (requestingUserId) {
@@ -81,93 +90,121 @@ class ElectionService {
     });
   }
 
+  /**
+   * Compute completed EC experience in whole years from a member's ecExperience[].
+   * Each entry contributes (endDate|now - startDate). Overlapping terms are summed
+   * conservatively; the constitution counts "years of working in the EC".
+   */
+  static computeEcYears(member) {
+    const entries = member.ecExperience || [];
+    if (entries.length === 0) return 0;
+    let totalMs = 0;
+    const now = Date.now();
+    for (const e of entries) {
+      if (!e.startDate) continue;
+      const start = new Date(e.startDate).getTime();
+      const end = e.endDate ? new Date(e.endDate).getTime() : now;
+      if (end > start) totalMs += end - start;
+    }
+    const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
+    return Math.floor(totalMs / YEAR_MS);
+  }
+
   static async addCandidate(payload, actorId, requestId) {
-    console.log('=== ADD CANDIDATE DEBUG ===');
-    console.log('Payload:', JSON.stringify(payload, null, 2));
-    
     const election = await Election.findById(payload.electionId);
     const member = await Member.findById(payload.memberId);
-    
-    console.log('Election found:', !!election);
-    console.log('Member found:', !!member);
-    
+
     if (!election || !member) throw new ApiError(404, "Election or member not found");
-    
-    console.log('Election currentPhase:', election.currentPhase);
-    console.log('Election phase (old):', election.phase);
-    console.log('Payload postId:', payload.postId);
-    console.log('Member currentYear:', member.currentYear);
-    
-    // Get phase - handle both old and new schema, default to 1 if not set
+
+    // Resolve phase (support both old `phase` and new `currentPhase`), default 1.
     const electionPhase = election.currentPhase || election.phase || 1;
-    console.log('Resolved election phase:', electionPhase);
-    
-    // Check membership status - handle both old and new schema
+
+    // --- Constitution eligibility gates (ARTICLE XV) ---
+    // Active membership required.
     const memberStatus = member.membershipStatus?.status || member.status || "Unknown";
-    console.log('Resolved member status:', memberStatus);
-    
     if (memberStatus !== "Active") {
       throw new ApiError(400, `Only active members can be candidates. Current status: ${memberStatus}`);
     }
 
-    console.log('Checking phase constraints...');
-    if (electionPhase === 1 && payload.postId) {
-      // Phase 1 is batch representative — postId is not applicable, strip it silently
+    // Candidates cannot have been impeached in any former committee (ARTICLE XV.1).
+    const wasImpeached = (member.ecExperience || []).some(
+      (e) => e.performanceRating === "Impeached" || e.status === "Impeached" || e.wasImpeached === true
+    );
+    if (wasImpeached) {
+      throw new ApiError(400, "Impeached members are not eligible to contest (Constitution ARTICLE XV.1)");
+    }
+
+    // Graduating batch cannot contest.
+    if (member.academicYearLevel === "Graduated") {
+      throw new ApiError(400, "Graduated members cannot contest in the election");
+    }
+
+    // Phase-specific constraints.
+    if (electionPhase === 1) {
+      // Phase 1 = batch representative — postId not applicable.
       payload.postId = null;
     }
 
     if (electionPhase === 2 && !payload.postId) {
-      console.log('ERROR: Phase 2 without postId');
       throw new ApiError(400, "Phase 2 (office-bearer) candidates must include postId");
     }
 
-    console.log('Phase constraints passed');
-    let post = null;
-    if (payload.postId) {
-      console.log('Looking up post:', payload.postId);
-      post = await EcPost.findById(payload.postId);
-      if (!post) throw new ApiError(404, "EC post not found");
-      
-      console.log('Evaluating policy for post:', post.title);
-      const check = await policyRegistry.evaluate("ec.holdPost", {
-        memberYear: member.currentYear,
-        memberEcYears: payload.memberEcYears || 0,
-        post,
-      });
-      console.log('Policy check result:', check);
-      if (!check.allowed) throw new ApiError(400, check.reason || "Candidate ineligible");
-    }
-
-    console.log('Creating candidate record...');
-    try {
-      // Get member's batch for phase 1 candidates
-      const batch = electionPhase === 1 ? member.batch.toString() : undefined;
-      
-      const candidate = await ElectionCandidate.create({
+    // Phase 2 candidates must be approved Phase 1 representatives (ARTICLE XIV.3.ii).
+    if (electionPhase === 2) {
+      const phase1Rep = await ElectionCandidate.findOne({
         electionId: payload.electionId,
         memberId: payload.memberId,
-        phase: electionPhase, // Use resolved phase
-        postId: payload.postId || null,
-        batch: batch, // Required for phase 1
-        status: "Submitted", // Valid enum value (not "Pending")
+        phase: 1,
+        status: "Approved",
       });
-      console.log('Candidate created:', candidate._id);
-
-      await AuditService.log({
-        actorId,
-        action: "ELECTION_CANDIDATE_ADDED",
-        resource: "ElectionCandidate",
-        resourceId: candidate._id.toString(),
-        requestId,
-        metadata: { electionId: payload.electionId, postId: payload.postId || null },
-      });
-
-      console.log('Candidate created successfully');
-      return candidate;
-    } catch (error) {
-      console.error('Error creating candidate:', error);
-      throw error;
+      const isWinner = phase1Rep && phase1Rep.votingResults && phase1Rep.votingResults.isWinner;
+      if (!phase1Rep || !isWinner) {
+        throw new ApiError(400, "Only elected Phase 1 batch representatives can contest office-bearer posts");
+      }
     }
+
+    let post = null;
+    if (payload.postId) {
+      post = await EcPost.findById(payload.postId);
+      if (!post) throw new ApiError(404, "EC post not found");
+
+      // Per-post year + EC-experience eligibility (ARTICLE XIV.4 / XV.2).
+      const memberEcYears = payload.memberEcYears != null ? payload.memberEcYears : this.computeEcYears(member);
+      const check = await policyRegistry.evaluate("ec.holdPost", {
+        memberYear: member.currentYear,
+        memberEcYears,
+        post,
+      });
+      if (!check.allowed) throw new ApiError(400, check.reason || "Candidate ineligible for this post");
+    }
+
+    // Phase 1 candidates carry their batch so voting can be batch-scoped.
+    const batch = electionPhase === 1 ? member.batch.toString() : undefined;
+
+    const candidate = await ElectionCandidate.create({
+      electionId: payload.electionId,
+      memberId: payload.memberId,
+      phase: electionPhase,
+      postId: payload.postId || null,
+      batch,
+      status: "Submitted",
+      eligibilityDetails: {
+        cgpa: member.academicRecord?.currentCgpa,
+        attendancePercentage: member.attendanceRecord?.overallAttendancePercentage,
+        isGraduating: member.academicYearLevel === "Graduated",
+      },
+    });
+
+    await AuditService.log({
+      actorId,
+      action: "ELECTION_CANDIDATE_ADDED",
+      resource: "ElectionCandidate",
+      resourceId: candidate._id.toString(),
+      requestId,
+      metadata: { electionId: payload.electionId, phase: electionPhase, postId: payload.postId || null },
+    });
+
+    return candidate;
   }
 
   static async listCandidates(electionId) {
@@ -197,12 +234,7 @@ class ElectionService {
 
     const election = await Election.findById(payload.electionId);
     if (!election) throw new ApiError(404, "Election not found");
-    
-    console.log('=== CAST VOTE DEBUG ===');
-    console.log('Election ID:', payload.electionId);
-    console.log('Election status:', election.status);
-    console.log('Election currentPhase:', election.currentPhase);
-    
+
     const activeStatuses = ['Active', 'Phase1_Active', 'Phase2_Active'];
     if (!activeStatuses.includes(election.status)) {
       throw new ApiError(400, `Election is not active. Current status: ${election.status}`);
@@ -309,8 +341,10 @@ class ElectionService {
   }
 
   static async getResults(electionId) {
-    const election = await Election.findById(electionId).select("_id phase");
+    const election = await Election.findById(electionId).select("_id phase currentPhase status startsOn endsOn phase1 phase2 isArchived results finalResultsPublishedAt");
     if (!election) throw new ApiError(404, "Election not found");
+    // Ensure the phase is closed/tallied if its window has ended before reading.
+    await ElectionAutomationService.processElection(election).catch(() => {});
 
     const rows = await Vote.aggregate([
       { $match: { electionId: new mongoose.Types.ObjectId(electionId) } },
@@ -345,14 +379,8 @@ class ElectionService {
     const election = await Election.findById(electionId);
     if (!election) throw new ApiError(404, "Election not found");
 
-    console.log('=== UPDATE PHASE DEBUG ===');
-    console.log('Election ID:', electionId);
-    console.log('Election currentPhase (from DB):', election.currentPhase);
-    console.log('Payload:', JSON.stringify(payload, null, 2));
-
     // Update phase if provided (do this BEFORE status mapping)
     if (typeof payload.phase === "number") {
-      console.log('Updating phase from', election.currentPhase, 'to', payload.phase);
       election.currentPhase = payload.phase;
     }
     
@@ -387,12 +415,6 @@ class ElectionService {
       // Use mapped status or direct status if already in correct format
       const mappedStatus = statusMap[newStatus] || newStatus;
       
-      console.log('=== STATUS TRANSITION DEBUG ===');
-      console.log('Current status:', currentStatus);
-      console.log('Requested status:', newStatus);
-      console.log('Current phase:', currentPhase);
-      console.log('Mapped status:', mappedStatus);
-      
       // Validate state transitions - allow Phase 2 elections to skip Phase 1
       const validTransitions = {
         'Draft': ['Setup', 'Phase1_Active', 'Phase2_Active', 'Cancelled'], // Allow direct to Phase2
@@ -406,14 +428,11 @@ class ElectionService {
       };
       
       const allowedNext = validTransitions[currentStatus] || [];
-      console.log('Allowed transitions:', allowedNext);
       
       if (!allowedNext.includes(mappedStatus) && currentStatus !== mappedStatus) {
-        console.error('TRANSITION REJECTED:', currentStatus, '->', mappedStatus);
         throw new ApiError(400, `Cannot transition from ${currentStatus} to ${mappedStatus}. Allowed transitions: ${allowedNext.join(', ')}`);
       }
       
-      console.log('TRANSITION ACCEPTED:', currentStatus, '->', mappedStatus);
       election.status = mappedStatus;
       
       // Update phase-specific status
@@ -428,7 +447,6 @@ class ElectionService {
     }
     
     await election.save();
-    console.log('Election saved with status:', election.status, 'and phase:', election.currentPhase);
 
     await AuditService.log({
       actorId,
@@ -470,15 +488,93 @@ class ElectionService {
     return this.validateCandidate(candidateId, "Rejected", reason, actorId, requestId);
   }
 
-  static async publishResults(electionId, actorId, requestId) {
+  static async publishResults(electionId, actorId, requestId, options = {}) {
+    const autoCreateAppointments = options.autoCreateAppointments !== false; // default ON
     const election = await Election.findById(electionId);
     if (!election) throw new ApiError(404, "Election not found");
 
     const results = await this.getResults(electionId);
+    const phase = election.currentPhase || 1;
+
     election.status = "Completed";
     election.finalResultsPublishedAt = new Date();
     election.finalResultsPublishedBy = actorId;
     await election.save();
+
+    // --- Automation: auto-appoint winners to EC posts ---
+    const createdAppointments = [];
+    const appointmentErrors = [];
+    if (autoCreateAppointments && election.termId) {
+      try {
+        const term = await EcTerm.findById(election.termId);
+        const startsOn = term?.startsOn || new Date();
+
+        if (phase === 2) {
+          // Phase 2 winners → their contested post (one winner per post).
+          const winnersByPost = new Map();
+          for (const row of results) {
+            if (!row.post?._id) continue;
+            const key = row.post._id.toString();
+            if (!winnersByPost.has(key)) winnersByPost.set(key, row); // rows are vote-desc sorted
+          }
+          for (const [postId, row] of winnersByPost.entries()) {
+            try {
+              if (!row.memberId) { appointmentErrors.push({ candidateId: row.candidateId, reason: "No member" }); continue; }
+              const appt = await GovernanceService.appointMember(
+                { termId: election.termId, postId, memberId: row.memberId, startsOn, source: "Election" },
+                actorId, requestId
+              );
+              createdAppointments.push(appt);
+            } catch (err) {
+              appointmentErrors.push({ candidateId: row.candidateId, reason: err.message });
+            }
+          }
+        } else {
+          // Phase 1 winners → executive-member posts, round-robin over free posts.
+          const execPosts = await EcPost.find({ code: /EXECUTIVE_MEMBER/i, isActive: true }).sort({ displayOrder: 1 });
+          let idx = 0;
+          // Top-5 per batch from stored results (fallback to vote-sorted rows).
+          const p1 = election.results?.phase1Results || [];
+          const winnerIds = p1.length
+            ? p1.flatMap((b) => b.winners.map((w) => w.candidateId?.toString())).filter(Boolean)
+            : results.slice(0, 5).map((r) => r.candidateId?.toString());
+
+          for (const cid of winnerIds) {
+            try {
+              const candidate = await ElectionCandidate.findById(cid).populate("memberId");
+              if (!candidate?.memberId) { appointmentErrors.push({ candidateId: cid, reason: "No member" }); continue; }
+              // Find a free exec post in this term.
+              let assigned = null;
+              for (let i = 0; i < execPosts.length; i++) {
+                const p = execPosts[(idx + i) % execPosts.length];
+                const held = await EcAppointment.findOne({ termId: election.termId, postId: p._id, endsOn: null });
+                if (!held) { assigned = p; idx = (idx + i + 1); break; }
+              }
+              if (!assigned) { appointmentErrors.push({ candidateId: cid, reason: "No free executive post" }); continue; }
+              const appt = await GovernanceService.appointMember(
+                { termId: election.termId, postId: assigned._id, memberId: candidate.memberId._id, startsOn, source: "Election" },
+                actorId, requestId
+              );
+              createdAppointments.push(appt);
+            } catch (err) {
+              appointmentErrors.push({ candidateId: cid, reason: err.message });
+            }
+          }
+        }
+      } catch (err) {
+        appointmentErrors.push({ reason: err.message });
+      }
+    }
+
+    // --- Automation: notify members results are live ---
+    await NotificationService.createForRoleNames(["General Member", "Alumni"], {
+      title: `Results published — ${election.name}`,
+      message: `Final results for ${election.name} are now available.`,
+      category: "Election",
+      actionUrl: `/dashboard/elections/${election._id}/results`,
+      entityType: "Election",
+      entityId: election._id.toString(),
+    }).catch(() => {});
 
     await AuditService.log({
       actorId,
@@ -486,9 +582,10 @@ class ElectionService {
       resource: "Election",
       resourceId: election._id.toString(),
       requestId,
+      metadata: { phase, appointmentsCreated: createdAppointments.length, appointmentErrors: appointmentErrors.length },
     });
 
-    return { election, results };
+    return { election, results, createdAppointments, appointmentErrors };
   }
 
   static async getMyVotes(electionId, actorId) {

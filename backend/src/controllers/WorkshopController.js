@@ -14,7 +14,8 @@ class WorkshopController {
   });
 
   static detail = asyncHandler(async (req, res) => {
-    const workshop = await WorkshopService.getWorkshopById(req.params.id);
+    const userId = req.auth?.userId || null;
+    const workshop = await WorkshopService.getWorkshopById(req.params.id, userId);
     return ApiResponse.ok(res, workshop, 'Workshop');
   });
 
@@ -106,6 +107,11 @@ class WorkshopController {
   static addMaterial = asyncHandler(async (req, res) => {
     const workshop = await WorkshopService.addMaterial(req.params.id, req.body, req.auth.userId);
     return ApiResponse.ok(res, workshop, 'Material added');
+  });
+
+  static getMaterials = asyncHandler(async (req, res) => {
+    const data = await WorkshopService.getMaterials(req.params.id, req.auth.userId);
+    return ApiResponse.ok(res, data, 'Workshop resources');
   });
 
   static editMaterial = asyncHandler(async (req, res) => {

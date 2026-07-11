@@ -6,6 +6,7 @@ const { validate } = require("../middleware/validate");
 const {
   createEcPostSchema,
   createEcTermSchema,
+  updateEcTermSchema,
   appointEcMemberSchema,
   createProposalSchema,
   reviewProposalSchema,
@@ -75,6 +76,21 @@ router.post(
   authorize("governance.ecTerm.create"),
   validate(createEcTermSchema),
   GovernanceController.createTerm
+);
+
+router.patch(
+  "/ec-terms/:id",
+  authenticate,
+  authorize("governance.ecTerm.create"),
+  validate(updateEcTermSchema),
+  GovernanceController.updateTerm
+);
+
+router.delete(
+  "/ec-terms/:id",
+  authenticate,
+  authorize("governance.ecTerm.create"),
+  GovernanceController.deleteTerm
 );
 
 router.post(

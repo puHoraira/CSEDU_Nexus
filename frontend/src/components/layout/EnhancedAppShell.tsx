@@ -4,11 +4,15 @@ import { motion } from 'framer-motion';
 // Layout components
 import { EnhancedSidebar } from './EnhancedSidebar';
 import { EnhancedHeader } from './EnhancedHeader';
+import { useNotificationStream } from '../../hooks/useNotificationStream';
 
 export function EnhancedAppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+
+  // Open the real-time notification stream for the whole authenticated app.
+  useNotificationStream();
 
   // Close mobile menu on route change
   useEffect(() => {

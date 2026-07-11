@@ -45,11 +45,6 @@ class ElectionController {
   });
 
   static updatePhase = asyncHandler(async (req, res) => {
-    console.log('=== UPDATE PHASE CONTROLLER ===');
-    console.log('Params:', req.params);
-    console.log('Body:', req.body);
-    console.log('User:', req.auth.userId);
-    
     const row = await ElectionService.updatePhase(
       req.params.electionId,
       req.body,
@@ -81,7 +76,12 @@ class ElectionController {
   });
 
   static publishResults = asyncHandler(async (req, res) => {
-    const data = await ElectionService.publishResults(req.params.electionId, req.auth.userId, req.requestMeta.requestId);
+    const data = await ElectionService.publishResults(
+      req.params.electionId,
+      req.auth.userId,
+      req.requestMeta.requestId,
+      { autoCreateAppointments: req.body?.autoCreateAppointments !== false }
+    );
     return ApiResponse.ok(res, data, "Election results published");
   });
 

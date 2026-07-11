@@ -6,7 +6,7 @@ const { Member } = require("../models/Member");
 const { ApiError } = require("../core/ApiError");
 const { AuditService } = require("./AuditService");
 const { NotificationService } = require("./NotificationService");
-const { annotateAudienceRelevance } = require("../utils/audienceUtils");
+const { annotateAudienceRelevance, isUserInAudience, hasTargeting } = require("../utils/audienceUtils");
 
 class EventService {
   static normalizeVolunteerEligibility(input = {}) {
@@ -130,10 +130,10 @@ class EventService {
       throw new ApiError(404, "Event not found");
     }
 
-    const changesRequireNotification = 
-      (payload.eventDate !== undefined && payload.eventDate !== event.eventDate) ||
-      (payload.venue !== undefined && payload.venue !== event.venue) ||
-      (payload.status !== undefined && payload.status !== event.status);
+    const watched = ['eventDate', 'venue', 'status'];
+    const changesRequireNotification = watched.some(
+      (key) => payload[key] !== undefined && String(payload[key]) !== String(event[key])
+    );
 
     if (payload.title !== undefined) event.title = payload.title;
     if (payload.description !== undefined) event.description = payload.description;
@@ -164,27 +164,68 @@ class EventService {
       },
     });
 
-    // Notify followers and participants of important changes
+    // Notify followers, participants, AND the targeted audience (batch/year/role/invited).
     if (changesRequireNotification) {
       await NotificationService.notifyEventFollowers(event._id, {
         title: 'Event Updated',
-        message: `${event.title} has been updated. Please check the details.`,
+        message: `${event.title} has been updated. Please check the latest details.`,
         category: 'Event',
         actionUrl: `/dashboard/events/${event._id}`,
         entityType: 'Event',
         entityId: event._id.toString(),
-      }, { excludeUserIds: [actorId] });
+      }, {
+        excludeUserIds: [actorId],
+        includeRegistered: true,
+        notifyTargetAudience: hasTargeting(event.targetAudience),
+      });
     }
 
     return event;
   }
 
-  static async getEventById(eventId) {
+  static async getEventById(eventId, requesterId = null) {
     const event = await Event.findById(eventId).populate("createdBy", "firstName lastName email");
     if (!event) {
       throw new ApiError(404, "Event not found");
     }
+
+    // Legacy year targeting counts as "custom" too.
+    const legacyYears = Array.isArray(event.targetYears)
+      ? event.targetYears.filter((y) => y && y !== "All_Years")
+      : [];
+    const targeted = hasTargeting(event.targetAudience) || legacyYears.length > 0;
+
+    if (targeted) {
+      const { member, userRoles } = await this.resolveRequester(requesterId);
+      const isCreator =
+        requesterId && event.createdBy &&
+        (event.createdBy._id?.toString?.() || event.createdBy.toString?.()) === requesterId.toString();
+      const managerRoles = ["System Admin", "Moderator", "Chief Patron", "President", "General Secretary"];
+      const isManager = isCreator || userRoles.some((r) => managerRoles.includes(r));
+
+      const audienceOk = isUserInAudience(event.targetAudience, member, requesterId, userRoles);
+      const legacyOk = legacyYears.length === 0 || (member && legacyYears.includes(member.academicYearLevel));
+
+      if (!isManager && !(audienceOk && legacyOk)) {
+        throw new ApiError(403, "This event is restricted to a specific audience.");
+      }
+    }
+
     return event;
+  }
+
+  /**
+   * Resolve a requesting user's member record + role names.
+   */
+  static async resolveRequester(userId) {
+    if (!userId) return { member: null, userRoles: [] };
+    const { UserRole } = require("../models/UserRole");
+    const [member, userRoleRecords] = await Promise.all([
+      Member.findOne({ userId }).select("batch currentYear academicYearLevel"),
+      UserRole.find({ userId }).populate("roleId"),
+    ]);
+    const userRoles = userRoleRecords.map((ur) => ur.roleId?.roleName).filter(Boolean);
+    return { member, userRoles };
   }
 
   static async listEvents(requestingUserId = null) {

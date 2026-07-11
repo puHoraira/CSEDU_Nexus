@@ -5,7 +5,7 @@ const { Workshop }             = require('../models/Workshop');
 const { WorkshopRegistration } = require('../models/WorkshopRegistration');
 const { Member }               = require('../models/Member');
 const { ApiError }             = require('../core/ApiError');
-const { checkAudienceEligibility, annotateAudienceRelevance } = require('../utils/audienceUtils');
+const { checkAudienceEligibility, annotateAudienceRelevance, isUserInAudience, hasTargeting } = require('../utils/audienceUtils');
 
 const storeId   = process.env.SSLCOMMERZ_STORE_ID;
 const storePass = process.env.SSLCOMMERZ_STORE_PASSWORD;
@@ -119,37 +119,107 @@ class WorkshopService {
     });
   }
 
-  static async getWorkshopById(id) {
+  /**
+   * Resolve a requesting user's member record + role names.
+   * Returns { member, userRoles } (both may be empty for anonymous users).
+   */
+  static async resolveRequester(userId) {
+    if (!userId) return { member: null, userRoles: [] };
+    const { UserRole } = require('../models/UserRole');
+    const [member, userRoleRecords] = await Promise.all([
+      Member.findOne({ userId }).select('batch currentYear'),
+      UserRole.find({ userId }).populate('roleId'),
+    ]);
+    const userRoles = userRoleRecords.map((ur) => ur.roleId?.roleName).filter(Boolean);
+    return { member, userRoles };
+  }
+
+  /**
+   * Is this user a manager/creator of the workshop (bypasses audience gate)?
+   */
+  static isManager(workshop, userId, userRoles = []) {
+    if (!userId) return false;
+    const creatorId = workshop.createdBy?._id?.toString?.() || workshop.createdBy?.toString?.();
+    if (creatorId && creatorId === userId.toString()) return true;
+    const managerRoles = ['System Admin', 'Moderator', 'Chief Patron', 'President', 'General Secretary'];
+    return userRoles.some((r) => managerRoles.includes(r));
+  }
+
+  static async getWorkshopById(id, requesterId = null) {
     const w = await Workshop.findById(id).populate('createdBy', 'firstName lastName avatarUrl');
     if (!w) throw new ApiError(404, 'Workshop not found');
-    return w;
+
+    // If the workshop targets a custom audience (batch/year/role/invited),
+    // only eligible users, the creator, or managers may view it directly.
+    if (hasTargeting(w.targetAudience)) {
+      const { member, userRoles } = await this.resolveRequester(requesterId);
+      const allowed =
+        this.isManager(w, requesterId, userRoles) ||
+        isUserInAudience(w.targetAudience, member, requesterId, userRoles);
+      if (!allowed) {
+        throw new ApiError(403, 'This workshop is restricted to a specific audience.');
+      }
+    }
+
+    // Resources are visible only to approved/attended registrants (and managers).
+    const obj = w.toObject();
+    const canSeeMaterials = await this.canAccessMaterials(w, requesterId);
+    obj.materialsLocked = !canSeeMaterials;
+    obj.materialsCount = Array.isArray(obj.materials) ? obj.materials.length : 0;
+    if (!canSeeMaterials) {
+      obj.materials = [];
+    }
+    return obj;
+  }
+
+  /**
+   * Only approved/attended registrants (or the creator/managers) can access
+   * workshop resources.
+   */
+  static async canAccessMaterials(workshop, userId) {
+    if (!userId) return false;
+    const { userRoles } = await this.resolveRequester(userId);
+    if (this.isManager(workshop, userId, userRoles)) return true;
+    const reg = await WorkshopRegistration.findOne({
+      workshopId: workshop._id,
+      userId,
+      status: { $in: ['Approved', 'Attended'] },
+    }).select('_id');
+    return Boolean(reg);
   }
 
   static async updateWorkshop(id, data, userId) {
     const w = await Workshop.findById(id);
     if (!w) throw new ApiError(404, 'Workshop not found');
-    
-    const changesRequireNotification = 
-      (data.startDate !== undefined && data.startDate !== w.startDate) ||
-      (data.venue !== undefined && data.venue !== w.venue) ||
-      (data.status !== undefined && data.status !== w.status);
-    
+
+    // Notify on any meaningful change to schedule/venue/status/link/deadline.
+    const watched = ['startDate', 'endDate', 'venue', 'status', 'onlineLink', 'registrationDeadline', 'isOnline'];
+    const changesRequireNotification = watched.some(
+      (key) => data[key] !== undefined && String(data[key]) !== String(w[key])
+    );
+
     Object.assign(w, data);
     await w.save();
-    
-    // Notify followers and participants of important changes
+
+    // Notify followers, registered participants, AND the whole targeted
+    // audience (batch/year/role/invited), so custom-targeted members always
+    // hear about updates — not just those who happened to follow.
     if (changesRequireNotification) {
       const { NotificationService } = require('./NotificationService');
       await NotificationService.notifyWorkshopFollowers(w._id, {
         title: 'Workshop Updated',
-        message: `${w.title} has been updated. Please check the details.`,
+        message: `${w.title} has been updated. Please check the latest details.`,
         category: 'Workshop',
-        actionUrl: `/workshops/${w._id}`,
+        actionUrl: `/dashboard/workshops/${w._id}`,
         entityType: 'Workshop',
         entityId: w._id.toString(),
-      }, { excludeUserIds: [userId] });
+      }, {
+        excludeUserIds: [userId],
+        includeRegistered: true,
+        notifyTargetAudience: hasTargeting(w.targetAudience),
+      });
     }
-    
+
     return w;
   }
 
@@ -162,6 +232,17 @@ class WorkshopService {
   static async registerForWorkshop(workshopId, userId, participantData) {
     const workshop = await Workshop.findById(workshopId);
     if (!workshop) throw new ApiError(404, 'Workshop not found');
+
+    // Enforce custom targeting (batch/year/role/invited) at registration time too.
+    if (hasTargeting(workshop.targetAudience)) {
+      const { member, userRoles } = await this.resolveRequester(userId);
+      const allowed =
+        this.isManager(workshop, userId, userRoles) ||
+        isUserInAudience(workshop.targetAudience, member, userId, userRoles);
+      if (!allowed) {
+        throw new ApiError(403, 'This workshop is restricted to a specific audience and you are not eligible to register.');
+      }
+    }
 
     if (['Cancelled', 'Completed', 'Registration_Closed'].includes(workshop.status)) {
       throw new ApiError(400, 'Workshop is not open for registration');
@@ -446,6 +527,16 @@ class WorkshopService {
     w.materials.splice(index, 1);
     await w.save();
     return w;
+  }
+
+  static async getMaterials(workshopId, userId) {
+    const w = await Workshop.findById(workshopId).select('_id title createdBy materials targetAudience');
+    if (!w) throw new ApiError(404, 'Workshop not found');
+    const allowed = await this.canAccessMaterials(w, userId);
+    if (!allowed) {
+      throw new ApiError(403, 'Register and get approved for this workshop to access its resources.');
+    }
+    return { materials: w.materials || [], count: (w.materials || []).length };
   }
 
   static async getMyRegistration(workshopId, userId) {

@@ -1,5 +1,7 @@
 const { Workshop } = require('../models/Workshop');
 const { Event } = require('../models/Event');
+const { ElectionAutomationService } = require('./ElectionAutomationService');
+const { NotificationTargetingService } = require('./NotificationTargetingService');
 
 class SchedulerService {
   /**
@@ -74,6 +76,36 @@ class SchedulerService {
     console.log('🕐 Running scheduled checks...');
     await this.checkAndCloseWorkshopRegistrations();
     await this.checkAndCloseEventRegistrations();
+    await this.checkElectionTransitions();
+    await this.dispatchScheduledNotifications();
+  }
+
+  /**
+   * Deliver due scheduled notifications and expire stale ones.
+   */
+  static async dispatchScheduledNotifications() {
+    try {
+      const sent = await NotificationTargetingService.sendScheduledNotifications();
+      const expired = await NotificationTargetingService.expireOldNotifications();
+      if (sent.sentCount > 0) console.log(`✓ Delivered ${sent.sentCount} scheduled notification(s)`);
+      if (expired.expiredCount > 0) console.log(`✓ Expired ${expired.expiredCount} old notification(s)`);
+      return { sent: sent.sentCount, expired: expired.expiredCount };
+    } catch (error) {
+      console.error('Error in dispatchScheduledNotifications:', error);
+      return { sent: 0, expired: 0 };
+    }
+  }
+
+  /**
+   * Auto-advance elections whose voting window has ended (tally + close phase).
+   */
+  static async checkElectionTransitions() {
+    try {
+      return await ElectionAutomationService.runAutomationCheck();
+    } catch (error) {
+      console.error('Error in checkElectionTransitions:', error);
+      return 0;
+    }
   }
 
   /**
@@ -83,12 +115,18 @@ class SchedulerService {
     // Run immediately on startup
     this.runAllChecks();
 
-    // Then run every hour
+    // Heavier checks (registrations, election transitions) every hour
     setInterval(() => {
       this.runAllChecks();
     }, 60 * 60 * 1000); // 1 hour
 
-    console.log('✓ Scheduler started - will check registration deadlines every hour');
+    // Lightweight scheduled-notification dispatch every minute so timed
+    // notifications fire close to their scheduledFor time.
+    setInterval(() => {
+      this.dispatchScheduledNotifications();
+    }, 60 * 1000); // 1 minute
+
+    console.log('✓ Scheduler started - hourly deadline checks + per-minute notification dispatch');
   }
 }
 
