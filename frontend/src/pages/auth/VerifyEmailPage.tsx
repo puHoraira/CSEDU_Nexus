@@ -26,11 +26,23 @@ export const VerifyEmailPage: React.FC = () => {
   }, [token, email]);
 
   const verifyEmail = async () => {
+    console.log('Starting email verification with:', { token, email });
+    
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.error('Verification timeout');
+      setVerificationStatus('error');
+      setMessage('Verification is taking too long. Please try again or contact support.');
+    }, 15000); // 15 second timeout
+    
     try {
       const response: any = await apiRequest('/auth/verify-email', {
         method: 'POST',
         body: JSON.stringify({ token, email }),
       });
+
+      clearTimeout(timeoutId);
+      console.log('Verification response:', response);
 
       if (response.success) {
         setVerificationStatus('success');
@@ -40,8 +52,13 @@ export const VerifyEmailPage: React.FC = () => {
         setTimeout(() => {
           navigate('/auth/login', { state: { emailVerified: true } });
         }, 3000);
+      } else {
+        setVerificationStatus('error');
+        setMessage(response.message || 'Email verification failed.');
       }
     } catch (error: any) {
+      clearTimeout(timeoutId);
+      console.error('Verification error:', error);
       setVerificationStatus('error');
       setMessage(error.message || 'Email verification failed. The link may have expired.');
     }
@@ -52,7 +69,7 @@ export const VerifyEmailPage: React.FC = () => {
 
     setIsResending(true);
     try {
-      await apiRequest('/auth/send-verification', {
+      await apiRequest('/auth/request-verification', {
         method: 'POST',
         body: JSON.stringify({ email }),
       });

@@ -80,7 +80,10 @@ const createEventPostSchema = z.object({
 });
 
 const createEventCommentSchema = z.object({
-  content: z.string().trim().min(1).max(1200),
+  content: z.string().trim().max(1200).optional().default(""),
+  images: z.array(imageStringSchema).max(4).optional().default([]),
+}).refine((data) => data.content.length > 0 || data.images.length > 0, {
+  message: "Comment must have either content or at least one image",
 });
 
 module.exports = {

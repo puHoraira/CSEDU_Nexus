@@ -141,6 +141,60 @@ class RoomController {
       return ApiResponse.ok(res, assignments, 'Room assignments exported successfully');
     }
   });
+
+  /**
+   * Create a manual room booking
+   * POST /api/v1/rooms/:id/book
+   */
+  static createManualBooking = asyncHandler(async (req, res) => {
+    const { RoomBookingService } = require('../services/RoomBookingService');
+    const booking = await RoomBookingService.createManualBooking({
+      roomId: req.params.id,
+      ...req.body,
+      bookedBy: req.auth.userId,
+    });
+    return ApiResponse.created(res, booking, 'Room booked successfully');
+  });
+
+  /**
+   * Update/edit a booking
+   * PUT /api/v1/rooms/bookings/:bookingId
+   */
+  static updateBooking = asyncHandler(async (req, res) => {
+    const { RoomBookingService } = require('../services/RoomBookingService');
+    const booking = await RoomBookingService.updateBooking(req.params.bookingId, req.body, req.auth.userId);
+    return ApiResponse.ok(res, booking, 'Booking updated successfully');
+  });
+
+  /**
+   * Cancel a booking
+   * POST /api/v1/rooms/bookings/:bookingId/cancel
+   */
+  static cancelBooking = asyncHandler(async (req, res) => {
+    const { RoomBookingService } = require('../services/RoomBookingService');
+    const booking = await RoomBookingService.cancelBooking(req.params.bookingId, req.auth.userId);
+    return ApiResponse.ok(res, booking, 'Booking cancelled successfully');
+  });
+
+  /**
+   * Get full booking history for a room (active + cancelled)
+   * GET /api/v1/rooms/:id/history
+   */
+  static getRoomHistory = asyncHandler(async (req, res) => {
+    const { RoomBookingService } = require('../services/RoomBookingService');
+    const history = await RoomBookingService.getRoomHistory(req.params.id, req.query);
+    return ApiResponse.ok(res, history, 'Room history retrieved');
+  });
+
+  /**
+   * Get activity logs for a room
+   * GET /api/v1/rooms/:id/logs
+   */
+  static getRoomLogs = asyncHandler(async (req, res) => {
+    const { RoomLogService } = require('../services/RoomLogService');
+    const logs = await RoomLogService.getLogsForRoom(req.params.id, req.query);
+    return ApiResponse.ok(res, logs, 'Room logs retrieved');
+  });
 }
 
 module.exports = { RoomController };

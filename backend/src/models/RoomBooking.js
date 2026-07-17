@@ -23,6 +23,8 @@ const roomBookingSchema = new mongoose.Schema(
     workshopId: { type: mongoose.Schema.Types.ObjectId, ref: "Workshop", default: null },
 
     title: { type: String, default: "" },     // denormalized for schedule display
+    description: { type: String, default: "" },
+    attendees: { type: Number, default: 0 },
     bookedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
     status: {

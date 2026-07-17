@@ -303,10 +303,19 @@ export function ModernElectionsPage() {
                             <Button variant="outline" size="sm" leftIcon={Image}
                               onClick={() => openPosterGenerator({
                                 type: 'election',
-                                title: 'Choose Your Representative',
+                                title: el.phase === 1 ? 'Choose Your Representatives' : 'Elect Your Leaders',
                                 subtitle: el.name,
                                 date: el.startsOn,
-                                theme: 'blue',
+                                endDate: el.endsOn,
+                                category: phaseLabel(el.phase),
+                                location: 'CSEDU Campus',
+                                mode: 'In-person',
+                                cta: 'Cast your vote at csedu-nexus.vercel.app',
+                                description: el.phase === 1
+                                  ? 'Vote for your batch representative who will voice your concerns and drive change for your year.'
+                                  : 'Elect the leaders who will shape our club\'s future — President, VP, General Secretary and more.',
+                                additionalInfo: ['Democratic', 'Transparent', 'Verified'],
+                                theme: el.phase === 1 ? 'blue' : 'purple',
                               })}>
                               Generate Poster
                             </Button>

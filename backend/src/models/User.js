@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema(
     nationality: { type: String, default: "Bangladeshi", trim: true },
     
     // Contact Information
-    phone: { type: String, required: true, trim: true },
+    phone: { type: String, default: "", trim: true },
     alternativePhone: { type: String, default: "", trim: true },
     emergencyContact: {
       name: { type: String, default: "", trim: true },

@@ -336,22 +336,35 @@ class ElectionCommissionService {
       throw new ApiError(404, "Election not found");
     }
 
-    const commission = await ElectionCommission.findById(election.commissionId);
-    if (!commission) {
-      throw new ApiError(404, "Election commission not found");
+    // Check if user has privileged access (Moderator or higher)
+    const user = await User.findById(actorId);
+    if (!user) {
+      throw new ApiError(404, "Actor user not found");
     }
 
-    // Check authorization
-    const isAuthorized = commission.chiefCommissioner.toString() === actorId ||
-                        commission.commissioners.some(c => c.userId.toString() === actorId);
+    const userRoles = user.roles || [];
+    const hasPrivilegedAccess = userRoles.includes("Moderator") || 
+                                userRoles.includes("Chief Patron") || 
+                                userRoles.includes("Chairman");
 
-    if (!isAuthorized) {
-      const user = await User.findById(actorId);
-      if (!user) {
-        throw new ApiError(404, "Actor user not found");
+    // If commission exists, check authorization
+    let commission = null;
+    if (election.commissionId) {
+      commission = await ElectionCommission.findById(election.commissionId);
+      
+      if (commission && !hasPrivilegedAccess) {
+        // Regular users must be commission members
+        const isAuthorized = commission.chiefCommissioner.toString() === actorId ||
+                            commission.commissioners.some(c => c.userId.toString() === actorId);
+
+        if (!isAuthorized) {
+          throw new ApiError(403, "Only commission members or moderators can update election phases");
+        }
       }
-      if (!user.roles.includes("Chief Patron") && !user.roles.includes("Chairman")) {
-        throw new ApiError(403, "Only commission members can update election phases");
+    } else {
+      // No commission exists - only allow privileged users
+      if (!hasPrivilegedAccess) {
+        throw new ApiError(403, "Election commission not found. Only moderators can update phases without a commission.");
       }
     }
 
@@ -375,24 +388,26 @@ class ElectionCommissionService {
 
     await election.save();
 
-    // Record commission decision
-    await ElectionCommission.findByIdAndUpdate(
-      commission._id,
-      {
-        $push: {
-          decisions: {
-            title: `Election Phase Update`,
-            description: `Updated election to phase ${election.currentPhase} with status ${election.status}`,
-            decidedBy: actorId,
-            type: "Schedule_Change",
-            affectedEntity: {
-              entityType: "Election",
-              entityId: election._id
+    // Record commission decision if commission exists
+    if (commission) {
+      await ElectionCommission.findByIdAndUpdate(
+        commission._id,
+        {
+          $push: {
+            decisions: {
+              title: `Election Phase Update`,
+              description: `Updated election to phase ${election.currentPhase} with status ${election.status}`,
+              decidedBy: actorId,
+              type: "Schedule_Change",
+              affectedEntity: {
+                entityType: "Election",
+                entityId: election._id
+              }
             }
           }
         }
-      }
-    );
+      );
+    }
 
     await AuditService.log({
       actorId,
@@ -402,7 +417,8 @@ class ElectionCommissionService {
       requestId,
       metadata: { 
         currentPhase: election.currentPhase,
-        status: election.status
+        status: election.status,
+        hasCommission: !!commission
       }
     });
 

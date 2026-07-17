@@ -18,7 +18,7 @@ type Election = {
   name: string;
   phase: number;
   currentPhase?: number;
-  status: "Draft" | "Active" | "Closed" | string;
+  status: "Draft" | "Setup" | "Phase1_Active" | "Phase1_Completed" | "Phase2_Active" | "Phase2_Completed" | "Completed" | "Cancelled";
   startsOn?: string | null;
   endsOn?: string | null;
   phase1?: { votingStart?: string | null; votingEnd?: string | null };
@@ -38,7 +38,7 @@ type ModeratorDetails = {
   recentAudit?: AuditRow[];
 };
 
-type PhaseStatus = "Draft" | "Active" | "Closed";
+type PhaseStatus = "Draft" | "Setup" | "Phase1_Active" | "Phase1_Completed" | "Phase2_Active" | "Phase2_Completed" | "Completed" | "Cancelled";
 
 function phaseLabel(phase: number) {
   return phase === 1 ? "Phase 1 - Batch Representatives" : "Phase 2 - Executive Posts";
@@ -342,18 +342,18 @@ export function ElectionCommissionPage() {
             </div>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 16 }}>
-              <Button variant="success" leftIcon={Play} onClick={() => phaseMutation.mutate({ nextPhase: 1, nextStatus: "Active" })} disabled={!selectedElectionId || phaseMutation.isPending}>
+              <Button variant="success" leftIcon={Play} onClick={() => phaseMutation.mutate({ nextPhase: 1, nextStatus: "Phase1_Active" })} disabled={!selectedElectionId || phaseMutation.isPending}>
                 Open Phase 1
               </Button>
               <Button
                 variant="primary"
                 leftIcon={ArrowRight}
-                onClick={() => phaseMutation.mutate({ nextPhase: 2, nextStatus: "Active" })}
+                onClick={() => phaseMutation.mutate({ nextPhase: 2, nextStatus: "Phase2_Active" })}
                 disabled={!selectedElectionId || phaseMutation.isPending || selectedElection?.status !== "Phase1_Completed"}
               >
                 Move to Phase 2
               </Button>
-              <Button variant="outline" leftIcon={Square} onClick={() => phaseMutation.mutate({ nextPhase: phase, nextStatus: "Closed" })} disabled={!selectedElectionId || phaseMutation.isPending}>
+              <Button variant="outline" leftIcon={Square} onClick={() => phaseMutation.mutate({ nextPhase: phase, nextStatus: "Completed" })} disabled={!selectedElectionId || phaseMutation.isPending}>
                 Close current stage
               </Button>
             </div>

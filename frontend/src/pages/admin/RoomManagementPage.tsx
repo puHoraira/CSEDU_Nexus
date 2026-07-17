@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { apiRequest } from '../../lib/api';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { PageScreen } from '../../components/ui/PageScreen';
+import { Clock, Calendar } from 'lucide-react';
 
 interface Room {
   _id: string;
@@ -34,6 +35,24 @@ interface Room {
   };
 }
 
+interface Booking {
+  _id: string;
+  roomId: string;
+  startTime: string;
+  endTime: string;
+  bookedForType: 'Event' | 'Workshop' | 'Manual';
+  eventId?: { title: string };
+  workshopId?: { title: string };
+  title: string;
+  status: 'Active' | 'Cancelled';
+}
+
+interface RoomWithStatus extends Room {
+  bookingStatus: 'Available' | 'Occupied' | 'Upcoming';
+  nextBooking?: Booking;
+  currentBooking?: Booking;
+}
+
 interface RoomFormData {
   roomNumber: string;
   roomName: string;
@@ -59,7 +78,7 @@ interface RoomFormData {
 
 export function RoomManagementPage() {
   const { token } = useAuth();
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const [rooms, setRooms] = useState<RoomWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -99,11 +118,53 @@ export function RoomManagementPage() {
   const fetchRooms = async () => {
     try {
       setLoading(true);
-      const rooms: any = await apiRequest('/rooms', {
+      const fetchedRooms: Room[] = await apiRequest('/rooms', {
         method: 'GET',
         token
       });
-      setRooms(rooms || []);
+      
+      // Fetch schedule for each room to determine status
+      const roomsWithStatus = await Promise.all(
+        (fetchedRooms || []).map(async (room) => {
+          try {
+            const schedule: Booking[] = await apiRequest(`/rooms/${room._id}/schedule`, { token });
+            const now = new Date();
+            
+            // Find current booking (happening now)
+            const currentBooking = schedule.find(b => {
+              const start = new Date(b.startTime);
+              const end = new Date(b.endTime);
+              return start <= now && end > now;
+            });
+            
+            // Find next upcoming booking
+            const futureBookings = schedule.filter(b => new Date(b.startTime) > now);
+            const nextBooking = futureBookings.length > 0 ? futureBookings[0] : undefined;
+            
+            let bookingStatus: 'Available' | 'Occupied' | 'Upcoming' = 'Available';
+            if (currentBooking) {
+              bookingStatus = 'Occupied';
+            } else if (nextBooking) {
+              bookingStatus = 'Upcoming';
+            }
+            
+            return {
+              ...room,
+              bookingStatus,
+              currentBooking,
+              nextBooking
+            } as RoomWithStatus;
+          } catch (error) {
+            console.error(`Error fetching schedule for room ${room._id}:`, error);
+            return {
+              ...room,
+              bookingStatus: 'Available' as const
+            } as RoomWithStatus;
+          }
+        })
+      );
+      
+      setRooms(roomsWithStatus);
     } catch (error) {
       console.error('Error fetching rooms:', error);
     } finally {
@@ -240,13 +301,13 @@ export function RoomManagementPage() {
         <div className="card" style={{ padding: 20 }}>
           <h3 style={{ marginTop: 0, fontSize: '0.9rem', color: 'var(--muted)' }}>Currently Occupied</h3>
           <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: '#ef4444' }}>
-            {rooms.filter(r => r.currentUsage.isOccupied).length}
+            {rooms.filter(r => r.bookingStatus === 'Occupied').length}
           </p>
         </div>
         <div className="card" style={{ padding: 20 }}>
           <h3 style={{ marginTop: 0, fontSize: '0.9rem', color: 'var(--muted)' }}>Available Now</h3>
           <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: '#10b981' }}>
-            {rooms.filter(r => !r.currentUsage.isOccupied && r.isActive).length}
+            {rooms.filter(r => r.bookingStatus === 'Available' && r.isActive).length}
           </p>
         </div>
       </div>
@@ -549,9 +610,20 @@ export function RoomManagementPage() {
                     >
                       {room.roomType}
                     </span>
-                    {room.currentUsage.isOccupied && (
+                    {/* Booking Status Badge */}
+                    {room.bookingStatus === 'Occupied' && (
                       <span className="chip" style={{ background: '#ef4444', color: 'white', fontSize: '0.75rem' }}>
-                        Occupied
+                        🔴 Occupied
+                      </span>
+                    )}
+                    {room.bookingStatus === 'Upcoming' && (
+                      <span className="chip" style={{ background: '#f59e0b', color: 'white', fontSize: '0.75rem' }}>
+                        🟡 Upcoming
+                      </span>
+                    )}
+                    {room.bookingStatus === 'Available' && room.isActive && (
+                      <span className="chip" style={{ background: '#10b981', color: 'white', fontSize: '0.75rem' }}>
+                        🟢 Available
                       </span>
                     )}
                   </div>
@@ -604,6 +676,52 @@ export function RoomManagementPage() {
                         ? ` (${room.currentUsage.occupiedSeats} seats occupied)`
                         : ` (${room.currentUsage.registeredCount} registered)`
                       }
+                    </div>
+                  )}
+                  
+                  {/* Current Booking Info */}
+                  {room.currentBooking && (
+                    <div style={{ 
+                      marginTop: 12, 
+                      padding: 12,
+                      background: 'rgba(239, 68, 68, 0.1)', 
+                      borderRadius: 8,
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      fontSize: '0.9rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <Clock size={14} style={{ color: '#ef4444' }} />
+                        <strong style={{ color: '#ef4444' }}>Currently Booked</strong>
+                      </div>
+                      <div style={{ marginLeft: 20 }}>
+                        <div><strong>{room.currentBooking.title}</strong></div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: 2 }}>
+                          Until {new Date(room.currentBooking.endTime).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Next Booking Info */}
+                  {room.nextBooking && !room.currentBooking && (
+                    <div style={{ 
+                      marginTop: 12, 
+                      padding: 12,
+                      background: 'rgba(245, 158, 11, 0.1)', 
+                      borderRadius: 8,
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      fontSize: '0.9rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <Calendar size={14} style={{ color: '#f59e0b' }} />
+                        <strong style={{ color: '#f59e0b' }}>Next Booking</strong>
+                      </div>
+                      <div style={{ marginLeft: 20 }}>
+                        <div><strong>{room.nextBooking.title}</strong></div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: 2 }}>
+                          {new Date(room.nextBooking.startTime).toLocaleString()} - {new Date(room.nextBooking.endTime).toLocaleString()}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

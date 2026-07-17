@@ -3,9 +3,10 @@ import { motion } from 'framer-motion';
 import {
   Home, Calendar, Users, Vote, FileText, DollarSign,
   Award, Bell, Settings, ChevronLeft, ChevronRight, UserCircle, LogOut, BookOpen,
-  Shield, GraduationCap, Gavel
+  Shield, GraduationCap, Gavel, DoorOpen
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { getDefaultDashboardRoute, getUserType } from '../../utils/dashboardRouter';
 
 interface Props { 
   collapsed: boolean; 
@@ -19,10 +20,11 @@ type NavItem = {
   to: string;
   icon: React.ElementType;
   roles?: string[];
+  dynamic?: boolean; // For items that need dynamic route calculation
 };
 
 const NAV: NavItem[] = [
-  { label: 'Dashboard',     to: '/dashboard/home',                icon: Home },
+  { label: 'Dashboard',     to: '/dashboard',                     icon: Home, dynamic: true },
   { label: 'Profile',       to: '/dashboard/profile',             icon: UserCircle },
   { label: 'Events',        to: '/dashboard/events',              icon: Calendar },
   { label: 'Workshops',     to: '/dashboard/workshops',           icon: BookOpen },
@@ -31,23 +33,32 @@ const NAV: NavItem[] = [
   { label: 'Governance',    to: '/dashboard/governance/ec-terms', icon: FileText,    roles: ['Moderator','Chief Patron','President','General Secretary'] },
   { label: 'Finance',       to: '/dashboard/finance',             icon: DollarSign,  roles: ['Treasurer','Moderator','Chief Patron'] },
   { label: 'Certificates',  to: '/dashboard/certificates',        icon: Award },
-  { label: 'Rooms',         to: '/dashboard/admin/rooms',      icon: Settings,    roles: ['Moderator','Chief Patron'] },
+  { label: 'Rooms',         to: '/dashboard/admin/rooms',         icon: DoorOpen,    roles: ['System Admin', 'Moderator','Chief Patron'] },
   { label: 'Notifications', to: '/dashboard/notifications',       icon: Bell },
-  // Role-specific dashboards — shown only to the relevant role
+  // Role-specific pages — shown only to the relevant role
   { label: 'Moderator',     to: '/dashboard/moderator',           icon: Shield,      roles: ['Moderator'] },
   { label: 'Chief Patron',  to: '/dashboard/chief-patron',        icon: Gavel,       roles: ['Chief Patron'] },
   { label: 'EC Commission', to: '/dashboard/election-commission', icon: Vote,        roles: ['Election Commissioner'] },
   { label: 'Alumni Portal', to: '/dashboard/alumni',              icon: GraduationCap, roles: ['Alumni'] },
-  { label: 'Admin',         to: '/dashboard/admin',               icon: Settings,    roles: ['System Admin'] },
 ];
 
 export function EnhancedSidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Props) {
   const { user, logout } = useAuth();
 
+  // Get the user's default dashboard route
+  const defaultDashboard = getDefaultDashboardRoute(user);
+  const userType = getUserType(user);
+
   const items = NAV.filter(item => {
     if (!item.roles) return true;
     if (!user) return false;
     return item.roles.some(r => user.roles.includes(r));
+  }).map(item => {
+    // Replace dynamic routes with user-specific routes
+    if (item.dynamic && item.to === '/dashboard') {
+      return { ...item, to: defaultDashboard };
+    }
+    return item;
   });
 
   // Handle keyboard navigation for mobile

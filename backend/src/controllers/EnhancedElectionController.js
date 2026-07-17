@@ -358,6 +358,20 @@ class EnhancedElectionController {
     );
   });
 
+  // Alias for updatePhase - for route compatibility
+  static updateElectionPhase = asyncHandler(async (req, res) => {
+    const { electionId } = req.params;
+    const election = await EnhancedElectionService.updatePhase(
+      electionId,
+      req.body,
+      req.auth.userId,
+      req.requestMeta.requestId
+    );
+    return res.json(
+      new ApiResponse(200, election, "Election phase updated successfully")
+    );
+  });
+
   // Utility endpoints
   static getEligibleBatches = asyncHandler(async (req, res) => {
     const { Member } = require("../models/Member");

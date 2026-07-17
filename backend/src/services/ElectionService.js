@@ -540,6 +540,88 @@ class ElectionService {
     return this.validateCandidate(candidateId, "Rejected", reason, actorId, requestId);
   }
 
+  static async getResults(electionId) {
+    const election = await Election.findById(electionId);
+    if (!election) throw new ApiError(404, "Election not found");
+
+    // If results are stored in election document, return those
+    if (election.results) {
+      const allResults = [];
+      
+      // Phase 1 results
+      if (election.results.phase1 && Array.isArray(election.results.phase1)) {
+        for (const result of election.results.phase1) {
+          allResults.push({
+            candidateId: result.candidateId,
+            memberId: result.memberId,
+            studentId: result.studentId,
+            candidateName: result.name || result.studentId,
+            batch: result.batch,
+            total: result.votes || 0,
+            candidateStatus: 'Approved',
+            post: null, // Phase 1 has no post
+          });
+        }
+      }
+      
+      // Phase 2 results
+      if (election.results.phase2 && Array.isArray(election.results.phase2)) {
+        for (const result of election.results.phase2) {
+          allResults.push({
+            candidateId: result.candidateId,
+            memberId: result.memberId,
+            studentId: result.studentId,
+            candidateName: result.name || result.studentId,
+            batch: result.batch,
+            total: result.votes || 0,
+            candidateStatus: 'Approved',
+            post: result.postId ? {
+              _id: result.postId,
+              title: result.postTitle,
+              code: result.postTitle?.toUpperCase().replace(/\s+/g, '_')
+            } : null,
+          });
+        }
+      }
+      
+      if (allResults.length > 0) {
+        return allResults;
+      }
+    }
+
+    // Fallback: Calculate results from votes
+    const candidates = await ElectionCandidate.find({ electionId })
+      .populate("memberId")
+      .populate("postId");
+
+    const votes = await Vote.find({ electionId });
+    const voteCounts = {};
+    votes.forEach((v) => {
+      const k = v.candidateId.toString();
+      voteCounts[k] = (voteCounts[k] || 0) + 1;
+    });
+
+    const results = candidates.map((c) => {
+      const member = c.memberId;
+      return {
+        candidateId: c._id.toString(),
+        memberId: member?._id?.toString(),
+        studentId: member?.studentId,
+        candidateName: member?.studentId || 'Unknown',
+        batch: member?.batch,
+        total: voteCounts[c._id.toString()] || 0,
+        candidateStatus: c.status,
+        post: c.postId ? {
+          _id: c.postId._id,
+          title: c.postId.title,
+          code: c.postId.code
+        } : null,
+      };
+    });
+
+    return results.sort((a, b) => b.total - a.total);
+  }
+
   static async publishResults(electionId, actorId, requestId, options = {}) {
     const autoCreateAppointments = options.autoCreateAppointments !== false; // default ON
     const election = await Election.findById(electionId);

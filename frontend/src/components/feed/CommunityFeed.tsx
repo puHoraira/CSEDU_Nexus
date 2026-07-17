@@ -19,7 +19,7 @@ export type FeedPost = {
   authorId: Author;
   createdAt: string;
   stats: { totalComments: number };
-  comments: Array<{ _id: string; content: string; createdAt: string; authorId: Author }>;
+  comments: Array<{ _id: string; content: string; images?: string[]; createdAt: string; authorId: Author }>;
 };
 
 type Props = {
@@ -181,15 +181,44 @@ function PostCard({ post, baseUrl, token, user, onChanged }: {
   post: FeedPost; baseUrl: string; token: string | null; user: any; onChanged: () => void;
 }) {
   const [comment, setComment] = useState('');
+  const [commentImages, setCommentImages] = useState<string[]>([]);
+  const [uploadingComment, setUploadingComment] = useState(false);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const commentFileRef = useRef<HTMLInputElement>(null);
 
   const commentMut = useMutation({
     mutationFn: () => apiRequest(`${baseUrl}/posts/${post._id}/comments`, {
-      method: 'POST', token, body: JSON.stringify({ content: comment }),
+      method: 'POST', token, body: JSON.stringify({ content: comment, images: commentImages }),
     }),
-    onSuccess: () => { setComment(''); onChanged(); },
+    onSuccess: () => { setComment(''); setCommentImages([]); onChanged(); },
     onError: (e) => toast.error(normalizeApiError(e)),
   });
+
+  async function handleCommentImages(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const remaining = 4 - commentImages.length;
+    const picked = Array.from(files).slice(0, remaining);
+    if (Array.from(files).length > remaining) toast.error(`Max 4 images per comment`);
+
+    setUploadingComment(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of picked) {
+        if (!file.type.startsWith('image/')) { toast.error('Only images allowed'); continue; }
+        if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name} exceeds 5MB`); continue; }
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await apiRequest<{ url: string }>('/upload', { method: 'POST', token, body: fd, isFormData: true });
+        if (res?.url) uploaded.push(res.url);
+      }
+      setCommentImages((prev) => [...prev, ...uploaded]);
+    } catch (e) {
+      toast.error(normalizeApiError(e));
+    } finally {
+      setUploadingComment(false);
+      if (commentFileRef.current) commentFileRef.current.value = '';
+    }
+  }
 
   return (
     <>
@@ -206,9 +235,9 @@ function PostCard({ post, baseUrl, token, user, onChanged }: {
             </div>
           )}
           <div className="ui-flex ui-flex-gap-3" style={{ marginBottom: 10, alignItems: 'center' }}>
-            <Avatar src={post.authorId.avatarUrl} name={`${post.authorId.firstName} ${post.authorId.lastName}`} size={32} />
+            <Avatar src={post.authorId?.avatarUrl} name={post.authorId ? `${post.authorId.firstName || ''} ${post.authorId.lastName || ''}`.trim() : 'Deleted User'} size={32} />
             <div>
-              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)' }}>{post.authorId.firstName} {post.authorId.lastName}</p>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)' }}>{post.authorId ? `${post.authorId.firstName || ''} ${post.authorId.lastName || ''}`.trim() : 'Deleted User'}</p>
               <p className="ui-text-xs ui-text-muted">{formatRelativeTime(post.createdAt)}</p>
             </div>
           </div>
@@ -227,17 +256,47 @@ function PostCard({ post, baseUrl, token, user, onChanged }: {
 
           {post.comments.length > 0 && (
             <div style={{ paddingLeft: 14, borderLeft: '2px solid var(--border)', marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {post.comments.map((c) => (
-                <div key={c._id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                  <Avatar src={c.authorId.avatarUrl} name={`${c.authorId.firstName} ${c.authorId.lastName}`} size={26} />
-                  <div style={{ flex: 1, padding: '7px 10px', borderRadius: 10, background: 'var(--panel-strong)', border: '1px solid var(--border)' }}>
-                    <p style={{ margin: '0 0 2px', fontWeight: 600, fontSize: '0.75rem', color: 'var(--text)' }}>{c.authorId.firstName} {c.authorId.lastName}</p>
-                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--muted)' }}>{c.content}</p>
+              {post.comments.map((c) => {
+                const authorName = c.authorId ? `${c.authorId.firstName || ''} ${c.authorId.lastName || ''}`.trim() : 'Deleted User';
+                const authorAvatar = c.authorId?.avatarUrl;
+                return (
+                  <div key={c._id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <Avatar src={authorAvatar} name={authorName} size={26} />
+                    <div style={{ flex: 1, padding: '7px 10px', borderRadius: 10, background: 'var(--panel-strong)', border: '1px solid var(--border)' }}>
+                      <p style={{ margin: '0 0 2px', fontWeight: 600, fontSize: '0.75rem', color: 'var(--text)' }}>{authorName}</p>
+                      {c.content && <p style={{ margin: '0 0 6px', fontSize: '0.78rem', color: 'var(--muted)' }}>{c.content}</p>}
+                      {c.images && c.images.length > 0 && (
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                          {c.images.map((img, idx) => (
+                            <img key={idx} src={img} alt="" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)' }} onClick={() => setLightbox(0)} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Comment image previews */}
+          {commentImages.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, paddingLeft: 34 }}>
+              {commentImages.map((src, i) => (
+                <div key={i} style={{ position: 'relative', width: 50, height: 50, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button
+                    onClick={() => setCommentImages((prev) => prev.filter((_, idx) => idx !== i))}
+                    style={{ position: 'absolute', top: 1, right: 1, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.7)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    <X size={10} />
+                  </button>
                 </div>
               ))}
             </div>
           )}
+
+          <input ref={commentFileRef} type="file" accept="image/*" multiple hidden onChange={(e) => handleCommentImages(e.target.files)} />
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Avatar src={user?.avatarUrl} name={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`} size={26} />
@@ -246,11 +305,19 @@ function PostCard({ post, baseUrl, token, user, onChanged }: {
               placeholder="Write a comment…"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && comment.trim()) { e.preventDefault(); commentMut.mutate(); } }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && (comment.trim() || commentImages.length)) { e.preventDefault(); commentMut.mutate(); } }}
             />
             <button
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 4, display: 'flex', opacity: comment.trim() ? 1 : 0.35 }}
-              disabled={!comment.trim()} onClick={() => commentMut.mutate()}
+              onClick={() => commentFileRef.current?.click()}
+              disabled={uploadingComment || commentImages.length >= 4}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4, display: 'flex', opacity: commentImages.length >= 4 ? 0.35 : 1 }}
+              title="Add image"
+            >
+              {uploadingComment ? <Loader2 size={15} className="ui-spin" /> : <ImagePlus size={15} />}
+            </button>
+            <button
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 4, display: 'flex', opacity: (comment.trim() || commentImages.length) ? 1 : 0.35 }}
+              disabled={!comment.trim() && commentImages.length === 0} onClick={() => commentMut.mutate()}
             >
               <Send size={15} />
             </button>

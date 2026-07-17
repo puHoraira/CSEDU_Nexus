@@ -93,7 +93,7 @@ class AdminService {
       filter._id = { $in: teacherIds.map(t => t.userId) };
     }
     
-    const teachers = await Teacher.find({})
+    const teachers = await Teacher.find({ isActive: true })
       .populate('userId', 'firstName lastName email phone avatarUrl')
       .sort({ createdAt: -1 });
     
@@ -242,11 +242,12 @@ class AdminService {
       ];
     }
     
-    // Build member filter
-    const memberFilter = {};
+    // Build member filter - only show Active members (exclude those converted to teachers)
+    const memberFilter = {
+      'membershipStatus.status': query.status || 'Active'
+    };
     if (query.batch) memberFilter.batch = parseInt(query.batch);
     if (query.year) memberFilter.currentYear = parseInt(query.year);
-    if (query.status) memberFilter['membershipStatus.status'] = query.status;
     if (query.academicYearLevel) memberFilter.academicYearLevel = query.academicYearLevel;
     
     // Get members first
@@ -469,6 +470,421 @@ class AdminService {
     });
 
     return { userId, roleName: role.name, revoked: true };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // USER MANAGEMENT (edit any user, deactivate, change type)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static async getUserById(userId) {
+    const user = await User.findById(userId).select(
+      '-passwordHash -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires -twoFactorAuth -loginLockout -passwordResetLockout -devices'
+    );
+    if (!user) throw new ApiError(404, 'User not found');
+
+    const [member, teacher] = await Promise.all([
+      Member.findOne({ userId }),
+      Teacher.findOne({ userId }),
+    ]);
+
+    let userType = 'User';
+    if (teacher && teacher.isActive) userType = 'Teacher';
+    else if (member && member.academicYearLevel === 'Graduated') userType = 'Alumni';
+    else if (member) userType = 'Student';
+
+    return { user, member, teacher, userType };
+  }
+
+  static async updateUser(userId, payload, actorId, requestId) {
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    const allowedFields = [
+      'firstName', 'lastName', 'phone', 'alternativePhone', 'dateOfBirth',
+      'gender', 'bloodGroup', 'religion', 'nationality', 'bio',
+      'personalStatement', 'hobbies', 'interests',
+      'emergencyContact', 'presentAddress', 'permanentAddress', 'socialMedia',
+      'technicalSkills', 'softSkills', 'programmingLanguages', 'frameworks', 'tools'
+    ];
+
+    const updates = {};
+    for (const key of allowedFields) {
+      if (payload[key] !== undefined) {
+        updates[key] = payload[key];
+      }
+    }
+
+    Object.assign(user, updates);
+    await user.save();
+
+    await AuditService.log({
+      actorId,
+      action: "USER_UPDATED",
+      resource: "User",
+      resourceId: user._id.toString(),
+      requestId,
+      metadata: { updatedFields: Object.keys(updates) }
+    });
+
+    return user;
+  }
+
+  static async deactivateUser(userId, actorId, requestId) {
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    user.isActive = false;
+    await user.save();
+
+    const [member, teacher] = await Promise.all([
+      Member.findOne({ userId }),
+      Teacher.findOne({ userId }),
+    ]);
+
+    if (member) {
+      member.membershipStatus.status = 'Inactive';
+      member.membershipStatus.statusReason = 'Deactivated by admin';
+      await member.save();
+    }
+    if (teacher) {
+      teacher.isActive = false;
+      await teacher.save();
+    }
+
+    await AuditService.log({
+      actorId,
+      action: "USER_DEACTIVATED",
+      resource: "User",
+      resourceId: user._id.toString(),
+      requestId,
+      metadata: { email: user.email }
+    });
+
+    return { id: userId, deactivated: true };
+  }
+
+  static async reactivateUser(userId, actorId, requestId) {
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    user.isActive = true;
+    await user.save();
+
+    const [member, teacher] = await Promise.all([
+      Member.findOne({ userId }),
+      Teacher.findOne({ userId }),
+    ]);
+
+    if (member) {
+      member.membershipStatus.status = 'Active';
+      member.membershipStatus.statusReason = 'Reactivated by admin';
+      await member.save();
+    }
+    if (teacher) {
+      teacher.isActive = true;
+      await teacher.save();
+    }
+
+    await AuditService.log({
+      actorId,
+      action: "USER_REACTIVATED",
+      resource: "User",
+      resourceId: user._id.toString(),
+      requestId,
+      metadata: { email: user.email }
+    });
+
+    return { id: userId, reactivated: true };
+  }
+
+  static async changeUserType(userId, payload, actorId, requestId) {
+    const { targetType, typeData } = payload;
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    const [existingMember, existingTeacher] = await Promise.all([
+      Member.findOne({ userId }),
+      Teacher.findOne({ userId }),
+    ]);
+
+    // Helper function to convert display year level to enum value
+    const normalizeYearLevel = (yearLevel) => {
+      const mapping = {
+        '1st Year': 'First_Year',
+        '2nd Year': 'Second_Year',
+        '3rd Year': 'Third_Year',
+        '4th Year': 'Fourth_Year',
+        'MS': 'Masters',
+        'Masters': 'Masters',
+        'Graduated': 'Graduated'
+      };
+      return mapping[yearLevel] || yearLevel;
+    };
+
+    // Helper function to normalize designation with spaces to underscores
+    const normalizeDesignation = (designation) => {
+      if (!designation) return designation;
+      // Replace spaces with underscores for enum compatibility
+      return designation.replace(/ /g, '_');
+    };
+
+    let result = {};
+
+    if (targetType === 'teacher') {
+      if (existingTeacher && existingTeacher.isActive) {
+        throw new ApiError(409, 'User already has an active teacher record');
+      }
+      if (existingTeacher) {
+        existingTeacher.isActive = true;
+        if (typeData.designation) existingTeacher.designation = normalizeDesignation(typeData.designation);
+        if (typeData.employeeId) existingTeacher.employeeId = typeData.employeeId;
+        if (typeData.department) existingTeacher.department = typeData.department;
+        existingTeacher.joiningDate = typeData.joiningDate || new Date();
+        await existingTeacher.save();
+        result.teacher = existingTeacher;
+      } else {
+        if (!typeData.employeeId) throw new ApiError(400, 'employeeId is required for teacher');
+        if (!typeData.designation) throw new ApiError(400, 'designation is required for teacher');
+        const dupId = await Teacher.findOne({ employeeId: typeData.employeeId });
+        if (dupId) throw new ApiError(409, 'Employee ID already exists');
+        
+        result.teacher = await Teacher.create({
+          userId,
+          employeeId: typeData.employeeId,
+          designation: normalizeDesignation(typeData.designation),
+          department: typeData.department || 'Computer Science and Engineering',
+          joiningDate: typeData.joiningDate || new Date(),
+          createdBy: actorId,
+        });
+      }
+      
+      // Remove General Member role and add Teacher role
+      const generalMemberRole = await Role.findOne({ name: 'General Member' });
+      const teacherRole = await Role.findOne({ name: 'Teacher' });
+      if (generalMemberRole) {
+        await UserRole.deleteMany({ userId, roleId: generalMemberRole._id });
+      }
+      if (teacherRole) {
+        const existingRole = await UserRole.findOne({ userId, roleId: teacherRole._id });
+        if (!existingRole) {
+          await UserRole.create({ userId, roleId: teacherRole._id });
+        }
+      }
+      
+      if (existingMember) {
+        existingMember.membershipStatus.status = 'Inactive';
+        existingMember.membershipStatus.statusReason = 'Converted to teacher';
+        await existingMember.save();
+      }
+    } else if (targetType === 'student') {
+      if (existingMember && existingMember.membershipStatus.status === 'Active') {
+        throw new ApiError(409, 'User already has an active student record');
+      }
+      if (existingMember) {
+        existingMember.membershipStatus.status = 'Active';
+        existingMember.membershipStatus.statusReason = 'Restored by admin';
+        if (typeData.batch) existingMember.batch = typeData.batch;
+        if (typeData.currentYear) existingMember.currentYear = typeData.currentYear;
+        if (typeData.academicYearLevel) {
+          existingMember.academicYearLevel = normalizeYearLevel(typeData.academicYearLevel);
+        }
+        await existingMember.save();
+        result.member = existingMember;
+      } else {
+        if (!typeData.studentId) throw new ApiError(400, 'studentId is required for student');
+        if (!typeData.batch) throw new ApiError(400, 'batch is required for student');
+        const dupId = await Member.findOne({ studentId: typeData.studentId });
+        if (dupId) throw new ApiError(409, 'Student ID already exists');
+        
+        const yearLevel = typeData.academicYearLevel 
+          ? normalizeYearLevel(typeData.academicYearLevel)
+          : 'First_Year';
+        
+        result.member = await Member.create({
+          userId,
+          studentId: typeData.studentId,
+          batch: typeData.batch,
+          currentYear: typeData.currentYear || 1,
+          academicYearLevel: yearLevel,
+          session: typeData.session || '',
+          membershipStatus: { status: 'Active', joinDate: new Date() },
+        });
+      }
+      
+      // Remove Teacher role and add General Member role
+      const teacherRole = await Role.findOne({ name: 'Teacher' });
+      const generalMemberRole = await Role.findOne({ name: 'General Member' });
+      if (teacherRole) {
+        await UserRole.deleteMany({ userId, roleId: teacherRole._id });
+      }
+      if (generalMemberRole) {
+        const existingRole = await UserRole.findOne({ userId, roleId: generalMemberRole._id });
+        if (!existingRole) {
+          await UserRole.create({ userId, roleId: generalMemberRole._id });
+        }
+      }
+      
+      if (existingTeacher) {
+        existingTeacher.isActive = false;
+        await existingTeacher.save();
+      }
+    } else if (targetType === 'alumni') {
+      if (!existingMember) {
+        throw new ApiError(400, 'User must have a student record to convert to alumni');
+      }
+      existingMember.academicYearLevel = 'Graduated';
+      existingMember.membershipStatus.status = 'Graduated';
+      existingMember.membershipStatus.statusReason = 'Converted to alumni by admin';
+      existingMember.alumniInfo = {
+        ...(existingMember.alumniInfo || {}),
+        graduatedYear: typeData.graduatedYear || new Date().getFullYear(),
+        graduatedBatch: typeData.graduatedBatch || existingMember.batch,
+        finalCgpa: typeData.finalCgpa || existingMember.academicRecord?.currentCgpa,
+        currentEmployer: typeData.currentEmployer || '',
+        currentPosition: typeData.currentPosition || '',
+      };
+      await existingMember.save();
+      result.member = existingMember;
+      
+      // Alumni should keep General Member role but could have Alumni-specific role
+      const alumniRole = await Role.findOne({ name: 'Alumni' });
+      if (alumniRole) {
+        const existingRole = await UserRole.findOne({ userId, roleId: alumniRole._id });
+        if (!existingRole) {
+          await UserRole.create({ userId, roleId: alumniRole._id });
+        }
+      }
+      
+      if (existingTeacher) {
+        existingTeacher.isActive = false;
+        await existingTeacher.save();
+      }
+    } else {
+      throw new ApiError(400, 'targetType must be "student", "teacher", or "alumni"');
+    }
+
+    await AuditService.log({
+      actorId,
+      action: "USER_TYPE_CHANGED",
+      resource: "User",
+      resourceId: user._id.toString(),
+      requestId,
+      metadata: { targetType, email: user.email }
+    });
+
+    return { userId, targetType, ...result };
+  }
+
+  static async getAlumniById(alumniId) {
+    const member = await Member.findById(alumniId)
+      .populate('userId', 'firstName lastName email phone avatarUrl socialMedia bio dateOfBirth gender bloodGroup technicalSkills');
+
+    if (!member) throw new ApiError(404, 'Alumni not found');
+    if (member.academicYearLevel !== 'Graduated' && member.membershipStatus?.status !== 'Graduated') {
+      throw new ApiError(400, 'This member is not an alumni');
+    }
+
+    return member;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COMPLETE DELETE USER (Remove all records)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static async deleteUserCompletely(userId, actorId, requestId) {
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    // Prevent deleting yourself
+    if (userId.toString() === actorId.toString()) {
+      throw new ApiError(400, 'You cannot delete yourself');
+    }
+
+    // Find all related records
+    const [member, teacher] = await Promise.all([
+      Member.findOne({ userId }),
+      Teacher.findOne({ userId }),
+    ]);
+
+    // Delete all user-related records
+    await Promise.all([
+      // Delete user roles
+      UserRole.deleteMany({ userId }),
+      // Delete member record if exists
+      member ? Member.deleteOne({ _id: member._id }) : Promise.resolve(),
+      // Delete teacher record if exists
+      teacher ? Teacher.deleteOne({ _id: teacher._id }) : Promise.resolve(),
+      // You might want to handle other relations like:
+      // - Workshop registrations
+      // - Event registrations
+      // - Certificates
+      // - Notifications
+      // - etc.
+    ]);
+
+    // Log the deletion
+    await AuditService.log({
+      actorId,
+      action: "USER_DELETED_COMPLETELY",
+      resource: "User",
+      resourceId: user._id.toString(),
+      requestId,
+      metadata: { 
+        email: user.email, 
+        hadMemberRecord: !!member,
+        hadTeacherRecord: !!teacher
+      }
+    });
+
+    // Finally delete the user account
+    await User.deleteOne({ _id: userId });
+
+    return { 
+      userId, 
+      email: user.email,
+      deleted: true,
+      recordsDeleted: {
+        user: true,
+        member: !!member,
+        teacher: !!teacher,
+        roles: true
+      }
+    };
+  }
+
+  static async getAlumniById(alumniId) {
+    const member = await Member.findById(alumniId)
+      .populate('userId', 'firstName lastName email phone avatarUrl socialMedia bio dateOfBirth gender bloodGroup technicalSkills');
+
+    if (!member) throw new ApiError(404, 'Alumni not found');
+    if (member.academicYearLevel !== 'Graduated' && member.membershipStatus?.status !== 'Graduated') {
+      throw new ApiError(400, 'This member is not an alumni');
+    }
+
+    return member;
+  }
+
+  static async deleteUser(userId, actorId, requestId) {
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    await Promise.all([
+      Member.deleteOne({ userId }),
+      Teacher.deleteOne({ userId }),
+      UserRole.deleteMany({ userId }),
+    ]);
+    await User.findByIdAndDelete(userId);
+
+    await AuditService.log({
+      actorId,
+      action: "USER_DELETED",
+      resource: "User",
+      resourceId: userId,
+      requestId,
+      metadata: { email: user.email, name: `${user.firstName} ${user.lastName}` }
+    });
+
+    return { id: userId, deleted: true };
   }
 }
 

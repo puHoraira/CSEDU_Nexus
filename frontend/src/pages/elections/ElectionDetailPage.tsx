@@ -1,0 +1,437 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Vote, Calendar, Clock, Users, BarChart2, Play, Square, CheckCircle, AlertCircle, ArrowLeft, Image } from 'lucide-react';
+import { useAuth } from '../../auth/AuthContext';
+import { apiRequest, normalizeApiError } from '../../lib/api';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Spinner } from '../../components/ui/Spinner';
+import { Alert } from '../../components/ui/Alert';
+import { StatsCard } from '../../components/ui/StatsCard';
+import { formatDateTime } from '../../lib/utils';
+import { usePosterGenerator } from '../../hooks/usePosterGenerator';
+import toast from 'react-hot-toast';
+
+type ElectionDetail = {
+  _id: string;
+  name: string;
+  currentPhase: number;
+  startsOn: string;
+  endsOn: string;
+  status: 'Draft' | 'Setup' | 'Phase1_Active' | 'Phase1_Completed' | 'Phase2_Active' | 'Phase2_Completed' | 'Completed' | 'Cancelled';
+  termId?: { name?: string; _id?: string };
+  phase1EndsOn?: string;
+  phase2StartsOn?: string;
+  createdAt?: string;
+};
+
+type CandidateStats = {
+  phase1: { total: number; approved: number; pending: number; rejected: number };
+  phase2: { total: number; approved: number; pending: number; rejected: number };
+};
+
+type VotingStats = {
+  phase1: { totalVotes: number; eligibleVoters: number; turnoutPercentage: number };
+  phase2: { totalVotes: number; eligibleVoters: number; turnoutPercentage: number };
+};
+
+const STATUS_CFG: Record<string, { label: string; variant: 'success' | 'warning' | 'neutral' | 'error'; icon: any }> = {
+  Draft: { label: 'Draft', variant: 'neutral', icon: Clock },
+  Setup: { label: 'Setup', variant: 'warning', icon: Clock },
+  Phase1_Active: { label: 'Phase 1 Active', variant: 'success', icon: Play },
+  Phase1_Completed: { label: 'Phase 1 Completed', variant: 'neutral', icon: CheckCircle },
+  Phase2_Active: { label: 'Phase 2 Active', variant: 'success', icon: Play },
+  Phase2_Completed: { label: 'Phase 2 Completed', variant: 'neutral', icon: CheckCircle },
+  Completed: { label: 'Completed', variant: 'neutral', icon: CheckCircle },
+  Cancelled: { label: 'Cancelled', variant: 'error', icon: AlertCircle },
+};
+
+const isElectionActive = (status: string) => {
+  return status === 'Phase1_Active' || status === 'Phase2_Active';
+};
+
+const phaseLabel = (p: number) => p === 1 ? 'Phase 1 — Batch Representatives' : 'Phase 2 — Office Bearers';
+
+export function ElectionDetailPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { token, user } = useAuth();
+  const qc = useQueryClient();
+  const { openPosterGenerator, PosterModal } = usePosterGenerator();
+
+  const hasValidId = Boolean(id && /^[a-fA-F0-9]{24}$/.test(id));
+  const canManage = Boolean(user?.roles.some(r => ['Election Commissioner', 'Moderator'].includes(r)));
+
+  const { data: election, isLoading } = useQuery({
+    queryKey: ['election-detail', id, token],
+    queryFn: () => apiRequest<ElectionDetail>(`/elections/${id}`, { token }),
+    enabled: Boolean(hasValidId && token),
+  });
+
+  const { data: candidateStats } = useQuery({
+    queryKey: ['election-candidate-stats', id, token],
+    queryFn: async () => {
+      // Fetch all candidates and compute stats
+      const candidates = await apiRequest<Array<{ status: string; phase?: number }>>(`/elections/${id}/candidates`, { token });
+      const phase1 = candidates.filter(c => !c.phase || c.phase === 1);
+      const phase2 = candidates.filter(c => c.phase === 2);
+      return {
+        phase1: {
+          total: phase1.length,
+          approved: phase1.filter(c => c.status === 'Approved').length,
+          pending: phase1.filter(c => c.status === 'Submitted' || c.status === 'Under_Review' || c.status === 'Pending').length,
+          rejected: phase1.filter(c => c.status === 'Rejected').length,
+        },
+        phase2: {
+          total: phase2.length,
+          approved: phase2.filter(c => c.status === 'Approved').length,
+          pending: phase2.filter(c => c.status === 'Submitted' || c.status === 'Under_Review' || c.status === 'Pending').length,
+          rejected: phase2.filter(c => c.status === 'Rejected').length,
+        },
+      };
+    },
+    enabled: Boolean(hasValidId && token),
+  });
+
+  const { data: votingStats } = useQuery({
+    queryKey: ['election-voting-stats', id, token],
+    queryFn: async () => {
+      // Fetch voting statistics from backend
+      try {
+        const stats = await apiRequest<VotingStats>(`/elections/${id}/voting-stats`, { token });
+        return stats;
+      } catch (e) {
+        // Fallback to default stats if endpoint doesn't exist
+        return {
+          phase1: { totalVotes: 0, eligibleVoters: 0, turnoutPercentage: 0 },
+          phase2: { totalVotes: 0, eligibleVoters: 0, turnoutPercentage: 0 },
+        };
+      }
+    },
+    enabled: Boolean(hasValidId && token),
+  });
+
+  const statusMut = useMutation({
+    mutationFn: ({ status, phase }: { status: string; phase?: number }) =>
+      apiRequest(`/elections/${id}/phase`, { 
+        method: 'PATCH', 
+        token, 
+        body: JSON.stringify({ status, ...(phase && { phase }) }) 
+      }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['election-detail', id, token] });
+      toast.success('Election status updated');
+    },
+    onError: e => toast.error(normalizeApiError(e)),
+  });
+
+  if (!hasValidId) {
+    return (
+      <div className="ui-page">
+        <Alert variant="error">Invalid election ID</Alert>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="ui-page">
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
+          <Spinner size="lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!election) {
+    return (
+      <div className="ui-page">
+        <EmptyState icon={AlertCircle} title="Election not found" description="This election may have been deleted or you don't have permission to view it." />
+      </div>
+    );
+  }
+
+  const cfg = STATUS_CFG[election.status] ?? STATUS_CFG.Draft;
+  const StatusIcon = cfg.icon;
+  const now = new Date();
+  const starts = election.startsOn ? new Date(election.startsOn) : now;
+  const ends = election.endsOn ? new Date(election.endsOn) : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const isActive = isElectionActive(election.status);
+  const pct = isActive ? Math.min(100, ((now.getTime() - starts.getTime()) / (ends.getTime() - starts.getTime())) * 100) : 0;
+  const daysLeft = Math.max(0, Math.ceil((ends.getTime() - now.getTime()) / 86400000));
+
+  return (
+    <div className="ui-page">
+      <PageHeader
+        title={election.name}
+        description={phaseLabel(election.currentPhase)}
+        backButton
+        breadcrumbs={[
+          { label: 'Elections', href: '/dashboard/elections' },
+          { label: election.name },
+        ]}
+        actions={
+          <div className="ui-flex ui-flex-gap-2">
+            {canManage && (
+              <Button variant="outline" size="sm" leftIcon={Image}
+                onClick={() => openPosterGenerator({
+                  type: 'election',
+                  title: election.currentPhase === 1 ? 'Choose Your Representatives' : 'Elect Your Leaders',
+                  subtitle: election.name,
+                  date: election.startsOn,
+                  endDate: election.endsOn,
+                  category: phaseLabel(election.currentPhase),
+                  location: 'CSEDU Campus',
+                  mode: 'In-person',
+                  cta: 'Cast your vote at csedu-nexus.vercel.app',
+                  description: election.currentPhase === 1
+                    ? 'Vote for your batch representative who will voice your concerns and drive change for your year.'
+                    : 'Elect the leaders who will shape our club\'s future — President, VP, General Secretary and more.',
+                  additionalInfo: ['Democratic', 'Transparent', 'Verified'],
+                  theme: election.currentPhase === 1 ? 'blue' : 'purple',
+                })}>
+                Generate Poster
+              </Button>
+            )}
+            {isActive && (
+              <Button variant="primary" leftIcon={Vote} onClick={() => navigate(`/dashboard/elections/${id}/vote`)}>
+                Vote Now
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      {/* Status Banner */}
+      <div className="ui-card" style={{ background: 'var(--gradient-primary)', color: '#fff', padding: '20px 24px' }}>
+        <div className="ui-flex ui-flex-between ui-flex-wrap" style={{ gap: 16 }}>
+          <div>
+            <div className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center', marginBottom: 8 }}>
+              <StatusIcon size={24} />
+              <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>{cfg.label}</h2>
+            </div>
+            <p style={{ margin: 0, opacity: 0.9, fontSize: '0.9rem' }}>
+              {election.termId?.name && `Term: ${election.termId.name}`}
+            </p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ margin: '0 0 4px', fontSize: '0.85rem', opacity: 0.8 }}>Current Phase</p>
+            <p style={{ margin: 0, fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>{election.currentPhase}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="ui-card">
+        <div className="ui-card__header">
+          <h3 className="ui-card__title">Timeline</h3>
+        </div>
+        <div className="ui-card__body">
+          <div className="ui-flex ui-flex-gap-4 ui-flex-wrap">
+            <div className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}>
+              <Calendar size={16} style={{ color: 'var(--accent)' }} />
+              <div>
+                <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 2 }}>Starts</p>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{formatDateTime(election.startsOn)}</p>
+              </div>
+            </div>
+            <div className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}>
+              <Clock size={16} style={{ color: 'var(--accent)' }} />
+              <div>
+                <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 2 }}>Ends</p>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{formatDateTime(election.endsOn)}</p>
+              </div>
+            </div>
+            {election.phase1EndsOn && (
+              <div className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}>
+                <CheckCircle size={16} style={{ color: 'var(--accent)' }} />
+                <div>
+                  <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 2 }}>Phase 1 Ends</p>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{formatDateTime(election.phase1EndsOn)}</p>
+                </div>
+              </div>
+            )}
+            {election.phase2StartsOn && (
+              <div className="ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}>
+                <Play size={16} style={{ color: 'var(--accent)' }} />
+                <div>
+                  <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 2 }}>Phase 2 Starts</p>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{formatDateTime(election.phase2StartsOn)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Progress bar for active elections */}
+          {isActive && (
+            <div style={{ marginTop: 20 }}>
+              <div className="ui-flex ui-flex-between ui-text-xs ui-text-muted" style={{ marginBottom: 6 }}>
+                <span>Voting Progress</span>
+                <span>{daysLeft}d left</span>
+              </div>
+              <div style={{ height: 8, background: 'var(--surface)', borderRadius: 999, overflow: 'hidden' }}>
+                <motion.div
+                  style={{ height: '100%', background: 'linear-gradient(90deg,#10b981,#059669)', borderRadius: 999 }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ duration: 1 }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Statistics */}
+      {candidateStats && (
+        <>
+          <div className="ui-card">
+            <div className="ui-card__header">
+              <h3 className="ui-card__title">Phase 1 — Batch Representatives</h3>
+            </div>
+            <div className="ui-card__body">
+              <div className="ui-grid-4">
+                <StatsCard title="Total Candidates" value={candidateStats.phase1.total} icon={Users} color="primary" />
+                <StatsCard title="Approved" value={candidateStats.phase1.approved} icon={CheckCircle} color="success" />
+                <StatsCard title="Pending Review" value={candidateStats.phase1.pending} icon={Clock} color="warning" />
+                <StatsCard title="Rejected" value={candidateStats.phase1.rejected} icon={AlertCircle} color="error" />
+              </div>
+              {votingStats && (
+                <div style={{ marginTop: 16, padding: '16px', background: 'var(--surface)', borderRadius: 12 }}>
+                  <div className="ui-flex ui-flex-between ui-flex-wrap" style={{ gap: 16 }}>
+                    <div>
+                      <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 4 }}>Votes Cast</p>
+                      <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{votingStats.phase1.totalVotes}</p>
+                    </div>
+                    <div>
+                      <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 4 }}>Eligible Voters</p>
+                      <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{votingStats.phase1.eligibleVoters}</p>
+                    </div>
+                    <div>
+                      <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 4 }}>Turnout</p>
+                      <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{votingStats.phase1.turnoutPercentage.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="ui-card">
+            <div className="ui-card__header">
+              <h3 className="ui-card__title">Phase 2 — Office Bearers</h3>
+            </div>
+            <div className="ui-card__body">
+              <div className="ui-grid-4">
+                <StatsCard title="Total Candidates" value={candidateStats.phase2.total} icon={Users} color="primary" />
+                <StatsCard title="Approved" value={candidateStats.phase2.approved} icon={CheckCircle} color="success" />
+                <StatsCard title="Pending Review" value={candidateStats.phase2.pending} icon={Clock} color="warning" />
+                <StatsCard title="Rejected" value={candidateStats.phase2.rejected} icon={AlertCircle} color="error" />
+              </div>
+              {votingStats && (
+                <div style={{ marginTop: 16, padding: '16px', background: 'var(--surface)', borderRadius: 12 }}>
+                  <div className="ui-flex ui-flex-between ui-flex-wrap" style={{ gap: 16 }}>
+                    <div>
+                      <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 4 }}>Votes Cast</p>
+                      <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{votingStats.phase2.totalVotes}</p>
+                    </div>
+                    <div>
+                      <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 4 }}>Eligible Voters</p>
+                      <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{votingStats.phase2.eligibleVoters}</p>
+                    </div>
+                    <div>
+                      <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 4 }}>Turnout</p>
+                      <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{votingStats.phase2.turnoutPercentage.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Actions */}
+      <div className="ui-card">
+        <div className="ui-card__header">
+          <h3 className="ui-card__title">Actions</h3>
+        </div>
+        <div className="ui-card__body">
+          <div className="ui-grid-3" style={{ gap: 16 }}>
+            <Button variant="outline" leftIcon={Users} onClick={() => navigate(`/dashboard/elections/${id}/candidates`)}>
+              Manage Candidates
+            </Button>
+            {isActive && (
+              <Button variant="primary" leftIcon={Vote} onClick={() => navigate(`/dashboard/elections/${id}/vote`)}>
+                Vote Now
+              </Button>
+            )}
+            <Button variant="outline" leftIcon={BarChart2} onClick={() => navigate(`/dashboard/elections/${id}/results`)}>
+              View Results
+            </Button>
+          </div>
+
+          {canManage && (
+            <div style={{ marginTop: 20, padding: '16px', background: 'var(--surface)', borderRadius: 12 }}>
+              <p className="ui-text-sm ui-text-muted" style={{ marginBottom: 12 }}>Election Commission Controls</p>
+              <div className="ui-flex ui-flex-gap-2 ui-flex-wrap">
+                {(election.status === 'Draft' || election.status === 'Setup') && (
+                  <Button variant="success" size="sm" leftIcon={Play} 
+                    isLoading={statusMut.isPending}
+                    onClick={() => statusMut.mutate({ status: 'Phase1_Active', phase: 1 })}>
+                    Start Phase 1
+                  </Button>
+                )}
+                {election.status === 'Phase1_Active' && (
+                  <Button variant="warning" size="sm" leftIcon={CheckCircle} 
+                    isLoading={statusMut.isPending}
+                    onClick={() => statusMut.mutate({ status: 'Phase1_Completed', phase: 1 })}>
+                    Complete Phase 1
+                  </Button>
+                )}
+                {election.status === 'Phase1_Completed' && (
+                  <Button variant="success" size="sm" leftIcon={Play} 
+                    isLoading={statusMut.isPending}
+                    onClick={() => statusMut.mutate({ status: 'Phase2_Active', phase: 2 })}>
+                    Start Phase 2
+                  </Button>
+                )}
+                {election.status === 'Phase2_Active' && (
+                  <Button variant="warning" size="sm" leftIcon={CheckCircle} 
+                    isLoading={statusMut.isPending}
+                    onClick={() => statusMut.mutate({ status: 'Phase2_Completed', phase: 2 })}>
+                    Complete Phase 2
+                  </Button>
+                )}
+                {(election.status === 'Phase2_Completed') && (
+                  <Button variant="neutral" size="sm" leftIcon={Square} 
+                    isLoading={statusMut.isPending}
+                    onClick={() => statusMut.mutate({ status: 'Completed' })}>
+                    Mark as Completed
+                  </Button>
+                )}
+                {(election.status === 'Draft' || election.status === 'Setup' || isActive) && (
+                  <Button variant="danger" size="sm" leftIcon={AlertCircle} 
+                    isLoading={statusMut.isPending}
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to cancel this election?')) {
+                        statusMut.mutate({ status: 'Cancelled' });
+                      }
+                    }}>
+                    Cancel Election
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Poster Generator Modal */}
+      {PosterModal}
+    </div>
+  );
+}

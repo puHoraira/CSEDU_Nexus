@@ -10,6 +10,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { formatRelativeTime } from '../../lib/utils';
 import { categoryMeta, tint } from '../../lib/notifications';
+import { getUserTypeDisplayName, getUserType } from '../../utils/dashboardRouter';
 import toast from 'react-hot-toast';
 
 type UnreadPayload = { unreadCount: number };
@@ -70,6 +71,8 @@ export function EnhancedHeader({ onMobileMenuToggle }: Props) {
 
   const unread = unreadQ.data?.unreadCount ?? 0;
   const notifs = previewQ.data?.items ?? [];
+  const userType = getUserType(user);
+  const userTypeDisplay = getUserTypeDisplayName(userType);
 
   return (
     <header className="ui-header">
@@ -212,7 +215,7 @@ export function EnhancedHeader({ onMobileMenuToggle }: Props) {
                 {user ? `${user.firstName} ${user.lastName}` : 'Guest'}
               </div>
               <div style={{ fontSize: '0.68rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                {user?.roles[0] ?? 'Member'}
+                {userTypeDisplay}
               </div>
             </div>
             <ChevronDown 

@@ -2,6 +2,7 @@ const { RoomBooking } = require("../models/RoomBooking");
 const { Room } = require("../models/Room");
 const { ApiError } = require("../core/ApiError");
 const { AuditService } = require("./AuditService");
+const { RoomLogService } = require("./RoomLogService");
 
 /**
  * RoomBookingService
@@ -116,6 +117,18 @@ class RoomBookingService {
       created.push(booking);
     }
 
+    for (const booking of created) {
+      RoomLogService.log({
+        roomId: booking.roomId,
+        bookingId: booking._id,
+        entityType: ownerType,
+        entityId: ownerId,
+        action: "BOOKED",
+        performedBy: bookedBy,
+        metadata: { title, startTime, endTime },
+      }).catch(() => {});
+    }
+
     await AuditService.log({
       actorId: bookedBy || null,
       action: "ROOM_BOOKINGS_SYNCED",
@@ -128,12 +141,26 @@ class RoomBookingService {
   }
 
   /** Cancel all active bookings owned by an event/workshop. */
-  static async releaseOwnerBookings(ownerType, ownerId) {
+  static async releaseOwnerBookings(ownerType, ownerId, cancelledBy = null) {
     const key = ownerType === "Event" ? "eventId" : "workshopId";
+    const toCancel = await RoomBooking.find({ [key]: ownerId, status: "Active" });
     const res = await RoomBooking.updateMany(
       { [key]: ownerId, status: "Active" },
       { status: "Cancelled" }
     );
+
+    for (const booking of toCancel) {
+      RoomLogService.log({
+        roomId: booking.roomId,
+        bookingId: booking._id,
+        entityType: ownerType,
+        entityId: ownerId,
+        action: "CANCELLED",
+        performedBy: cancelledBy,
+        metadata: { title: booking.title, startTime: booking.startTime, endTime: booking.endTime },
+      }).catch(() => {});
+    }
+
     return res.modifiedCount || 0;
   }
 
@@ -185,6 +212,164 @@ class RoomBookingService {
       out.push(obj);
     }
     return out;
+  }
+
+  /**
+   * Create a standalone manual booking (meeting, maintenance, reserved time).
+   */
+  static async createManualBooking({ roomId, title, description, startTime, endTime, attendees, notes, bookedBy }) {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (end <= start) {
+      throw new ApiError(400, "End time must be after start time");
+    }
+
+    const room = await Room.findById(roomId);
+    if (!room) throw new ApiError(404, "Room not found");
+    if (!room.isActive) throw new ApiError(400, "Room is not active");
+
+    const conflicts = await this.findConflicts(roomId, start, end);
+    if (conflicts.length > 0) {
+      const list = conflicts.map((c) => `"${c.title || c.eventId?.title || c.workshopId?.title || "another booking"}" (${new Date(c.startTime).toLocaleString()} – ${new Date(c.endTime).toLocaleString()})`).join("; ");
+      throw new ApiError(409, `Room is already booked: ${list}`);
+    }
+
+    const booking = await RoomBooking.create({
+      roomId,
+      startTime: start,
+      endTime: end,
+      bookedForType: "Manual",
+      title: title || "",
+      description: description || "",
+      bookedBy: bookedBy || null,
+      attendees: attendees || 0,
+      notes: notes || "",
+      status: "Active",
+    });
+
+    RoomLogService.log({
+      roomId,
+      bookingId: booking._id,
+      entityType: "Manual",
+      entityId: null,
+      action: "BOOKED",
+      performedBy: bookedBy,
+      metadata: { title, description, startTime: start, endTime: end, attendees, notes },
+    }).catch(() => {});
+
+    return booking;
+  }
+
+  /**
+   * Update an existing booking
+   */
+  static async updateBooking(bookingId, updates, updatedBy) {
+    const booking = await RoomBooking.findById(bookingId);
+    if (!booking) throw new ApiError(404, "Booking not found");
+    if (booking.status !== "Active") throw new ApiError(400, "Cannot edit cancelled booking");
+
+    const { title, description, startTime, endTime, attendees, notes } = updates;
+
+    // If time changed, check for conflicts
+    if (startTime || endTime) {
+      const newStart = startTime ? new Date(startTime) : booking.startTime;
+      const newEnd = endTime ? new Date(endTime) : booking.endTime;
+
+      if (newEnd <= newStart) {
+        throw new ApiError(400, "End time must be after start time");
+      }
+
+      // Check conflicts excluding this booking
+      const conflicts = await this.findConflicts(
+        booking.roomId,
+        newStart,
+        newEnd,
+        { excludeBookingId: bookingId }
+      );
+
+      if (conflicts.length > 0) {
+        const list = conflicts.map((c) => `"${c.title || c.eventId?.title || c.workshopId?.title || "another booking"}" (${new Date(c.startTime).toLocaleString()} – ${new Date(c.endTime).toLocaleString()})`).join("; ");
+        throw new ApiError(409, `Room is already booked: ${list}`);
+      }
+
+      booking.startTime = newStart;
+      booking.endTime = newEnd;
+    }
+
+    if (title !== undefined) booking.title = title;
+    if (description !== undefined) booking.description = description;
+    if (attendees !== undefined) booking.attendees = attendees;
+    if (notes !== undefined) booking.notes = notes;
+
+    await booking.save();
+
+    RoomLogService.log({
+      roomId: booking.roomId,
+      bookingId: booking._id,
+      entityType: booking.bookedForType,
+      entityId: booking.eventId || booking.workshopId || null,
+      action: "MODIFIED",
+      performedBy: updatedBy,
+      metadata: {
+        title: booking.title,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        changes: updates,
+      },
+    }).catch(() => {});
+
+    return booking;
+  }
+
+  /**
+   * Cancel any active booking by its ID.
+   */
+  static async cancelBooking(bookingId, cancelledBy) {
+    const booking = await RoomBooking.findById(bookingId);
+    if (!booking) throw new ApiError(404, "Booking not found");
+    if (booking.status !== "Active") throw new ApiError(400, "Booking is already cancelled");
+
+    booking.status = "Cancelled";
+    await booking.save();
+
+    RoomLogService.log({
+      roomId: booking.roomId,
+      bookingId: booking._id,
+      entityType: booking.bookedForType,
+      entityId: booking.eventId || booking.workshopId || null,
+      action: "CANCELLED",
+      performedBy: cancelledBy,
+      metadata: { title: booking.title, startTime: booking.startTime, endTime: booking.endTime },
+    }).catch(() => {});
+
+    return booking;
+  }
+
+  /**
+   * Full booking history for a room (Active + Cancelled), paginated.
+   */
+  static async getRoomHistory(roomId, { from, to, status, page = 1, limit = 50 } = {}) {
+    const query = { roomId };
+    if (status) query.status = status;
+    if (from || to) {
+      if (from) query.startTime = { ...(query.startTime || {}), $gte: new Date(from) };
+      if (to) query.endTime = { ...(query.endTime || {}), $lte: new Date(to) };
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [bookings, total] = await Promise.all([
+      RoomBooking.find(query)
+        .populate("eventId", "title")
+        .populate("workshopId", "title")
+        .populate("bookedBy", "firstName lastName email")
+        .sort({ startTime: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      RoomBooking.countDocuments(query),
+    ]);
+
+    return { bookings, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) };
   }
 }
 

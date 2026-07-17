@@ -22,6 +22,7 @@ import { MeetingAttendancePage } from "../pages/meetings/MeetingAttendancePage";
 import { AbsenceAlertsPage } from "../pages/meetings/AbsenceAlertsPage";
 import { ModernElectionsPage } from "../pages/elections/ModernElectionsPage";
 import { ElectionCreatePage } from "../pages/elections/ElectionCreatePage";
+import { ElectionDetailPage } from "../pages/elections/ElectionDetailPage";
 import { ElectionCandidatesPage } from "../pages/elections/ElectionCandidatesPage";
 import { ElectionVotingPage } from "../pages/elections/ElectionVotingPage";
 import { ElectionResultsPage } from "../pages/elections/ElectionResultsPage";
@@ -59,6 +60,11 @@ import { RoomManagementPage } from "../pages/admin/RoomManagementPage";
 import { RoomDetailsPage } from "../pages/admin/RoomDetailsPage";
 import { EnhancedAdminDashboard } from "../pages/admin/EnhancedAdminDashboard";
 import { StudentDetailsPage } from "../pages/admin/StudentDetailsPage";
+import { TeacherDetailsPage } from "../pages/admin/TeacherDetailsPage";
+import { AlumniDetailsPage } from "../pages/admin/AlumniDetailsPage";
+import { StudentDashboard } from "../pages/dashboard/StudentDashboard";
+import { TeacherDashboard } from "../pages/dashboard/TeacherDashboard";
+import { AlumniDashboard } from "../pages/dashboard/AlumniDashboard";
 
 type RouteDef = {
   path: string;
@@ -67,7 +73,15 @@ type RouteDef = {
 };
 
 export const routeDefinitions: RouteDef[] = [
+  // Legacy route - kept for backward compatibility
   { path: "/dashboard/home", element: <EnhancedDashboardHome /> },
+  
+  // Role-specific dashboards
+  { path: "/dashboard/student", element: <StudentDashboard /> },
+  { path: "/dashboard/teacher", element: <TeacherDashboard /> },
+  { path: "/dashboard/alumni", element: <AlumniDashboard />, requiredRoles: ["Alumni"] },
+  
+  // Common routes
   { path: "/dashboard/profile", element: <ModernProfilePage /> },
   { path: "/dashboard/settings", element: <SettingsPage /> },
   { path: "/dashboard/notifications", element: <NotificationsPage /> },
@@ -108,6 +122,16 @@ export const routeDefinitions: RouteDef[] = [
     requiredRoles: ["System Admin", "Moderator", "Chief Patron"],
   },
   {
+    path: "/dashboard/admin/teachers/:id",
+    element: <TeacherDetailsPage />,
+    requiredRoles: ["System Admin", "Moderator", "Chief Patron"],
+  },
+  {
+    path: "/dashboard/admin/alumni/:id",
+    element: <AlumniDetailsPage />,
+    requiredRoles: ["System Admin", "Moderator", "Chief Patron"],
+  },
+  {
     path: "/dashboard/admin/year-promotion",
     element: <YearPromotionPage />,
     requiredRoles: ["Moderator", "Chief Patron"],
@@ -115,12 +139,12 @@ export const routeDefinitions: RouteDef[] = [
   {
     path: "/dashboard/admin/rooms",
     element: <RoomManagementPage />,
-    requiredRoles: ["Moderator", "Chief Patron"],
+    requiredRoles: ["System Admin", "Moderator", "Chief Patron"],
   },
   {
     path: "/dashboard/admin/rooms/:roomId",
     element: <RoomDetailsPage />,
-    requiredRoles: ["Moderator", "Chief Patron"],
+    requiredRoles: ["System Admin", "Moderator", "Chief Patron"],
   },
   { path: "/dashboard/membership", element: <MembershipOverviewPage /> },
   {
@@ -193,6 +217,10 @@ export const routeDefinitions: RouteDef[] = [
   {
     path: "/dashboard/elections/apply",
     element: <ApplyCandidatePage />,
+  },
+  {
+    path: "/dashboard/elections/:id",
+    element: <ElectionDetailPage />,
   },
   {
     path: "/dashboard/elections/:id/candidates",

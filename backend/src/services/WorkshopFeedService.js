@@ -127,7 +127,13 @@ class WorkshopFeedService {
       if (!reg) throw new ApiError(403, "Register for this workshop to comment.");
     }
 
-    const comment = await WorkshopComment.create({ workshopId, postId, authorId, content: payload.content });
+    const comment = await WorkshopComment.create({ 
+      workshopId, 
+      postId, 
+      authorId, 
+      content: payload.content || "",
+      images: payload.images || [],
+    });
     await WorkshopPost.findByIdAndUpdate(postId, { $inc: { "stats.totalComments": 1 } });
 
     await AuditService.log({
@@ -141,9 +147,12 @@ class WorkshopFeedService {
 
     const postAuthorId = post.authorId?.toString();
     if (postAuthorId && postAuthorId !== authorId.toString()) {
+      const notificationText = payload.content 
+        ? payload.content.substring(0, 150) + (payload.content.length > 150 ? "…" : "")
+        : "Shared an image";
       await NotificationService.createForUser(postAuthorId, {
         title: "💬 New reply on your post",
-        message: payload.content.substring(0, 150) + (payload.content.length > 150 ? "…" : ""),
+        message: notificationText,
         category: "Workshop",
         actionUrl: `/dashboard/workshops/${workshopId}`,
         entityType: "WorkshopComment",

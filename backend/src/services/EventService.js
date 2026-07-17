@@ -450,7 +450,8 @@ class EventService {
       eventId,
       postId,
       authorId,
-      content: payload.content,
+      content: payload.content || "",
+      images: payload.images || [],
     });
 
     // Update stats
@@ -471,9 +472,12 @@ class EventService {
     // Notify post author (if they didn't comment themselves)
     const postAuthorId = post.authorId?.toString();
     if (postAuthorId && postAuthorId !== authorId.toString()) {
+      const notificationText = payload.content 
+        ? payload.content.substring(0, 150) + (payload.content.length > 150 ? '...' : '')
+        : "Shared an image";
       await NotificationService.createForUser(postAuthorId, {
         title: `💬 New comment on your post`,
-        message: payload.content.substring(0, 150) + (payload.content.length > 150 ? '...' : ''),
+        message: notificationText,
         category: "Event",
         actionUrl: `/dashboard/events/${eventId}`,
         entityType: "EventComment",
@@ -487,11 +491,14 @@ class EventService {
       const excludeIds = [authorId];
       if (postAuthorId) excludeIds.push(postAuthorId);
 
+      const notificationText = payload.content 
+        ? payload.content.substring(0, 150) + (payload.content.length > 150 ? '...' : '')
+        : "Shared an image";
       await NotificationService.notifyEventFollowers(
         eventId,
         {
           title: `💬 New comment in ${event.title}`,
-          message: payload.content.substring(0, 150) + (payload.content.length > 150 ? '...' : ''),
+          message: notificationText,
           category: "Event",
           actionUrl: `/dashboard/events/${eventId}`,
           entityType: "EventComment",

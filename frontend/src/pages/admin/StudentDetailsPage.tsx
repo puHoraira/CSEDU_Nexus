@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   User, Mail, Phone, GraduationCap, CalendarDays, IdCard, Pencil,
   BookOpen, Percent, Vote, ShieldCheck, Award, Droplet, Cake,
-  TrendingUp, CheckCircle2, XCircle, Layers,
+  TrendingUp, CheckCircle2, XCircle, Layers, Trash2,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
@@ -16,6 +16,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
 import { Alert } from '../../components/ui/Alert';
+import { EditUserModal, DeactivateUserDialog, ChangeUserTypeModal, DeleteUserDialog } from './components';
 import toast from 'react-hot-toast';
 
 type PopulatedUser = {
@@ -109,6 +110,12 @@ export function StudentDetailsPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const canEdit = Boolean(user?.roles.some((r) => ['System Admin', 'Moderator'].includes(r)));
+  const isSystemAdmin = Boolean(user?.roles.some((r) => r === 'System Admin'));
+
+  const [showEditUser, setShowEditUser] = useState(false);
+  const [showDeactivate, setShowDeactivate] = useState(false);
+  const [showChangeType, setShowChangeType] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
   const { data: student, isLoading, isError, error } = useQuery({
     queryKey: ['admin-student', id, token],
@@ -234,9 +241,13 @@ export function StudentDetailsPage() {
         breadcrumbs={[{ label: 'Admin', href: '/dashboard/admin' }, { label: 'Students' }, { label: name }]}
         actions={
           canEdit ? (
-            <Button variant="primary" leftIcon={Pencil} onClick={openEdit}>
-              Edit Academics
-            </Button>
+            <div className="ui-flex ui-flex-gap-2 ui-flex-wrap">
+              <Button variant="primary" leftIcon={Pencil} onClick={openEdit}>Edit Academics</Button>
+              <Button variant="secondary" leftIcon={User} onClick={() => setShowEditUser(true)}>Edit Personal Info</Button>
+              <Button variant="outline" leftIcon={Layers} onClick={() => setShowChangeType(true)}>Change Type</Button>
+              <Button variant="danger" leftIcon={XCircle} onClick={() => setShowDeactivate(true)}>Deactivate</Button>
+              <Button variant="danger" leftIcon={Trash2} onClick={() => setShowDelete(true)}>Delete Permanently</Button>
+            </div>
           ) : undefined
         }
       />
@@ -432,6 +443,51 @@ export function StudentDetailsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Admin action modals */}
+      {u && (
+        <>
+          <EditUserModal
+            isOpen={showEditUser}
+            onClose={() => setShowEditUser(false)}
+            user={{
+              _id: u._id!,
+              firstName: u.firstName || '',
+              lastName: u.lastName || '',
+              email: u.email || '',
+              phone: u.phone || '',
+              dateOfBirth: u.dateOfBirth || '',
+              gender: u.gender || '',
+              bloodGroup: u.bloodGroup || '',
+              bio: u.bio || '',
+            }}
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-student', id, token] })}
+          />
+          <DeactivateUserDialog
+            isOpen={showDeactivate}
+            onClose={() => setShowDeactivate(false)}
+            userId={u._id!}
+            userName={name}
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-student', id, token] })}
+          />
+          <ChangeUserTypeModal
+            isOpen={showChangeType}
+            onClose={() => setShowChangeType(false)}
+            userId={u._id!}
+            userName={name}
+            currentType="Student"
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-student', id, token] })}
+          />
+          <DeleteUserDialog
+            isOpen={showDelete}
+            onClose={() => setShowDelete(false)}
+            userId={u._id!}
+            userName={name}
+            userEmail={u.email!}
+            onSuccess={() => navigate('/dashboard/admin')}
+          />
+        </>
+      )}
     </div>
   );
 }

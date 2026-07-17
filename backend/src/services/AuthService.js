@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const { ApiError } = require("../core/ApiError");
 const { User } = require("../models/User");
 const { Member } = require("../models/Member");
+const { Teacher } = require("../models/Teacher");
 const { Role } = require("../models/Role");
 const { UserRole } = require("../models/UserRole");
 const { TokenService } = require("./TokenService");
@@ -317,7 +318,12 @@ class AuthService {
 
     // Send email verification
     try {
-      await this.sendVerificationEmail(user._id);
+      const emailResult = await this.sendVerificationEmail(user._id);
+      if (process.env.NODE_ENV === "development" && emailResult.verificationUrl) {
+        console.log("\n🔗 STUDENT VERIFICATION URL:");
+        console.log(emailResult.verificationUrl);
+        console.log("\n");
+      }
     } catch (error) {
       console.error("Failed to send verification email:", error);
       // Don't fail registration if email sending fails
@@ -375,7 +381,12 @@ class AuthService {
 
     // Send email verification
     try {
-      await this.sendVerificationEmail(user._id);
+      const emailResult = await this.sendVerificationEmail(user._id);
+      if (process.env.NODE_ENV === "development" && emailResult.verificationUrl) {
+        console.log("\n🔗 TEACHER VERIFICATION URL:");
+        console.log(emailResult.verificationUrl);
+        console.log("\n");
+      }
     } catch (error) {
       console.error("Failed to send verification email:", error);
       // Don't fail registration if email sending fails
@@ -444,9 +455,10 @@ class AuthService {
   }
 
   static async getProfile(userId) {
-    const [user, member, roles] = await Promise.all([
+    const [user, member, teacher, roles] = await Promise.all([
       User.findById(userId).select("-passwordHash"),
       Member.findOne({ userId }).populate("ecExperience.termId ecExperience.postId"),
+      Teacher.findOne({ userId }),
       AccessService.getUserRoleNames(userId),
     ]);
 
@@ -468,6 +480,16 @@ class AuthService {
         leadershipScore: member.calculateLeadershipScore(),
         yearsInClub: member.yearsInClub,
         yearCorrectionRequest: member.yearCorrectionRequest ?? { status: 'None' },
+      } : null,
+      teacher: teacher && teacher.isActive ? {
+        employeeId: teacher.employeeId,
+        designation: teacher.designation,
+        department: teacher.department,
+        joiningDate: teacher.joiningDate,
+        employmentType: teacher.employmentType,
+        qualifications: teacher.qualifications,
+        researchInterests: teacher.researchInterests,
+        researchArea: teacher.researchArea,
       } : null,
       account: {
         isActive: user.isActive,

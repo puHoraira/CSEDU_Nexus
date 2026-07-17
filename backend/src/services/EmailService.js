@@ -89,16 +89,40 @@ class EmailService {
       
       // Log preview URL for development
       if (process.env.NODE_ENV === "development") {
-        console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+        console.log("\n============================================");
+        console.log("📧 VERIFICATION EMAIL SENT");
+        console.log("============================================");
+        console.log("To:", user.email);
+        console.log("Verification URL:", verificationUrl);
+        console.log("Preview URL:", nodemailer.getTestMessageUrl(info));
+        console.log("============================================\n");
       }
 
       return {
         success: true,
         messageId: info.messageId,
-        previewUrl: nodemailer.getTestMessageUrl(info)
+        previewUrl: nodemailer.getTestMessageUrl(info),
+        verificationUrl: process.env.NODE_ENV === "development" ? verificationUrl : undefined
       };
     } catch (error) {
       console.error("Failed to send verification email:", error);
+      console.error("Error details:", error.message);
+      
+      // In development, still return success with the verification URL
+      if (process.env.NODE_ENV === "development") {
+        console.warn("\n⚠️  Email sending failed, but in development mode.");
+        console.log("Use this verification URL directly:");
+        console.log(verificationUrl);
+        console.log("\n");
+        
+        return {
+          success: true,
+          messageId: "dev-bypass",
+          error: error.message,
+          verificationUrl: verificationUrl
+        };
+      }
+      
       throw new ApiError(500, "Failed to send verification email");
     }
   }
@@ -127,16 +151,40 @@ class EmailService {
       
       // Log preview URL for development
       if (process.env.NODE_ENV === "development") {
-        console.log("Password reset preview URL: %s", nodemailer.getTestMessageUrl(info));
+        console.log("\n============================================");
+        console.log("🔐 PASSWORD RESET EMAIL SENT");
+        console.log("============================================");
+        console.log("To:", user.email);
+        console.log("Reset URL:", resetUrl);
+        console.log("Preview URL:", nodemailer.getTestMessageUrl(info));
+        console.log("============================================\n");
       }
 
       return {
         success: true,
         messageId: info.messageId,
-        previewUrl: nodemailer.getTestMessageUrl(info)
+        previewUrl: nodemailer.getTestMessageUrl(info),
+        resetUrl: process.env.NODE_ENV === "development" ? resetUrl : undefined
       };
     } catch (error) {
       console.error("Failed to send password reset email:", error);
+      console.error("Error details:", error.message);
+      
+      // In development, still return success with the reset URL
+      if (process.env.NODE_ENV === "development") {
+        console.warn("\n⚠️  Email sending failed, but in development mode.");
+        console.log("Use this reset URL directly:");
+        console.log(resetUrl);
+        console.log("\n");
+        
+        return {
+          success: true,
+          messageId: "dev-bypass",
+          error: error.message,
+          resetUrl: resetUrl
+        };
+      }
+      
       throw new ApiError(500, "Failed to send password reset email");
     }
   }

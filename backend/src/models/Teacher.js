@@ -212,7 +212,7 @@ const teacherSchema = new mongoose.Schema(
       totalResponses: { type: Number, default: 0 }
     }],
     
-    averageTeachingRating: { type: Number, min: 1, max: 5, default: 0 },
+    averageTeachingRating: { type: Number, min: 0, max: 5, default: 0 },
     
     // Contact Preferences
     preferredContactMethod: {

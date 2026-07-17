@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { clsx } from 'clsx';
+
 
 export interface ModalProps {
   isOpen: boolean;
@@ -17,12 +17,12 @@ export interface ModalProps {
   showCloseButton?: boolean;
 }
 
-const sizeClasses = {
-  sm: 'max-w-md',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
-  full: 'max-w-7xl',
+const sizeWidths: Record<string, string> = {
+  sm: '448px',
+  md: '520px',
+  lg: '672px',
+  xl: '896px',
+  full: '1280px',
 };
 
 export function Modal({
@@ -94,7 +94,8 @@ export function Modal({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-              className={clsx('modal', sizeClasses[size])}
+              className="modal"
+              style={{ maxWidth: sizeWidths[size] }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}

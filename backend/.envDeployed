@@ -1,0 +1,37 @@
+PORT=5000
+NODE_ENV=production
+MONGODB_URI=mongodb+srv://horairajdev_db_user:1L9Q7lvQfdWrsZeP@cluster0.pvmqq7k.mongodb.net/csedu_nexus?retryWrites=true&w=majority
+JWT_ACCESS_SECRET=d52993aed60193cea576f8bb311275772c447d5a7eebcbdfae1140116b73c2488427fcaa73a7a07417dad550eb5cead40bb14acea544c8ed81e390dbf1f3ec6b
+JWT_REFRESH_SECRET=3865b91bc56f8a4890f07565183e82222cfbf56bd2b3297a43471c9e7725ddddd01c926a96d3bc37cbee19e10a29fd473f0989c321b32a17a94655928b3eaadf
+ACCESS_TOKEN_TTL=7d
+REFRESH_TOKEN_TTL=30d
+CLIENT_ORIGIN=https://nexus.farefin.com
+FRONTEND_URL=https://nexus.farefin.com
+BACKEND_URL=https://nexus.farefin.com
+
+# SMTP Email Configuration (Production - Gmail)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=abuhoraira1015@gmail.com
+SMTP_PASS="rtzq nlhd eybr rtki"
+SMTP_FROM=CSEDU Nexus <abuhoraira1015@gmail.com>
+
+# Payment Gateway (Production URLs)
+BKASH_BASE_URL=https://tokenized.sandbox.bka.sh/v1.2.0-beta
+BKASH_APP_KEY=your_bkash_app_key
+BKASH_APP_SECRET=your_bkash_app_secret
+BKASH_USERNAME=your_bkash_username
+BKASH_PASSWORD=your_bkash_password
+BKASH_CALLBACK_URL=https://nexus.farefin.com/api/v1/payments/bkash/callback
+
+SSLCOMMERZ_MODE=sandbox
+SSLCOMMERZ_STORE_ID=testbox
+SSLCOMMERZ_STORE_PASSWORD=qwerty
+SSLCOMMERZ_SUCCESS_URL=https://nexus.farefin.com/api/v1/workshops/payment/success
+SSLCOMMERZ_FAIL_URL=https://nexus.farefin.com/api/v1/workshops/payment/fail
+SSLCOMMERZ_CANCEL_URL=https://nexus.farefin.com/api/v1/workshops/payment/cancel
+SSLCOMMERZ_IPN_URL=https://nexus.farefin.com/api/v1/workshops/payment/ipn
+
+ZEGO_APP_ID=1084405380
+ZEGO_SERVER_SECRET=c0b543f891e2f03370ed179f57c0cc84

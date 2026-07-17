@@ -39,6 +39,16 @@ type ProfilePayload = {
       reviewNote?: string;
     };
   } | null;
+  teacher: {
+    employeeId: string;
+    designation: string;
+    department: string;
+    joiningDate: string;
+    employmentType: string;
+    qualifications?: any[];
+    researchInterests?: string[];
+    researchArea?: string;
+  } | null;
   account: { isActive: boolean; joinedAt: string; updatedAt: string; profileCompleteness?: number };
 };
 
@@ -127,7 +137,11 @@ export function ModernProfilePage() {
   }
 
   const completeness = profileQ.data?.user.profileCompleteness ?? 0;
-  const isStudent = Boolean(profileQ.data?.membership);
+  const isStudent = authUser?.roles?.some(r => 
+    ['General Member', 'President', 'Vice President', 'General Secretary'].includes(r)
+  ) && !authUser?.roles?.includes('Teacher') && !authUser?.roles?.includes('Alumni');
+  const isTeacher = authUser?.roles?.includes('Teacher');
+  const isAlumni = authUser?.roles?.includes('Alumni');
   const canVote = profileQ.data?.membership?.electionEligibility?.isEligibleForVoting;
   const canRun  = profileQ.data?.membership?.electionEligibility?.isEligibleForCandidacy;
 
@@ -215,8 +229,8 @@ export function ModernProfilePage() {
                 </div>
               </div>
 
-              {/* Membership stats */}
-              {profileQ.data?.membership && (
+              {/* Academic info for students */}
+              {isStudent && profileQ.data?.membership && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                   {[
                     { label: 'Student ID', value: profileQ.data.membership.studentId },
@@ -225,6 +239,36 @@ export function ModernProfilePage() {
                   ].map(s => (
                     <div key={s.label} style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 10, background: 'var(--surface)' }}>
                       <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>{s.value}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Alumni info - they still have student ID and batch */}
+              {isAlumni && profileQ.data?.membership && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+                  {[
+                    { label: 'Student ID', value: profileQ.data.membership.studentId },
+                    { label: 'Batch',      value: profileQ.data.membership.batch },
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 10, background: 'var(--surface)' }}>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>{s.value}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Teacher info */}
+              {isTeacher && profileQ.data?.teacher && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+                  {[
+                    { label: 'Employee ID', value: profileQ.data.teacher.employeeId },
+                    { label: 'Designation',  value: profileQ.data.teacher.designation?.replace(/_/g, ' ') },
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 10, background: 'var(--surface)' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)' }}>{s.value}</div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
                     </div>
                   ))}

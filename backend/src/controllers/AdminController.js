@@ -93,6 +93,40 @@ class AdminController {
     const items = await AdminService.listAlumni(req.query);
     return ApiResponse.ok(res, items, "Alumni retrieved");
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // USER MANAGEMENT (full CRUD)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static getUserById = asyncHandler(async (req, res) => {
+    const item = await AdminService.getUserById(req.params.id);
+    return ApiResponse.ok(res, item, "User details");
+  });
+
+  static updateUser = asyncHandler(async (req, res) => {
+    const item = await AdminService.updateUser(req.params.id, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "User updated");
+  });
+
+  static deactivateUser = asyncHandler(async (req, res) => {
+    const item = await AdminService.deactivateUser(req.params.id, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "User deactivated");
+  });
+
+  static changeUserType = asyncHandler(async (req, res) => {
+    const item = await AdminService.changeUserType(req.params.id, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "User type changed");
+  });
+
+  static deleteUserCompletely = asyncHandler(async (req, res) => {
+    const item = await AdminService.deleteUserCompletely(req.params.id, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "User deleted completely");
+  });
+
+  static getAlumniById = asyncHandler(async (req, res) => {
+    const item = await AdminService.getAlumniById(req.params.id);
+    return ApiResponse.ok(res, item, "Alumni details");
+  });
 }
 
 module.exports = { AdminController };

@@ -41,5 +41,16 @@ router.put("/students/:id/academics", authenticate, authorize(["System Admin", "
 // ═══════════════════════════════════════════════════════════════════════════
 
 router.get("/alumni", authenticate, authorize(["System Admin", "Moderator", "Chief Patron"]), AdminController.listAlumni);
+router.get("/alumni/:id", authenticate, authorize(["System Admin", "Moderator", "Chief Patron"]), AdminController.getAlumniById);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// USER MANAGEMENT (cross-type operations)
+// ═══════════════════════════════════════════════════════════════════════════
+
+router.get("/users/:id", authenticate, authorize(["System Admin", "Moderator", "Chief Patron"]), AdminController.getUserById);
+router.put("/users/:id", authenticate, authorize(["System Admin"]), AdminController.updateUser);
+router.delete("/users/:id", authenticate, authorize(["System Admin"]), AdminController.deactivateUser);
+router.put("/users/:id/change-type", authenticate, authorize(["System Admin"]), AdminController.changeUserType);
+router.delete("/users/:id/permanent", authenticate, authorize(["System Admin"]), AdminController.deleteUserCompletely);
 
 module.exports = { adminRoutes: router };

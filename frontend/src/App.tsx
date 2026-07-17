@@ -19,6 +19,7 @@ import { NotFoundPage } from "./pages/common/NotFoundPage";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { EventsPage } from "./pages/events/EventsPage";
 import { useNavigationRefetch } from "./hooks/useNavigationRefetch";
+import { DashboardRouter } from "./components/routing/DashboardRouter";
 
 export default function App() {
   // Force refetch queries on navigation to ensure data is always fresh
@@ -51,7 +52,11 @@ export default function App() {
           />
         ))}
       </Route>
-      <Route path="/dashboard" element={<Navigate to="/dashboard/home" replace />} />
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <DashboardRouter />
+        </ProtectedRoute>
+      } />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

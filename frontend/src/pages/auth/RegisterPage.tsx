@@ -101,16 +101,26 @@ export function RegisterPage() {
   return (
     <section className="register-layout">
       {registrationSuccess ? (
-        <div className="register-content" style={{ maxWidth: 600, margin: "auto", padding: 40 }}>
-          <div className="success-message" style={{ 
+        <div style={{ 
+          gridColumn: "1 / -1", 
+          display: "flex", 
+          justifyContent: "center", 
+          alignItems: "center", 
+          minHeight: "100vh",
+          padding: "40px 20px"
+        }}>
+          <div style={{ 
+            maxWidth: 600, 
+            width: "100%",
             textAlign: "center", 
             padding: 40, 
             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
             borderRadius: 12,
-            color: "white"
+            color: "white",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
           }}>
             <div style={{ fontSize: 64, marginBottom: 20 }}>✉️</div>
-            <h1 style={{ marginBottom: 16, color: "white" }}>Check Your Email</h1>
+            <h1 style={{ marginBottom: 16, color: "white", fontSize: 32 }}>Check Your Email</h1>
             <p style={{ fontSize: 18, marginBottom: 24, opacity: 0.95 }}>
               We've sent a verification link to <strong>{userEmail}</strong>
             </p>
@@ -123,7 +133,7 @@ export function RegisterPage() {
               <p style={{ marginBottom: 12, fontSize: 16 }}>
                 <strong>Next Steps:</strong>
               </p>
-              <ol style={{ textAlign: "left", fontSize: 14, lineHeight: 1.8 }}>
+              <ol style={{ textAlign: "left", fontSize: 14, lineHeight: 1.8, paddingLeft: 20 }}>
                 <li>Open your email inbox</li>
                 <li>Look for an email from CSEDU Nexus</li>
                 <li>Click the verification link in the email</li>
@@ -143,8 +153,11 @@ export function RegisterPage() {
                 color: "#667eea",
                 textDecoration: "none",
                 borderRadius: 8,
-                fontWeight: 600
+                fontWeight: 600,
+                transition: "transform 0.2s"
               }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
             >
               Go to Login Page
             </Link>
