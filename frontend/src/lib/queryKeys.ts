@@ -63,8 +63,13 @@ export const queryKeys = {
 
   // Finance
   finance: {
-    transactions: (token: string) => ['transactions', token] as const,
-    summary: (token: string) => ['finance-summary', token] as const,
+    ledger: (token: string, filters?: Record<string, string>) =>
+      ['finance', 'ledger', token, filters ?? {}] as const,
+    summary: (token: string, startDate?: string, endDate?: string) =>
+      ['finance', 'summary', token, startDate, endDate] as const,
+    categories: (token: string) => ['finance', 'categories', token] as const,
+    pendingCheques: (token: string) => ['finance', 'pending-cheques', token] as const,
+    overview: (token: string) => ['finance', 'overview', token] as const,
   },
 
   // Certificates
@@ -123,6 +128,11 @@ export const invalidateQueries = {
     all: (queryClient: any, token: string) => [
       queryClient.invalidateQueries({ queryKey: queryKeys.meetings.all(token) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.meetings.live(token) }),
+    ],
+  },
+  finance: {
+    all: (queryClient: any) => [
+      queryClient.invalidateQueries({ queryKey: ['finance'] }),
     ],
   },
 };

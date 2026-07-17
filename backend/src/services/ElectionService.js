@@ -778,6 +778,125 @@ class ElectionService {
       } : null
     }));
   }
+
+  /**
+   * Self-nomination: allows students to apply as candidates
+   * - Checks eligibility (active membership, CGPA, attendance, not impeached)
+   * - Auto-fills member data from authenticated user
+   * - Sets status to "Pending" (requires EC approval)
+   * - Only for Phase 1 (batch representative) elections
+   */
+  static async selfNominate(electionId, actorUserId, requestId) {
+    const election = await Election.findById(electionId);
+    if (!election) throw new ApiError(404, "Election not found");
+
+    // Only allow self-nomination for active Phase 1 elections
+    const electionPhase = election.currentPhase || election.phase || 1;
+    if (electionPhase !== 1) {
+      throw new ApiError(400, "Self-nomination is only available for Phase 1 (Batch Representative) elections");
+    }
+
+    // Check if election is in nomination period or active
+    if (!['Draft', 'Setup', 'Phase1_Active'].includes(election.status)) {
+      throw new ApiError(400, "This election is not accepting nominations at this time");
+    }
+
+    // Find member record for the authenticated user
+    const member = await Member.findOne({ userId: actorUserId });
+    if (!member) throw new ApiError(404, "Member record not found. You must be a registered member to apply");
+
+    // Check if already nominated
+    const existing = await ElectionCandidate.findOne({
+      electionId,
+      memberId: member._id,
+      phase: 1,
+    });
+    if (existing) {
+      throw new ApiError(409, `You have already applied for this election. Status: ${existing.status}`);
+    }
+
+    // --- Eligibility checks (same as addCandidate) ---
+    
+    // Active membership required
+    const memberStatus = member.membershipStatus?.status || member.status || "Unknown";
+    if (memberStatus !== "Active") {
+      throw new ApiError(400, `Only active members can apply as candidates. Your current status: ${memberStatus}`);
+    }
+
+    // Cannot have been impeached
+    const wasImpeached = (member.ecExperience || []).some(
+      (e) => e.performanceRating === "Impeached" || e.status === "Impeached" || e.wasImpeached === true
+    );
+    if (wasImpeached) {
+      throw new ApiError(400, "Members with impeachment history cannot contest elections (Constitution ARTICLE XV.1)");
+    }
+
+    // Graduating batch cannot contest
+    if (member.academicYearLevel === "Graduated") {
+      throw new ApiError(400, "Graduated members cannot contest in elections");
+    }
+
+    // Eligibility thresholds: CGPA >= 3.0, Attendance >= 75%
+    const cgpa = member.academicRecord?.currentCgpa || 0;
+    const attendance = member.attendanceRecord?.overallAttendancePercentage || 0;
+    
+    if (cgpa < 3.0) {
+      throw new ApiError(400, `Minimum CGPA of 3.0 required. Your CGPA: ${cgpa.toFixed(2)}`);
+    }
+    
+    if (attendance < 75) {
+      throw new ApiError(400, `Minimum attendance of 75% required. Your attendance: ${attendance}%`);
+    }
+
+    // Create candidate record with status "Pending" (needs EC approval)
+    const candidate = await ElectionCandidate.create({
+      electionId,
+      memberId: member._id,
+      phase: 1,
+      postId: null, // Phase 1 = batch representative, no post
+      batch: member.batch.toString(),
+      status: "Pending", // Requires EC review and approval
+      eligibilityDetails: {
+        cgpa,
+        attendancePercentage: attendance,
+        isGraduating: member.academicYearLevel === "Graduated",
+      },
+    });
+
+    await AuditService.log({
+      actorId: actorUserId,
+      action: "ELECTION_SELF_NOMINATED",
+      resource: "ElectionCandidate",
+      resourceId: candidate._id.toString(),
+      requestId,
+      metadata: { electionId, phase: 1, batch: member.batch },
+    });
+
+    // Notify Election Commissioners
+    await NotificationService.createForRoleNames(
+      ["Election Commissioner", "Moderator"],
+      {
+        title: "New candidate application",
+        message: `${member.userId?.firstName || 'A student'} (${member.studentId}) has applied as a candidate for ${election.name}`,
+        category: "Elections",
+        actionUrl: `/dashboard/elections/${electionId}/candidates`,
+        entityType: "ElectionCandidate",
+        entityId: candidate._id.toString(),
+      }
+    );
+
+    return candidate;
+  }
+
+  static async getMyVotes(electionId, actorUserId) {
+    const member = await Member.findOne({ userId: actorUserId }).select('_id');
+    if (!member) return [];
+    
+    const votes = await Vote.find({ electionId, voterMemberId: member._id })
+      .populate({ path: 'candidateId', select: 'postId phase', populate: { path: 'postId', select: 'title' } });
+    
+    return votes;
+  }
 }
 
 module.exports = { ElectionService };

@@ -13,4 +13,17 @@ const signChequeSchema = z.object({
   note: z.string().optional().default(""),
 });
 
-module.exports = { addTransactionSchema, signChequeSchema };
+const ledgerQuerySchema = z.object({
+  type: z.enum(["Income", "Expenditure"]).optional(),
+  category: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  search: z.string().optional(),
+});
+
+const summaryQuerySchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+module.exports = { addTransactionSchema, signChequeSchema, ledgerQuerySchema, summaryQuerySchema };

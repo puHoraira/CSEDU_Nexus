@@ -1,6 +1,7 @@
 import { FormEvent, useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Vote, Calendar, Clock, CheckCircle, Plus, Users, Trophy, Play, Square, BarChart2, Image, Trash2, Pencil } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
@@ -16,7 +17,7 @@ import { formatDateTime } from '../../lib/utils';
 import { usePosterGenerator } from '../../hooks/usePosterGenerator';
 import toast from 'react-hot-toast';
 
-type Election = { _id: string; name: string; phase: number; startsOn: string; endsOn: string; status: 'Draft' | 'Active' | 'Closed' };
+type Election = { _id: string; name: string; phase: number; currentPhase: number; startsOn: string; endsOn: string; status: 'Draft' | 'Active' | 'Closed' };
 type Term     = { _id: string; name: string; status: string };
 
 const STATUS_CFG: Record<string, { label: string; variant: 'success' | 'warning' | 'neutral'; icon: any }> = {
@@ -43,6 +44,7 @@ const phaseLabel = (p: number) => p === 1 ? 'Phase 1 — Batch Representatives' 
 export function ModernElectionsPage() {
   const { token, user, loading } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { openPosterGenerator, PosterModal } = usePosterGenerator();
 
   const canCreate = Boolean(user?.roles.some(r => ['Election Commissioner', 'Moderator'].includes(r)));
@@ -51,7 +53,7 @@ export function ModernElectionsPage() {
   ));
 
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', termId: '', phase: 1, startsOn: '', endsOn: '' });
+  const [form, setForm] = useState({ name: '', termId: '', startsOn: '', endsOn: '' });
 
   const { data: elections = [], isLoading } = useQuery({
     queryKey: queryKeys.elections.all(token),
@@ -67,11 +69,16 @@ export function ModernElectionsPage() {
   const createMut = useMutation({
     mutationFn: () => apiRequest('/elections', {
       method: 'POST', token,
-      body: JSON.stringify({ ...form, startsOn: new Date(form.startsOn).toISOString(), endsOn: new Date(form.endsOn).toISOString() }),
+      body: JSON.stringify({ 
+        ...form, 
+        phase: 1, // Always start at Phase 1
+        startsOn: new Date(form.startsOn).toISOString(), 
+        endsOn: new Date(form.endsOn).toISOString() 
+      }),
     }),
     onSuccess: async () => {
       await Promise.all(invalidateQueries.elections.all(qc, token));
-      setForm({ name: '', termId: '', phase: 1, startsOn: '', endsOn: '' });
+      setForm({ name: '', termId: '', startsOn: '', endsOn: '' });
       setShowForm(false);
       toast.success('Election created');
     },
@@ -150,9 +157,9 @@ export function ModernElectionsPage() {
       {/* Constitution info cards */}
       <div className="ui-grid-3">
         {[
-          { icon: Users,  title: 'Phase 1',    sub: 'Batch Representatives',  desc: 'Voters select representatives from their own batch (ARTICLE XIV).' },
-          { icon: Trophy, title: 'Phase 2',    sub: 'Posts 1–11',             desc: 'Approved representatives contest office-bearing posts under eligibility constraints.' },
-          { icon: Vote,   title: 'Governance', sub: 'Commission Controlled',  desc: 'Candidate validation, phase control, and result publication are role-protected.' },
+          { icon: Users,  title: 'Phase 1 (First)',    sub: 'Batch Representatives',  desc: 'Students elect representatives from their own batch. Winners proceed to Phase 2.' },
+          { icon: Trophy, title: 'Phase 2 (Second)',    sub: 'Office Bearers',             desc: 'Phase 1 winners compete for the 11 EC posts (President, VP, Secretary, etc.).' },
+          { icon: Vote,   title: 'Commission Control', sub: 'Sequential Progression',  desc: 'Election Commissioners manage phase transitions, candidate validation, and results.' },
         ].map(item => {
           const Icon = item.icon;
           return (
@@ -193,22 +200,18 @@ export function ModernElectionsPage() {
                       </select>
                     </div>
                     <div className="ui-input-wrap">
-                      <label className="ui-input-label">Phase</label>
-                      <select className="ui-select" value={form.phase} onChange={e => setForm(f => ({ ...f, phase: Number(e.target.value) }))}>
-                        <option value={1}>Phase 1 — Batch Representatives</option>
-                        <option value={2}>Phase 2 — Office Bearers</option>
-                      </select>
-                    </div>
-                    <div />
-                    <div className="ui-input-wrap">
-                      <label className="ui-input-label">Starts On *</label>
+                      <label className="ui-input-label">Phase 1 Starts On *</label>
                       <input type="datetime-local" className="ui-input" value={form.startsOn} onChange={e => setForm(f => ({ ...f, startsOn: e.target.value }))} required />
                     </div>
                     <div className="ui-input-wrap">
-                      <label className="ui-input-label">Ends On *</label>
+                      <label className="ui-input-label">Phase 1 Ends On *</label>
                       <input type="datetime-local" className="ui-input" value={form.endsOn} onChange={e => setForm(f => ({ ...f, endsOn: e.target.value }))} required />
                     </div>
                   </div>
+                  <Alert variant="info" className="ui-mb-3">
+                    <strong>Election Flow:</strong> All elections start at <strong>Phase 1</strong> (Batch Representatives). 
+                    After Phase 1 completes, the Election Commission will advance to <strong>Phase 2</strong> (Office Bearers).
+                  </Alert>
                   {terms.length === 0 && (
                     <Alert variant="warning" className="ui-mb-3">No EC terms found. Create a term first in Governance → EC Terms.</Alert>
                   )}
@@ -254,7 +257,19 @@ export function ModernElectionsPage() {
 
             return (
               <motion.div key={el._id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <div className="ui-card" style={{ padding: 0 }}>
+                <div 
+                  className="ui-card" 
+                  style={{ padding: 0, cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                  onClick={() => navigate(`/dashboard/elections/${el._id}`)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '';
+                  }}
+                >
                   <div style={{ display: 'flex', gap: 20, padding: '18px 22px', flexWrap: 'wrap' }}>
                     {/* Phase badge */}
                     <div style={{
@@ -262,7 +277,7 @@ export function ModernElectionsPage() {
                       background: 'var(--gradient-primary)',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff',
                     }}>
-                      <span style={{ fontSize: '1.3rem', fontWeight: 800, lineHeight: 1 }}>{el.phase}</span>
+                      <span style={{ fontSize: '1.3rem', fontWeight: 800, lineHeight: 1 }}>{el.currentPhase || el.phase}</span>
                       <span style={{ fontSize: '0.6rem', textTransform: 'uppercase', opacity: 0.85 }}>Phase</span>
                     </div>
 
@@ -273,7 +288,7 @@ export function ModernElectionsPage() {
                         <Badge variant={cfg.variant} icon={StatusIcon}>{cfg.label}</Badge>
                       </div>
 
-                      <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 10 }}>{phaseLabel(el.phase)}</p>
+                      <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 10 }}>{phaseLabel(el.currentPhase || el.phase)}</p>
 
                       {/* Dates */}
                       <div className="ui-flex ui-flex-gap-4 ui-text-xs ui-text-muted" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
@@ -304,7 +319,7 @@ export function ModernElectionsPage() {
                       )}
 
                       {/* Actions */}
-                      <div className="ui-flex ui-flex-gap-2" style={{ flexWrap: 'wrap' }}>
+                      <div className="ui-flex ui-flex-gap-2" style={{ flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
                         <Button variant="outline" size="sm" href={`/dashboard/elections/${el._id}/results`} leftIcon={BarChart2}>Results</Button>
                         {isActive && <Button variant="primary" size="sm" href={`/dashboard/elections/${el._id}/vote`} leftIcon={Vote}>Vote Now</Button>}
                         {canCreate && (
@@ -321,23 +336,23 @@ export function ModernElectionsPage() {
                                 location: 'CSEDU Campus',
                                 mode: 'In-person',
                                 cta: 'Cast your vote at csedu-nexus.vercel.app',
-                                description: el.phase === 1
+                                description: (el.currentPhase || el.phase) === 1
                                   ? 'Vote for your batch representative who will voice your concerns and drive change for your year.'
                                   : 'Elect the leaders who will shape our club\'s future — President, VP, General Secretary and more.',
                                 additionalInfo: ['Democratic', 'Transparent', 'Verified'],
-                                theme: el.phase === 1 ? 'blue' : 'purple',
+                                theme: (el.currentPhase || el.phase) === 1 ? 'blue' : 'purple',
                               })}>
                               Generate Poster
                             </Button>
                             {el.status === 'Draft' && (
                               <Button variant="success" size="sm" leftIcon={Play} 
                                 isLoading={statusMut.isPending && statusMut.variables?.id === el._id}
-                                onClick={() => statusMut.mutate({ id: el._id, status: 'Active', phase: el.phase })}>Activate</Button>
+                                onClick={() => statusMut.mutate({ id: el._id, status: 'Active', phase: el.currentPhase || el.phase })}>Activate</Button>
                             )}
                             {isActive && (
                               <Button variant="danger" size="sm" leftIcon={Square} 
                                 isLoading={statusMut.isPending && statusMut.variables?.id === el._id}
-                                onClick={() => statusMut.mutate({ id: el._id, status: 'Closed', phase: el.phase })}>Close</Button>
+                                onClick={() => statusMut.mutate({ id: el._id, status: 'Closed', phase: el.currentPhase || el.phase })}>Close</Button>
                             )}
                             {!isActive && (
                               <>

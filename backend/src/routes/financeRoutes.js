@@ -3,7 +3,12 @@ const { FinanceController } = require("../controllers/FinanceController");
 const { authenticate } = require("../middleware/auth");
 const { authorize } = require("../middleware/authorize");
 const { validate } = require("../middleware/validate");
-const { addTransactionSchema, signChequeSchema } = require("../validators/financeValidators");
+const {
+  addTransactionSchema,
+  signChequeSchema,
+  ledgerQuerySchema,
+  summaryQuerySchema,
+} = require("../validators/financeValidators");
 
 const router = express.Router();
 
@@ -21,6 +26,21 @@ router.patch(
   validate(signChequeSchema),
   FinanceController.signCheque
 );
-router.get("/ledger", authenticate, authorize("finance.ledger.read"), FinanceController.ledger);
+router.get(
+  "/ledger",
+  authenticate,
+  authorize("finance.ledger.read"),
+  validate(ledgerQuerySchema, "query"),
+  FinanceController.ledger
+);
+router.get(
+  "/summary",
+  authenticate,
+  authorize("finance.ledger.read"),
+  validate(summaryQuerySchema, "query"),
+  FinanceController.summary
+);
+router.get("/categories", authenticate, authorize("finance.ledger.read"), FinanceController.categories);
+router.get("/pending-cheques", authenticate, authorize("finance.cheque.sign"), FinanceController.pendingCheques);
 
 module.exports = { financeRoutes: router };

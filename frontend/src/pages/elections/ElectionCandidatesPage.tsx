@@ -47,6 +47,8 @@ export function ElectionCandidatesPage() {
 
   const [form, setForm] = useState({ memberId: '', postId: '', memberEcYears: 0 });
   const [showForm, setShowForm] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [processingCandidateId, setProcessingCandidateId] = useState<string | null>(null);
 
   const { data: members = [] } = useQuery({
     queryKey: ['members-for-candidacy', token],
@@ -57,6 +59,7 @@ export function ElectionCandidatesPage() {
       currentYear: number; 
       status?: string;
       membershipStatus?: { status: string };
+      userId?: { firstName?: string; lastName?: string };
     }>>('/membership/members', { token }),
     enabled: Boolean(token),
   });
@@ -103,18 +106,40 @@ export function ElectionCandidatesPage() {
   });
 
   const validateMut = useMutation({
-    mutationFn: ({ candidateId, action, reason }: { candidateId: string; action: 'Approved' | 'Rejected'; reason?: string }) =>
-      apiRequest(`/elections/candidates/${candidateId}/validate`, {
+    mutationFn: ({ candidateId, action, reason }: { candidateId: string; action: 'Approved' | 'Rejected'; reason?: string }) => {
+      setProcessingCandidateId(candidateId);
+      return apiRequest(`/elections/candidates/${candidateId}/validate`, {
         method: 'PATCH', token,
         body: JSON.stringify({ action, reason: reason || '' }),
-      }),
+      });
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['election-candidates', id, token] });
       toast.success('Candidate updated');
+      setProcessingCandidateId(null);
     },
-    onError: e => toast.error(normalizeApiError(e)),
+    onError: e => {
+      toast.error(normalizeApiError(e));
+      setProcessingCandidateId(null);
+    },
   });
 
+  // Filter members by search
+  const filteredMembers = members
+    .filter(m => {
+      const status = m.membershipStatus?.status || m.status;
+      return status === 'Active';
+    })
+    .filter(m => {
+      if (!memberSearch) return true;
+      const searchLower = memberSearch.toLowerCase();
+      const fullName = `${m.userId?.firstName || ''} ${m.userId?.lastName || ''}`.toLowerCase();
+      return (
+        m.studentId.toLowerCase().includes(searchLower) ||
+        fullName.includes(searchLower) ||
+        `batch ${m.batch}`.includes(searchLower)
+      );
+    });
   // Group by post
   const byPost = candidates.reduce((acc, c) => {
     const key = c.postId?.title || 'Batch Representative';
@@ -171,18 +196,32 @@ export function ElectionCandidatesPage() {
               <form onSubmit={e => { e.preventDefault(); addMut.mutate(); }}>
                 <div className="ui-grid-3" style={{ marginBottom: 16 }}>
                   <div className="ui-input-wrap">
+                    <label className="ui-input-label">Search Member</label>
+                    <input 
+                      type="text"
+                      className="ui-input" 
+                      placeholder="Search by name, student ID, or batch..."
+                      value={memberSearch}
+                      onChange={e => setMemberSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="ui-grid-3" style={{ marginBottom: 16 }}>
+                  <div className="ui-input-wrap">
                     <label className="ui-input-label">Member *</label>
                     <select className="ui-select" value={form.memberId} onChange={e => setForm(f => ({ ...f, memberId: e.target.value }))} required>
                       <option value="">Select member…</option>
-                      {members
-                        .filter(m => {
-                          const status = m.membershipStatus?.status || m.status;
-                          return status === 'Active';
-                        })
-                        .map(m => (
-                          <option key={m._id} value={m._id}>{m.studentId} · Batch {m.batch} · Year {m.currentYear}</option>
-                        ))}
+                      {filteredMembers.map(m => {
+                        const fullName = `${m.userId?.firstName || ''} ${m.userId?.lastName || ''}`.trim();
+                        const displayName = fullName || 'No name';
+                        return (
+                          <option key={m._id} value={m._id}>
+                            {m.studentId} · {displayName} · Batch {m.batch} · Year {m.currentYear}
+                          </option>
+                        );
+                      })}
                     </select>
+                    {memberSearch && <p className="ui-text-xs ui-text-muted" style={{ marginTop: 4 }}>Showing {filteredMembers.length} members</p>}
                   </div>
 
                   {/* Post selector — always shown so admin can assign any role */}
@@ -299,11 +338,15 @@ export function ElectionCandidatesPage() {
 
                     {needsReview(c.status) && (
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <Button variant="success" size="sm" leftIcon={CheckCircle} isLoading={validateMut.isPending}
+                        <Button variant="success" size="sm" leftIcon={CheckCircle} 
+                          isLoading={processingCandidateId === c._id}
+                          disabled={processingCandidateId !== null && processingCandidateId !== c._id}
                           onClick={() => validateMut.mutate({ candidateId: c._id, action: 'Approved' })}>
                           Approve
                         </Button>
-                        <Button variant="danger" size="sm" leftIcon={XCircle} isLoading={validateMut.isPending}
+                        <Button variant="danger" size="sm" leftIcon={XCircle} 
+                          isLoading={processingCandidateId === c._id}
+                          disabled={processingCandidateId !== null && processingCandidateId !== c._id}
                           onClick={() => {
                             const reason = window.prompt('Rejection reason', 'Eligibility criteria not met') || 'Rejected';
                             validateMut.mutate({ candidateId: c._id, action: 'Rejected', reason });

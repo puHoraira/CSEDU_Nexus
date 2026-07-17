@@ -119,6 +119,11 @@ class ElectionController {
     const data = await Phase1BatchService.manualAppointBatch(req.params.electionId, req.params.batchKey, req.auth.userId, req.requestMeta.requestId);
     return ApiResponse.ok(res, data, "Batch winners appointed");
   });
+
+  static selfNominate = asyncHandler(async (req, res) => {
+    const candidate = await ElectionService.selfNominate(req.params.electionId, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.created(res, candidate, "Application submitted successfully. Your candidacy is pending Election Commission review.");
+  });
 }
 
 module.exports = { ElectionController };

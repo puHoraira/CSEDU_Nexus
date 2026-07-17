@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Vote, Calendar, Clock, Users, BarChart2, Play, Square, CheckCircle, AlertCircle, ArrowLeft, Image } from 'lucide-react';
+import { Vote, Calendar, Clock, Users, BarChart2, Play, Square, CheckCircle, AlertCircle, ArrowLeft, Image, UserPlus } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -71,6 +71,30 @@ export function ElectionDetailPage() {
     enabled: Boolean(hasValidId && token),
   });
 
+  // Check if current user has already applied
+  const { data: myApplication, isLoading: isLoadingApplication } = useQuery({
+    queryKey: ['my-election-application', id, token],
+    queryFn: async () => {
+      const candidates = await apiRequest<Array<{ memberId?: { userId?: { _id?: string } }; status: string }>>(`/elections/${id}/candidates`, { token });
+      return candidates.find(c => c.memberId?.userId?._id === user?._id);
+    },
+    enabled: Boolean(hasValidId && token && user),
+  });
+
+  // Check user's eligibility from profile
+  const { data: profile } = useQuery({
+    queryKey: ['my-profile', token],
+    queryFn: () => apiRequest<{
+      membership: {
+        status: string;
+        academicRecord?: { currentCgpa?: number };
+        attendanceRecord?: { overallAttendancePercentage?: number };
+        electionEligibility?: { isEligibleForCandidacy?: boolean };
+      } | null;
+    }>('/auth/me', { token }),
+    enabled: Boolean(token && user),
+  });
+
   const { data: candidateStats } = useQuery({
     queryKey: ['election-candidate-stats', id, token],
     queryFn: async () => {
@@ -128,6 +152,15 @@ export function ElectionDetailPage() {
     onError: e => toast.error(normalizeApiError(e)),
   });
 
+  const applyMut = useMutation({
+    mutationFn: () => apiRequest(`/elections/${id}/self-nominate`, { method: 'POST', token }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['my-election-application', id, token] });
+      toast.success('Application submitted! Your candidacy is pending Election Commission review.');
+    },
+    onError: e => toast.error(normalizeApiError(e)),
+  });
+
   if (!hasValidId) {
     return (
       <div className="ui-page">
@@ -163,6 +196,14 @@ export function ElectionDetailPage() {
   const pct = isActive ? Math.min(100, ((now.getTime() - starts.getTime()) / (ends.getTime() - starts.getTime())) * 100) : 0;
   const daysLeft = Math.max(0, Math.ceil((ends.getTime() - now.getTime()) / 86400000));
 
+  // Determine if user can apply as candidate
+  const isPhase1 = (election.currentPhase ?? 1) === 1;
+  const canAcceptNominations = ['Draft', 'Setup', 'Phase1_Active'].includes(election.status);
+  const isEligible = profile?.membership?.electionEligibility?.isEligibleForCandidacy ?? false;
+  const hasApplied = Boolean(myApplication);
+  // Don't show Apply button while checking application status
+  const canApply = !isLoadingApplication && isPhase1 && canAcceptNominations && isEligible && !hasApplied && !canManage;
+
   return (
     <div className="ui-page">
       <PageHeader
@@ -175,6 +216,25 @@ export function ElectionDetailPage() {
         ]}
         actions={
           <div className="ui-flex ui-flex-gap-2">
+            {canApply && (
+              <Button variant="success" size="sm" leftIcon={UserPlus}
+                isLoading={applyMut.isPending}
+                onClick={() => {
+                  if (window.confirm('Apply as a candidate for this election?\n\nYour application will be reviewed by the Election Commission.')) {
+                    applyMut.mutate();
+                  }
+                }}>
+                Apply as Candidate
+              </Button>
+            )}
+            {hasApplied && myApplication && (
+              <Badge variant={
+                myApplication.status === 'Approved' ? 'success' :
+                myApplication.status === 'Rejected' ? 'error' : 'warning'
+              }>
+                Application: {myApplication.status}
+              </Badge>
+            )}
             {canManage && (
               <Button variant="outline" size="sm" leftIcon={Image}
                 onClick={() => openPosterGenerator({
@@ -223,6 +283,65 @@ export function ElectionDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Application Status / Info for Students */}
+      {!canManage && isPhase1 && canAcceptNominations && (
+        <div className="ui-card">
+          <div className="ui-card__header">
+            <h3 className="ui-card__title">Candidate Application</h3>
+          </div>
+          <div className="ui-card__body">
+            {hasApplied ? (
+              <Alert variant={
+                myApplication?.status === 'Approved' ? 'success' :
+                myApplication?.status === 'Rejected' ? 'error' : 'info'
+              }>
+                <strong>Application Status: {myApplication?.status}</strong>
+                {myApplication?.status === 'Pending' && (
+                  <p style={{ margin: '8px 0 0' }}>Your application is being reviewed by the Election Commission. You'll be notified once it's approved.</p>
+                )}
+                {myApplication?.status === 'Approved' && (
+                  <p style={{ margin: '8px 0 0' }}>✓ Your candidacy has been approved! You are now on the ballot for Phase 1.</p>
+                )}
+                {myApplication?.status === 'Rejected' && (
+                  <p style={{ margin: '8px 0 0' }}>Your application was not approved. Please contact the Election Commission for more details.</p>
+                )}
+              </Alert>
+            ) : isEligible ? (
+              <div>
+                <p style={{ margin: '0 0 12px', color: 'var(--text)' }}>
+                  ✓ You are eligible to apply as a <strong>Batch Representative</strong> candidate for this election.
+                </p>
+                <div style={{ padding: '12px 16px', background: 'var(--surface)', borderRadius: 12, marginBottom: 12 }}>
+                  <p style={{ margin: '0 0 8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>Requirements Met:</p>
+                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.82rem', color: 'var(--muted)' }}>
+                    <li>Active membership ✓</li>
+                    <li>CGPA ≥ 3.0 ✓</li>
+                    <li>Attendance ≥ 75% ✓</li>
+                  </ul>
+                </div>
+                <Button variant="success" leftIcon={UserPlus}
+                  isLoading={applyMut.isPending}
+                  onClick={() => {
+                    if (window.confirm('Apply as a candidate for this election?\n\nYour application will be reviewed by the Election Commission before being approved.')) {
+                      applyMut.mutate();
+                    }
+                  }}>
+                  Apply as Candidate
+                </Button>
+              </div>
+            ) : (
+              <Alert variant="warning">
+                <strong>Not Eligible</strong>
+                <p style={{ margin: '8px 0 0' }}>
+                  To apply as a candidate, you must have: Active membership, CGPA ≥ 3.0, and Attendance ≥ 75%.
+                  Update your academic records in your profile to check eligibility.
+                </p>
+              </Alert>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Timeline */}
       <div className="ui-card">

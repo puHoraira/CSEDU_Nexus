@@ -45,6 +45,7 @@ router.post("/votes", authenticate, authorize("election.vote.cast"), validate(ca
 
 // Election-specific routes
 router.get("/:electionId/candidates", authenticate, authorize("election.read"), ElectionController.listCandidates);
+router.post("/:electionId/self-nominate", authenticate, ElectionController.selfNominate); // Any authenticated user can self-nominate
 router.patch("/:electionId/phase", authenticate, authorize("election.commission.manage"), validate(updateElectionPhaseSchema), ElectionController.updatePhase);
 router.get("/:electionId/my-votes", authenticate, ElectionController.getMyVotes);
 router.get("/:electionId/results", authenticate, ElectionController.results);

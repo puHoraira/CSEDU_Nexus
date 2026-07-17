@@ -22,9 +22,24 @@ class FinanceController {
     return ApiResponse.ok(res, row, "Cheque signed");
   });
 
-  static ledger = asyncHandler(async (_req, res) => {
-    const data = await FinanceService.getLedger();
+  static ledger = asyncHandler(async (req, res) => {
+    const data = await FinanceService.getLedger(req.query);
     return ApiResponse.ok(res, data, "Ledger");
+  });
+
+  static summary = asyncHandler(async (req, res) => {
+    const data = await FinanceService.getSummary(req.query.startDate, req.query.endDate);
+    return ApiResponse.ok(res, data, "Finance summary");
+  });
+
+  static categories = asyncHandler(async (_req, res) => {
+    const data = await FinanceService.getCategories();
+    return ApiResponse.ok(res, data, "Categories");
+  });
+
+  static pendingCheques = asyncHandler(async (_req, res) => {
+    const data = await FinanceService.getPendingCheques();
+    return ApiResponse.ok(res, data, "Pending cheques");
   });
 }
 

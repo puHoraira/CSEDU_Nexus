@@ -8,7 +8,9 @@ const { NotificationService } = require("./NotificationService");
 
 class MembershipService {
   static async listMembers() {
-    return Member.find({}).sort({ batch: -1, studentId: 1 });
+    return Member.find({})
+      .populate("userId", "firstName lastName email avatarUrl")
+      .sort({ batch: -1, studentId: 1 });
   }
 
   static async listCancellationRequests() {
