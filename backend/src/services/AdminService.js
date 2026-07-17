@@ -305,6 +305,16 @@ class AdminService {
     if (payload.disciplinaryRecord) {
       Object.assign(member.disciplinaryRecord, payload.disciplinaryRecord);
     }
+
+    // Allow updating currentYear
+    if (payload.currentYear !== undefined) {
+      member.currentYear = payload.currentYear;
+    }
+
+    // Allow updating academicYearLevel
+    if (payload.academicYearLevel) {
+      member.academicYearLevel = payload.academicYearLevel;
+    }
     
     await member.save();
     

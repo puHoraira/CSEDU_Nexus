@@ -110,6 +110,11 @@ class GovernanceController {
     const item = await GovernanceService.appointMember(payload, req.auth.userId, req.requestMeta.requestId);
     return ApiResponse.created(res, item, "EC member appointed");
   });
+
+  static deleteAppointment = asyncHandler(async (req, res) => {
+    const result = await GovernanceService.deleteAppointment(req.params.id, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, result, "EC appointment deleted");
+  });
 }
 
 module.exports = { GovernanceController };

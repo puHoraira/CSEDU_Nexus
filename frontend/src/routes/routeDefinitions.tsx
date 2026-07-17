@@ -14,6 +14,7 @@ import { EcPostsPage } from "../pages/governance/EcPostsPage";
 import { EcAppointmentsPage } from "../pages/governance/EcAppointmentsPage";
 import { GovernanceNoticesPage } from "../pages/governance/GovernanceNoticesPage";
 import { ModeratorConstitutionEditorPage } from "../pages/governance/ModeratorConstitutionEditorPage";
+import { GovernancePage } from "../pages/governance/GovernancePage";
 import { ModernMeetingsPage } from "../pages/meetings/ModernMeetingsPage";
 import { MeetingCreatePage } from "../pages/meetings/MeetingCreatePage";
 import { MeetingDetailsPage } from "../pages/meetings/MeetingDetailsPage";
@@ -155,6 +156,11 @@ export const routeDefinitions: RouteDef[] = [
   {
     path: "/dashboard/membership/roster",
     element: <MembershipRosterPage />,
+    requiredRoles: ["President", "General Secretary", "Moderator", "Chief Patron"],
+  },
+  {
+    path: "/dashboard/governance",
+    element: <GovernancePage />,
     requiredRoles: ["President", "General Secretary", "Moderator", "Chief Patron"],
   },
   {

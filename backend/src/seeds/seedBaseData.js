@@ -25,6 +25,7 @@ async function grant(roleName, permissionKey) {
 }
 
 async function seedRolesAndPermissions() {
+  console.log("  Creating roles...");
   const roles = [
     "System Admin",
     "General Member",
@@ -106,10 +107,12 @@ async function seedRolesAndPermissions() {
     ["volunteer.group.lead", "volunteer", "group:lead"],
   ];
 
+  console.log("  Creating permissions...");
   for (const [key, resource, action] of permissions) {
     await upsertPermission(key, resource, action);
   }
 
+  console.log("  Granting permissions to roles...");
   const grants = {
     "System Admin": ["admin.role.read", "admin.role.assign", "admin.role.revoke", "meeting.read", "election.read", "election.vote.cast"],
     "General Member": [
@@ -182,6 +185,7 @@ async function seedRolesAndPermissions() {
       "governance.proposal.approve",
       "governance.ecPost.create",
       "governance.ecTerm.create",
+      "governance.ecAppointment.create",
       "membership.read",
       "membership.cancellation.request",
       "membership.cancellation.review",
@@ -266,14 +270,20 @@ async function seedEcPosts() {
 }
 
 async function run() {
-  await connectDB();
-  await seedRolesAndPermissions();
-  await seedEcPosts();
-  console.log("Base data seeded");
-  process.exit(0);
+  try {
+    console.log("Connecting to database...");
+    await connectDB();
+    console.log("Seeding roles and permissions...");
+    await seedRolesAndPermissions();
+    console.log("Seeding EC posts...");
+    await seedEcPosts();
+    console.log("✅ Base data seeded successfully");
+    process.exit(0);
+  } catch (error) {
+    console.error("❌ Seed failed:", error.message);
+    console.error(error.stack);
+    process.exit(1);
+  }
 }
 
-run().catch((error) => {
-  console.error("Seed failed", error);
-  process.exit(1);
-});
+run();

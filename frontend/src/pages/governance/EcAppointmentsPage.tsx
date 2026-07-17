@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { apiRequest, normalizeApiError } from "../../lib/api";
 import { PageScreen } from "../../components/ui/PageScreen";
@@ -37,6 +38,20 @@ export function EcAppointmentsPage() {
     onError: (err) => setError(normalizeApiError(err)),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (appointmentId: string) => apiRequest(`/governance/ec-appointments/${appointmentId}`, { method: "DELETE", token }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["ec-appointments", token] });
+    },
+    onError: (err) => setError(normalizeApiError(err)),
+  });
+
+  function handleDelete(appointmentId: string, termName: string, postTitle: string, memberName: string) {
+    if (confirm(`Delete appointment: ${memberName} as ${postTitle} in ${termName}?`)) {
+      deleteMutation.mutate(appointmentId);
+    }
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     mutation.mutate();
@@ -61,7 +76,7 @@ export function EcAppointmentsPage() {
       <section className="page-section">
         <h2 className="page-section__title">Appointments</h2>
         <table className="data-table">
-          <thead><tr><th>Term</th><th>Post</th><th>Member</th><th>Starts</th><th>Source</th></tr></thead>
+          <thead><tr><th>Term</th><th>Post</th><th>Member</th><th>Starts</th><th>Source</th><th>Actions</th></tr></thead>
           <tbody>
             {appointments.map((appointment) => (
               <tr key={appointment._id}>
@@ -70,6 +85,21 @@ export function EcAppointmentsPage() {
                 <td>{appointment.memberId?.studentId}</td>
                 <td>{new Date(appointment.startsOn).toLocaleDateString()}</td>
                 <td><span className="chip">{appointment.source}</span></td>
+                <td>
+                  <button 
+                    className="danger-button icon-button" 
+                    onClick={() => handleDelete(
+                      appointment._id, 
+                      appointment.termId?.name || "Unknown Term",
+                      appointment.postId?.title || "Unknown Post",
+                      appointment.memberId?.studentId || "Unknown Member"
+                    )}
+                    disabled={deleteMutation.isPending}
+                    title="Delete appointment"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

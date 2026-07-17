@@ -498,6 +498,35 @@ class GovernanceService {
 
     return appointment;
   }
+
+  /** Delete an EC appointment */
+  static async deleteAppointment(appointmentId, actorId, requestId) {
+    const appointment = await EcAppointment.findById(appointmentId)
+      .populate("postId", "title")
+      .populate("memberId", "name")
+      .populate("termId", "name");
+
+    if (!appointment) {
+      throw new ApiError(404, "EC appointment not found");
+    }
+
+    await appointment.deleteOne();
+
+    await AuditService.log({
+      actorId,
+      action: "EC_APPOINTMENT_DELETED",
+      resource: "EcAppointment",
+      resourceId: appointmentId,
+      requestId,
+      metadata: {
+        termName: appointment.termId?.name,
+        postTitle: appointment.postId?.title,
+        memberName: appointment.memberId?.name,
+      },
+    });
+
+    return { deleted: true };
+  }
 }
 
 module.exports = { GovernanceService };

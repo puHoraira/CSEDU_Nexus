@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   User, Mail, Phone, GraduationCap, CalendarDays, IdCard, Pencil,
@@ -89,6 +89,8 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
 }
 
 type EditForm = {
+  currentYear: string;
+  academicYearLevel: string;
   currentCgpa: string;
   totalCreditsCompleted: string;
   totalCreditsRequired: string;
@@ -99,9 +101,12 @@ export function StudentDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { token, user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditForm>({
+    currentYear: '',
+    academicYearLevel: '',
     currentCgpa: '',
     totalCreditsCompleted: '',
     totalCreditsRequired: '',
@@ -129,6 +134,8 @@ export function StudentDetailsPage() {
         method: 'PUT',
         token,
         body: JSON.stringify({
+          currentYear: Number(form.currentYear),
+          academicYearLevel: form.academicYearLevel,
           academicRecord: {
             currentCgpa: Number(form.currentCgpa),
             totalCreditsCompleted: Number(form.totalCreditsCompleted),
@@ -152,6 +159,8 @@ export function StudentDetailsPage() {
     if (!student) return;
     setFormError(null);
     setForm({
+      currentYear: student.currentYear != null ? String(student.currentYear) : '',
+      academicYearLevel: student.academicYearLevel || '',
       currentCgpa: student.academicRecord?.currentCgpa != null ? String(student.academicRecord.currentCgpa) : '',
       totalCreditsCompleted: student.academicRecord?.totalCreditsCompleted != null ? String(student.academicRecord.totalCreditsCompleted) : '',
       totalCreditsRequired: student.academicRecord?.totalCreditsRequired != null ? String(student.academicRecord.totalCreditsRequired) : '160',
@@ -164,11 +173,20 @@ export function StudentDetailsPage() {
     e.preventDefault();
     setFormError(null);
 
+    const currentYear = Number(form.currentYear);
     const cgpa = Number(form.currentCgpa);
     const attendance = Number(form.overallAttendancePercentage);
     const done = Number(form.totalCreditsCompleted);
     const required = Number(form.totalCreditsRequired);
 
+    if (form.currentYear === '' || Number.isNaN(currentYear) || currentYear < 1 || currentYear > 5) {
+      setFormError('Current year must be a number between 1 and 5.');
+      return;
+    }
+    if (!form.academicYearLevel) {
+      setFormError('Academic year level is required.');
+      return;
+    }
     if (form.currentCgpa === '' || Number.isNaN(cgpa) || cgpa < 0 || cgpa > 4) {
       setFormError('CGPA must be a number between 0.00 and 4.00.');
       return;
@@ -385,7 +403,7 @@ export function StudentDetailsPage() {
         isOpen={editing}
         onClose={() => setEditing(false)}
         title="Edit Academic Record"
-        description={`Update CGPA, credits and attendance for ${name}.`}
+        description={`Update year, CGPA, credits and attendance for ${name}.`}
         size="md"
         footer={
           <div className="ui-flex ui-flex-gap-2" style={{ justifyContent: 'flex-end' }}>
@@ -396,6 +414,36 @@ export function StudentDetailsPage() {
       >
         <form onSubmit={submitEdit} className="ui-flex-col" style={{ gap: 16 }}>
           {formError && <Alert variant="error" onClose={() => setFormError(null)}>{formError}</Alert>}
+
+          <div className="ui-grid-2" style={{ gap: 16 }}>
+            <label className="ui-input-wrap">
+              <span className="ui-input-label">Current Year (1-5)</span>
+              <input
+                className="ui-input"
+                type="number" step="1" min="1" max="5"
+                value={form.currentYear}
+                onChange={(e) => setForm({ ...form, currentYear: e.target.value })}
+                placeholder="e.g. 3"
+              />
+            </label>
+
+            <label className="ui-input-wrap">
+              <span className="ui-input-label">Academic Year Level</span>
+              <select
+                className="ui-input"
+                value={form.academicYearLevel}
+                onChange={(e) => setForm({ ...form, academicYearLevel: e.target.value })}
+              >
+                <option value="">Select level</option>
+                <option value="First_Year">First Year</option>
+                <option value="Second_Year">Second Year</option>
+                <option value="Third_Year">Third Year</option>
+                <option value="Fourth_Year">Fourth Year</option>
+                <option value="Fifth_Year">Fifth Year</option>
+                <option value="Graduated">Graduated</option>
+              </select>
+            </label>
+          </div>
 
           <label className="ui-input-wrap">
             <span className="ui-input-label">Current CGPA (0.00 – 4.00)</span>

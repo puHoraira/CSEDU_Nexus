@@ -101,4 +101,11 @@ router.post(
   GovernanceController.appointMember
 );
 
+router.delete(
+  "/ec-appointments/:id",
+  authenticate,
+  authorize("governance.ecAppointment.create"),
+  GovernanceController.deleteAppointment
+);
+
 module.exports = { governanceRoutes: router };
