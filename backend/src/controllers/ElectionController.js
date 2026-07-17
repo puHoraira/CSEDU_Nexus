@@ -25,6 +25,16 @@ class ElectionController {
     return ApiResponse.ok(res, row, "Election details");
   });
 
+  static update = asyncHandler(async (req, res) => {
+    const row = await ElectionService.updateElection(
+      req.params.id,
+      req.body,
+      req.auth.userId,
+      req.requestMeta.requestId
+    );
+    return ApiResponse.ok(res, row, "Election updated");
+  });
+
   static addCandidate = asyncHandler(async (req, res) => {
     const row = await ElectionService.addCandidate(req.body, req.auth.userId, req.requestMeta.requestId);
     return ApiResponse.created(res, row, "Candidate added");
@@ -123,6 +133,11 @@ class ElectionController {
   static selfNominate = asyncHandler(async (req, res) => {
     const candidate = await ElectionService.selfNominate(req.params.electionId, req.auth.userId, req.requestMeta.requestId);
     return ApiResponse.created(res, candidate, "Application submitted successfully. Your candidacy is pending Election Commission review.");
+  });
+
+  static getVotingStats = asyncHandler(async (req, res) => {
+    const stats = await ElectionService.getVotingStats(req.params.electionId);
+    return ApiResponse.ok(res, stats, "Voting statistics");
   });
 }
 

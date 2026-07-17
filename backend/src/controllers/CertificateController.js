@@ -32,6 +32,15 @@ class CertificateController {
     return ApiResponse.ok(res, items, "Chairman certificate inbox");
   });
 
+  static allIssued = asyncHandler(async (req, res) => {
+    const roles = req.auth?.roles || [];
+    if (!CertificateService.isModerator(roles) && !CertificateService.isChairman(roles)) {
+      throw new ApiError(403, "Moderator or Chairman role required");
+    }
+    const items = await CertificateService.listAllIssued();
+    return ApiResponse.ok(res, items, "All issued certificates");
+  });
+
   static moderatorReview = asyncHandler(async (req, res) => {
     const item = await CertificateService.reviewByModerator(
       req.params.id,

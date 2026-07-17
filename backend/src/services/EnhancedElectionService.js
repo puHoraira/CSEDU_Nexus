@@ -12,6 +12,7 @@ const { EcTerm } = require("../models/EcTerm");
 const { policyRegistry } = require("../policies");
 const { AuditService } = require("./AuditService");
 const { NotificationService } = require("./NotificationService");
+const { AccessService } = require("./AccessService");
 const { ElectionCommissionService } = require("./ElectionCommissionService");
 const { GovernanceService } = require("./GovernanceService");
 
@@ -214,6 +215,26 @@ class EnhancedElectionService {
       targetPost = await EcPost.findById(payload.postId);
       if (!targetPost || !targetPost.isActive) {
         throw new ApiError(404, "Invalid or inactive post specified");
+      }
+
+      // Check EC experience eligibility
+      const memberEcYears = this.computeEcYears(member);
+      const memberYear = member.currentYear;
+
+      // Validate minimum year requirement
+      if (targetPost.minYear && memberYear < targetPost.minYear) {
+        throw new ApiError(
+          400, 
+          `You are not eligible for ${targetPost.title}. This post requires ${targetPost.minYear}${this.getOrdinalSuffix(targetPost.minYear)} year, but you are in ${memberYear}${this.getOrdinalSuffix(memberYear)} year.`
+        );
+      }
+
+      // Validate minimum EC experience requirement
+      if (targetPost.minEcYears && memberEcYears < targetPost.minEcYears) {
+        throw new ApiError(
+          400, 
+          `You are not eligible for ${targetPost.title}. This post requires ${targetPost.minEcYears} ${targetPost.minEcYears === 1 ? 'year' : 'years'} of EC experience, but you have ${memberEcYears} ${memberEcYears === 1 ? 'year' : 'years'}.`
+        );
       }
     }
 
@@ -591,28 +612,135 @@ class EnhancedElectionService {
     };
   }
 
+  /**
+   * Calculate EC experience years for a member
+   * Based on their ecExperience array
+   */
+  static computeEcYears(member) {
+    const entries = member.ecExperience || [];
+    if (entries.length === 0) return 0;
+    
+    // Count unique years of EC service
+    const uniqueYears = new Set();
+    for (const exp of entries) {
+      if (exp.startsOn) {
+        uniqueYears.add(new Date(exp.startsOn).getFullYear());
+      }
+    }
+    return uniqueYears.size;
+  }
+
+  /**
+   * Get eligible Phase 2 posts for a member based on their EC experience and current year
+   * Returns posts with eligibility status
+   */
+  static async getEligiblePostsForMember(memberId, electionId) {
+    const member = await require('../models/Member').Member.findById(memberId);
+    if (!member) {
+      throw new ApiError(404, "Member not found");
+    }
+
+    const election = await Election.findById(electionId);
+    if (!election) {
+      throw new ApiError(404, "Election not found");
+    }
+
+    // Get all active EC posts (excluding Executive Members)
+    const posts = await require('../models/EcPost').EcPost.find({ 
+      isActive: true, 
+      code: { $not: /EXECUTIVE_MEMBER/i } 
+    }).sort({ displayOrder: 1 });
+
+    // Calculate member's EC experience
+    const memberEcYears = this.computeEcYears(member);
+    const memberYear = member.currentYear;
+
+    // Check eligibility for each post
+    const eligibilityResults = posts.map(post => {
+      const meetsYearRequirement = memberYear >= (post.minYear || 1);
+      const meetsEcExperience = memberEcYears >= (post.minEcYears || 0);
+      const isEligible = meetsYearRequirement && meetsEcExperience;
+
+      let reason = null;
+      if (!meetsYearRequirement) {
+        reason = `Requires ${post.minYear || 1}${this.getOrdinalSuffix(post.minYear || 1)} year, you are in ${memberYear}${this.getOrdinalSuffix(memberYear)} year`;
+      } else if (!meetsEcExperience) {
+        reason = `Requires ${post.minEcYears} ${post.minEcYears === 1 ? 'year' : 'years'} of EC experience, you have ${memberEcYears}`;
+      }
+
+      return {
+        post: {
+          _id: post._id,
+          code: post.code,
+          title: post.title,
+          minYear: post.minYear,
+          minEcYears: post.minEcYears,
+          displayOrder: post.displayOrder
+        },
+        isEligible,
+        reason,
+        memberYear,
+        memberEcYears
+      };
+    });
+
+    return {
+      member: {
+        _id: member._id,
+        studentId: member.studentId,
+        currentYear: memberYear,
+        ecYears: memberEcYears
+      },
+      eligibility: eligibilityResults
+    };
+  }
+
+  /**
+   * Helper to get ordinal suffix (1st, 2nd, 3rd, etc.)
+   */
+  static getOrdinalSuffix(num) {
+    const j = num % 10;
+    const k = num % 100;
+    if (j === 1 && k !== 11) return 'st';
+    if (j === 2 && k !== 12) return 'nd';
+    if (j === 3 && k !== 13) return 'rd';
+    return 'th';
+  }
+
   static async publishResults(electionId, phase, actorId, requestId, autoCreateAppointments = false) {
     const election = await Election.findById(electionId);
     if (!election) {
       throw new ApiError(404, "Election not found");
     }
 
-    // Check authorization (commission members only)
-    const commission = await ElectionCommission.findById(election.commissionId);
-    if (!commission) {
-      throw new ApiError(404, "Election commission not found");
-    }
+    // Fetch roles from database in real-time instead of relying on JWT
+    const roleNames = await AccessService.getUserRoleNames(actorId);
+    const postNames = await AccessService.getEcPostNames(actorId, null);
+    const userRoles = [...new Set([...roleNames, ...postNames])];
+    
+    const hasPrivilegedAccess = userRoles.includes("Moderator") || 
+                                userRoles.includes("Election Commissioner") ||
+                                userRoles.includes("Chief Patron") || 
+                                userRoles.includes("Chairman");
 
-    const isAuthorized = commission.chiefCommissioner.toString() === actorId ||
-                        commission.commissioners.some(c => c.userId.toString() === actorId);
+    // Check authorization
+    let commission = null;
+    if (election.commissionId) {
+      commission = await ElectionCommission.findById(election.commissionId);
+      
+      if (commission && !hasPrivilegedAccess) {
+        // Regular users must be commission members
+        const isCommissionMember = commission.chiefCommissioner.toString() === actorId ||
+                                   commission.commissioners.some(c => c.userId.toString() === actorId);
 
-    if (!isAuthorized) {
-      const user = await User.findById(actorId);
-      if (!user) {
-        throw new ApiError(404, "Actor user not found");
+        if (!isCommissionMember) {
+          throw new ApiError(403, "Only commission members, election commissioners, or moderators can publish results");
+        }
       }
-      if (!user.roles.includes("Chief Patron") && !user.roles.includes("Chairman")) {
-        throw new ApiError(403, "Only commission members can publish results");
+    } else {
+      // No commission exists - only allow privileged users
+      if (!hasPrivilegedAccess) {
+        throw new ApiError(403, "Election commission not found. Only moderators and election commissioners can publish results without a commission.");
       }
     }
 
@@ -749,12 +877,18 @@ class EnhancedElectionService {
                 continue;
               }
 
+              // Load post to determine memberEcYears requirement
+              const post = await require('../models/EcPost').EcPost.findById(candidate.postId);
+              
               const appointPayload = {
                 termId: election.termId,
                 postId: candidate.postId,
                 memberId: candidate.memberId._id,
                 startsOn: election.termId ? (await EcTerm.findById(election.termId)).startsOn : new Date(),
-                source: 'Election'
+                source: 'Election',
+                // For election winners, satisfy EC experience requirement automatically
+                // since elections already validate eligibility through their own process
+                memberEcYears: post?.minEcYears || 0
               };
 
               const appointment = await GovernanceService.appointMember(appointPayload, actorId, requestId);

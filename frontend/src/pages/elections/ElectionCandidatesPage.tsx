@@ -26,6 +26,31 @@ type CandidateRow = {
   };
 };
 
+type PostEligibility = {
+  post: {
+    _id: string;
+    code: string;
+    title: string;
+    minYear?: number;
+    minEcYears?: number;
+    displayOrder?: number;
+  };
+  isEligible: boolean;
+  reason: string | null;
+  memberYear: number;
+  memberEcYears: number;
+};
+
+type EligibilityResponse = {
+  member: {
+    _id: string;
+    studentId: string;
+    currentYear: number;
+    ecYears: number;
+  };
+  eligibility: PostEligibility[];
+};
+
 const STATUS_CFG: Record<string, { variant: 'warning' | 'success' | 'error' | 'neutral'; label: string }> = {
   Pending:      { variant: 'warning', label: 'Pending' },
   Submitted:    { variant: 'warning', label: 'Submitted' },
@@ -49,6 +74,7 @@ export function ElectionCandidatesPage() {
   const [showForm, setShowForm] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
   const [processingCandidateId, setProcessingCandidateId] = useState<string | null>(null);
+  const [selectedMemberForEligibility, setSelectedMemberForEligibility] = useState<string>('');
 
   const { data: members = [] } = useQuery({
     queryKey: ['members-for-candidacy', token],
@@ -84,6 +110,16 @@ export function ElectionCandidatesPage() {
   });
 
   const isPhase1 = (election?.currentPhase ?? 1) === 1;
+
+  // Fetch eligible posts for selected member (Phase 2 only)
+  const { data: eligibility, isLoading: eligibilityLoading } = useQuery({
+    queryKey: ['member-eligibility', id, selectedMemberForEligibility || form.memberId, token],
+    queryFn: () => apiRequest<EligibilityResponse>(
+      `/enhanced-elections/${id}/eligible-posts?memberId=${selectedMemberForEligibility || form.memberId}`, 
+      { token }
+    ),
+    enabled: Boolean(hasValidId && token && !isPhase1 && (selectedMemberForEligibility || form.memberId)),
+  });
 
   const addMut = useMutation({
     mutationFn: () => apiRequest('/elections/candidates', {
@@ -168,12 +204,12 @@ export function ElectionCandidatesPage() {
       <div className="ui-card">
         <div className="ui-card__body" style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           {[
-            { icon: GraduationCap, title: 'Phase 1', desc: 'Representatives — no post required. Any active member can apply.' },
-            { icon: Hash,          title: 'Phase 2', desc: 'Office bearers — post assignment mandatory. Year & EC experience constraints apply.' },
+            { icon: GraduationCap, title: 'Phase 1 — Batch Representatives', desc: 'Any active member can apply. No EC experience required. Top 5 from each batch advance to Phase 2.' },
+            { icon: Hash,          title: 'Phase 2 — Office Bearers', desc: 'Phase 1 winners compete for 11 EC posts. Each post has minimum year and EC experience requirements.' },
           ].map(item => {
             const Icon = item.icon;
             return (
-              <div key={item.title} style={{ display: 'flex', gap: 12, flex: 1, minWidth: 240 }}>
+              <div key={item.title} style={{ display: 'flex', gap: 12, flex: 1, minWidth: 280 }}>
                 <div style={{ padding: 10, borderRadius: 12, background: 'var(--gradient-primary)', color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
                   <Icon size={18} />
                 </div>
@@ -185,6 +221,13 @@ export function ElectionCandidatesPage() {
             );
           })}
         </div>
+        {!isPhase1 && (
+          <div style={{ padding: '0 20px 20px' }}>
+            <Alert variant="info">
+              <strong>Phase 2 Requirements:</strong> When adding candidates, the system will automatically check their eligibility based on current year and EC experience. Only eligible posts will be available for selection.
+            </Alert>
+          </div>
+        )}
       </div>
 
       {/* Add form */}
@@ -209,7 +252,15 @@ export function ElectionCandidatesPage() {
                 <div className="ui-grid-3" style={{ marginBottom: 16 }}>
                   <div className="ui-input-wrap">
                     <label className="ui-input-label">Member *</label>
-                    <select className="ui-select" value={form.memberId} onChange={e => setForm(f => ({ ...f, memberId: e.target.value }))} required>
+                    <select 
+                      className="ui-select" 
+                      value={form.memberId} 
+                      onChange={e => {
+                        setForm(f => ({ ...f, memberId: e.target.value, postId: '' }));
+                        setSelectedMemberForEligibility(e.target.value);
+                      }} 
+                      required
+                    >
                       <option value="">Select member…</option>
                       {filteredMembers.map(m => {
                         const fullName = `${m.userId?.firstName || ''} ${m.userId?.lastName || ''}`.trim();
@@ -224,22 +275,91 @@ export function ElectionCandidatesPage() {
                     {memberSearch && <p className="ui-text-xs ui-text-muted" style={{ marginTop: 4 }}>Showing {filteredMembers.length} members</p>}
                   </div>
 
-                  {/* Post selector — always shown so admin can assign any role */}
+                  {/* Post selector with eligibility checking for Phase 2 */}
                   <div className="ui-input-wrap">
                     <label className="ui-input-label">
                       Post {isPhase1 ? '(leave empty for Phase 1)' : '* required for Phase 2'}
                     </label>
+                    {!isPhase1 && eligibilityLoading && form.memberId && (
+                      <div style={{ padding: 12, textAlign: 'center', fontSize: '0.85rem', color: 'var(--muted)' }}>
+                        <Spinner size="sm" /> Checking eligibility...
+                      </div>
+                    )}
+                    {!isPhase1 && !eligibilityLoading && form.memberId && eligibility && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ padding: 12, background: 'var(--panel)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                          <p style={{ margin: '0 0 8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>
+                            Member Qualifications
+                          </p>
+                          <div style={{ display: 'flex', gap: 16, fontSize: '0.8rem', color: 'var(--muted)' }}>
+                            <span>Year: <strong style={{ color: 'var(--text)' }}>{eligibility.member.currentYear}</strong></span>
+                            <span>EC Experience: <strong style={{ color: 'var(--text)' }}>{eligibility.member.ecYears} {eligibility.member.ecYears === 1 ? 'year' : 'years'}</strong></span>
+                          </div>
+                          <div style={{ marginTop: 12 }}>
+                            <p style={{ margin: '0 0 6px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text)' }}>
+                              {eligibility.eligibility.filter(e => e.isEligible).length} eligible posts:
+                            </p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {eligibility.eligibility.filter(e => e.isEligible).map(e => (
+                                <Badge key={e.post._id} variant="success" style={{ fontSize: '0.75rem' }}>
+                                  {e.post.title}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <select
                       className="ui-select"
                       value={form.postId}
                       onChange={e => setForm(f => ({ ...f, postId: e.target.value }))}
                       required={!isPhase1}
+                      disabled={!isPhase1 && !form.memberId}
                     >
-                      <option value="">— No post (Batch Representative) —</option>
-                      {posts.filter(p => p.isActive !== false).map(p => (
-                        <option key={p._id} value={p._id}>{p.title}</option>
-                      ))}
+                      <option value="">
+                        {isPhase1 
+                          ? "— No post (Batch Representative) —" 
+                          : form.memberId 
+                            ? "— Select a post —" 
+                            : "— Select a member first —"
+                        }
+                      </option>
+                      {isPhase1 
+                        ? posts.filter(p => p.isActive !== false).map(p => (
+                            <option key={p._id} value={p._id}>{p.title}</option>
+                          ))
+                        : eligibility?.eligibility.map(e => {
+                            const label = e.isEligible 
+                              ? `✓ ${e.post.title}` 
+                              : `✗ ${e.post.title} (${e.reason})`;
+                            return (
+                              <option key={e.post._id} value={e.post._id} disabled={!e.isEligible}>
+                                {label}
+                              </option>
+                            );
+                          })
+                      }
                     </select>
+                    {!isPhase1 && form.postId && eligibility && (
+                      (() => {
+                        const selected = eligibility.eligibility.find(e => e.post._id === form.postId);
+                        if (!selected) return null;
+                        return selected.isEligible ? (
+                          <div style={{ marginTop: 8, padding: 10, background: 'rgba(34, 197, 94, 0.1)', borderRadius: 8, border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                            <p style={{ margin: 0, fontSize: '0.8rem', color: '#16a34a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <CheckCircle size={14} /> Eligible for {selected.post.title}
+                            </p>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: 8, padding: 10, background: 'rgba(239, 68, 68, 0.1)', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                            <p style={{ margin: 0, fontSize: '0.8rem', color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <XCircle size={14} /> Not eligible: {selected.reason}
+                            </p>
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
 
                   <div className="ui-input-wrap">

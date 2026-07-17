@@ -78,7 +78,8 @@ class EnhancedElectionController {
       electionId,
       req.body,
       req.auth.userId,
-      req.requestMeta.requestId
+      req.requestMeta.requestId,
+      req.auth.roles  // Pass roles from JWT token
     );
     return res.json(
       new ApiResponse(200, commission, "Commission configuration updated successfully")
@@ -156,7 +157,8 @@ class EnhancedElectionController {
       candidateId,
       req.body,
       req.auth.userId,
-      req.requestMeta.requestId
+      req.requestMeta.requestId,
+      req.auth.roles  // Pass roles from JWT token
     );
     return res.json(
       new ApiResponse(200, candidate, "Candidate application reviewed successfully")
@@ -194,7 +196,8 @@ class EnhancedElectionController {
       electionId,
       req.body,
       req.auth.userId,
-      req.requestMeta.requestId
+      req.requestMeta.requestId,
+      req.auth.roles  // Pass roles from JWT token
     );
     return res.json(
       new ApiResponse(200, election, "Election phase updated successfully")
@@ -394,6 +397,32 @@ class EnhancedElectionController {
     const terms = await EcTerm.find({ status: { $in: ["Draft", "Active"] } }).sort({ startsOn: -1 });
     return res.json(
       new ApiResponse(200, terms, "Active terms retrieved successfully")
+    );
+  });
+
+  // Get eligible posts for a member in Phase 2
+  static getEligiblePosts = asyncHandler(async (req, res) => {
+    const { electionId } = req.params;
+    const { memberId } = req.query;
+    
+    // If memberId not provided, use authenticated user's member record
+    let targetMemberId = memberId;
+    if (!targetMemberId) {
+      const { Member } = require("../models/Member");
+      const member = await Member.findOne({ userId: req.auth.userId });
+      if (!member) {
+        throw new ApiError(404, "Member record not found");
+      }
+      targetMemberId = member._id;
+    }
+    
+    const eligibility = await EnhancedElectionService.getEligiblePostsForMember(
+      targetMemberId,
+      electionId
+    );
+    
+    return res.json(
+      new ApiResponse(200, eligibility, "Eligible posts retrieved successfully")
     );
   });
 

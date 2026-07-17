@@ -5,6 +5,8 @@ const { validate } = require("../middleware/validate");
 const { authenticate } = require("../middleware/auth");
 const { authorize } = require("../middleware/authorize");
 
+console.log('[enhancedElectionRoutes] Loading enhanced election routes...');
+
 const router = express.Router();
 
 // All routes require authentication
@@ -13,7 +15,7 @@ router.use(authenticate);
 // Election Management Routes
 router.post(
   "/",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.createElection),
   EnhancedElectionController.create
 );
@@ -32,7 +34,7 @@ router.get(
 
 router.put(
   "/:electionId",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.electionId, "params"),
   validate(enhancedElectionValidators.updateElection),
   EnhancedElectionController.update
@@ -40,7 +42,7 @@ router.put(
 
 router.delete(
   "/:electionId",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.electionId, "params"),
   EnhancedElectionController.deleteElection
 );
@@ -62,7 +64,7 @@ router.get(
 
 router.put(
   "/:electionId/commission/config",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.electionId, "params"),
   validate(enhancedElectionValidators.updateCommissionConfig),
   EnhancedElectionController.updateCommissionConfig
@@ -105,7 +107,7 @@ router.post(
 // Commission Review Routes
 router.post(
   "/candidates/:candidateId/review",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.candidateId, "params"),
   validate(enhancedElectionValidators.reviewCandidateApplication),
   EnhancedElectionController.reviewCandidateApplication
@@ -127,7 +129,7 @@ router.get(
 // Election Phase Management
 router.put(
   "/:electionId/phase",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.electionId, "params"),
   validate(enhancedElectionValidators.updateElectionPhase),
   EnhancedElectionController.updateElectionPhase
@@ -143,9 +145,13 @@ router.get(
 
 router.post(
   "/:electionId/publish-results",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.electionId, "params"),
   validate(enhancedElectionValidators.publishResults),
+  (req, res, next) => {
+    console.log('[publish-results route hit] electionId:', req.params.electionId, 'body:', req.body);
+    next();
+  },
   EnhancedElectionController.publishResults
 );
 
@@ -158,7 +164,7 @@ router.get(
 // Commission Announcements
 router.post(
   "/:electionId/announcements",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.electionId, "params"),
   validate(enhancedElectionValidators.createAnnouncement),
   EnhancedElectionController.createAnnouncement
@@ -200,6 +206,13 @@ router.get(
   EnhancedElectionController.getActiveTerms
 );
 
+// Get eligible posts for a member (checks EC experience requirements)
+router.get(
+  "/:electionId/eligible-posts",
+  validate(enhancedElectionValidators.electionId, "params"),
+  EnhancedElectionController.getEligiblePosts
+);
+
 // Legacy Routes for Backward Compatibility
 router.post(
   "/add-candidate",
@@ -209,14 +222,14 @@ router.post(
 
 router.post(
   "/candidates/:candidateId/validate",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.candidateId, "params"),
   EnhancedElectionController.validateCandidate
 );
 
 router.post(
   "/candidates/:candidateId/cancel",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.candidateId, "params"),
   validate(enhancedElectionValidators.withdrawCandidateApplication),
   EnhancedElectionController.cancelCandidate
@@ -224,10 +237,12 @@ router.post(
 
 router.put(
   "/:electionId/update-phase",
-  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  authorize(["Moderator", "Election Commissioner", "Chief Patron", "Chairman"]),
   validate(enhancedElectionValidators.electionId, "params"),
   validate(enhancedElectionValidators.updateElectionPhase),
   EnhancedElectionController.updatePhase
 );
+
+console.log('[enhancedElectionRoutes] All routes registered successfully, including publish-results');
 
 module.exports = router;

@@ -33,7 +33,19 @@ const castVoteSchema = z.object({
 
 const updateElectionPhaseSchema = z.object({
   phase: z.union([z.literal(1), z.literal(2)]).optional(),
-  status: z.enum(["Draft", "Active", "Closed"]).optional(),
+  status: z.enum([
+    "Draft", 
+    "Setup", 
+    "Phase1_Active", 
+    "Phase1_Completed", 
+    "Phase2_Active", 
+    "Phase2_Completed", 
+    "Completed", 
+    "Cancelled",
+    // Legacy simple statuses (mapped by backend to phase-specific statuses)
+    "Active",
+    "Closed"
+  ]).optional(),
 });
 
 const validateCandidateSchema = z.object({

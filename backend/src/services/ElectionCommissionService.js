@@ -12,6 +12,7 @@ const { EcPost } = require("../models/EcPost");
 const { EcTerm } = require("../models/EcTerm");
 const { AuditService } = require("./AuditService");
 const { NotificationService } = require("./NotificationService");
+const { AccessService } = require("./AccessService");
 
 class ElectionCommissionService {
   
@@ -105,20 +106,20 @@ class ElectionCommissionService {
     return commission;
   }
 
-  static async updateCommissionConfig(electionId, configData, actorId, requestId) {
+  static async updateCommissionConfig(electionId, configData, actorId, requestId, actorRoles = []) {
     const commission = await ElectionCommission.findOne({ electionId });
     if (!commission) {
       throw new ApiError(404, "Election commission not found");
     }
 
-    // Only chief commissioner or chairman can update config
-    const user = await User.findById(actorId);
-    if (!user) {
-      throw new ApiError(404, "Actor user not found");
-    }
-    if (commission.chiefCommissioner.toString() !== actorId && 
-        !user.roles.includes("Chief Patron") && 
-        !user.roles.includes("Chairman")) {
+    // Use roles from JWT token (passed from controller via req.auth.roles)
+    const userRoles = actorRoles || [];
+    
+    // Only chief commissioner or chairman/chief patron can update config
+    const isChiefCommissioner = commission.chiefCommissioner.toString() === actorId;
+    const hasPrivilegedAccess = userRoles.includes("Chief Patron") || userRoles.includes("Chairman");
+    
+    if (!isChiefCommissioner && !hasPrivilegedAccess) {
       throw new ApiError(403, "Only Chief Commissioner or Chairman can update commission configuration");
     }
 
@@ -138,7 +139,7 @@ class ElectionCommissionService {
   }
 
   // Candidate Management
-  static async reviewCandidateApplication(candidateId, decision, actorId, requestId) {
+  static async reviewCandidateApplication(candidateId, decision, actorId, requestId, actorRoles = []) {
     const candidate = await ElectionCandidate.findById(candidateId)
       .populate("memberId", "studentId batch currentYear userId")
       .populate("electionId", "name commissionId")
@@ -148,22 +149,37 @@ class ElectionCommissionService {
       throw new ApiError(404, "Candidate not found");
     }
 
-    const commission = await ElectionCommission.findById(candidate.electionId.commissionId);
-    if (!commission) {
-      throw new ApiError(404, "Election commission not found");
+    // Use roles from JWT token (passed from controller via req.auth.roles)
+    const userRoles = actorRoles || [];
+    console.log('[ElectionCommissionService] User roles from JWT:', userRoles, 'User ID:', actorId);
+    const hasPrivilegedAccess = userRoles.includes("Moderator") || 
+                                userRoles.includes("Election Commissioner") ||
+                                userRoles.includes("Chief Patron") || 
+                                userRoles.includes("Chairman");
+    console.log('[ElectionCommissionService] Has privileged access:', hasPrivilegedAccess);
+
+    // Try to find commission if it exists
+    let commission = null;
+    if (candidate.electionId.commissionId) {
+      commission = await ElectionCommission.findById(candidate.electionId.commissionId);
     }
 
-    // Check if user is authorized (commission member)
-    const isAuthorized = commission.chiefCommissioner.toString() === actorId ||
-                        commission.commissioners.some(c => c.userId.toString() === actorId);
+    // Authorization check
+    if (commission) {
+      console.log('[ElectionCommissionService] Commission exists, checking membership...');
+      // If commission exists, check if user is a member OR has privileged access
+      const isCommissionMember = commission.chiefCommissioner.toString() === actorId ||
+                                commission.commissioners.some(c => c.userId.toString() === actorId);
+      console.log('[ElectionCommissionService] Is commission member:', isCommissionMember);
 
-    if (!isAuthorized) {
-      const user = await User.findById(actorId);
-      if (!user) {
-        throw new ApiError(404, "Actor user not found");
+      if (!isCommissionMember && !hasPrivilegedAccess) {
+        throw new ApiError(403, "Only commission members or election commissioners can review candidate applications");
       }
-      if (!user.roles.includes("Chief Patron") && !user.roles.includes("Chairman")) {
-        throw new ApiError(403, "Only commission members can review candidate applications");
+    } else {
+      console.log('[ElectionCommissionService] No commission exists, checking privileged access...');
+      // No commission exists - only allow privileged users
+      if (!hasPrivilegedAccess) {
+        throw new ApiError(403, "Only election commissioners and moderators can review candidates without an election commission");
       }
     }
 
@@ -189,33 +205,27 @@ class ElectionCommissionService {
 
     await candidate.save();
 
-    // Record commission decision
-    const commissionDecision = {
-      decidedBy: actorId,
-      decidedAt: new Date(),
-      decision: candidate.status,
-      conditions: decision.conditions || "",
-      votingRecord: decision.votingRecord || []
-    };
-
-    await ElectionCommission.findByIdAndUpdate(
-      commission._id,
-      {
-        $push: {
-          decisions: {
-            title: `Candidate Review: ${candidate.memberId.userId.firstName} ${candidate.memberId.userId.lastName}`,
-            description: `Application ${candidate.status.toLowerCase()} for ${candidate.postId ? candidate.postId.title : 'Executive Member'}`,
-            decidedBy: actorId,
-            type: candidate.status === "Approved" ? "Candidate_Approval" : "Candidate_Rejection",
-            affectedEntity: {
-              entityType: "Candidate",
-              entityId: candidate._id
-            },
-            votingRecord: decision.votingRecord || []
+    // Record commission decision ONLY if commission exists
+    if (commission) {
+      await ElectionCommission.findByIdAndUpdate(
+        commission._id,
+        {
+          $push: {
+            decisions: {
+              title: `Candidate Review: ${candidate.memberId.userId.firstName} ${candidate.memberId.userId.lastName}`,
+              description: `Application ${candidate.status.toLowerCase()} for ${candidate.postId ? candidate.postId.title : 'Executive Member'}`,
+              decidedBy: actorId,
+              type: candidate.status === "Approved" ? "Candidate_Approval" : "Candidate_Rejection",
+              affectedEntity: {
+                entityType: "Candidate",
+                entityId: candidate._id
+              },
+              votingRecord: decision.votingRecord || []
+            }
           }
         }
-      }
-    );
+      );
+    }
 
     // Send notification to candidate
     await NotificationService.createForUser(candidate.memberId.userId, {
@@ -238,7 +248,8 @@ class ElectionCommissionService {
       metadata: { 
         decision: candidate.status, 
         eligible: eligibilityResult.eligible,
-        postId: candidate.postId?.toString()
+        postId: candidate.postId?.toString(),
+        hasCommission: !!commission
       }
     });
 
@@ -330,20 +341,22 @@ class ElectionCommissionService {
   }
 
   // Election Management
-  static async updateElectionPhase(electionId, phaseData, actorId, requestId) {
+  static async updateElectionPhase(electionId, phaseData, actorId, requestId, actorRoles = []) {
+    console.log('[updateElectionPhase] Called with:', { electionId, actorId, actorRoles, phaseData });
+    
     const election = await Election.findById(electionId);
     if (!election) {
       throw new ApiError(404, "Election not found");
     }
 
-    // Check if user has privileged access (Moderator or higher)
-    const user = await User.findById(actorId);
-    if (!user) {
-      throw new ApiError(404, "Actor user not found");
-    }
-
-    const userRoles = user.roles || [];
+    // Fetch roles from database in real-time instead of relying on JWT
+    // This ensures we always have the latest role assignments
+    const roleNames = await AccessService.getUserRoleNames(actorId);
+    const postNames = await AccessService.getEcPostNames(actorId, null);
+    const userRoles = [...new Set([...roleNames, ...postNames])];
+    
     const hasPrivilegedAccess = userRoles.includes("Moderator") || 
+                                userRoles.includes("Election Commissioner") ||
                                 userRoles.includes("Chief Patron") || 
                                 userRoles.includes("Chairman");
 
@@ -358,13 +371,13 @@ class ElectionCommissionService {
                             commission.commissioners.some(c => c.userId.toString() === actorId);
 
         if (!isAuthorized) {
-          throw new ApiError(403, "Only commission members or moderators can update election phases");
+          throw new ApiError(403, "Only commission members, election commissioners, or moderators can update election phases");
         }
       }
     } else {
       // No commission exists - only allow privileged users
       if (!hasPrivilegedAccess) {
-        throw new ApiError(403, "Election commission not found. Only moderators can update phases without a commission.");
+        throw new ApiError(403, "Election commission not found. Only moderators and election commissioners can update phases without a commission.");
       }
     }
 

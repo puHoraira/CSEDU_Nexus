@@ -125,29 +125,83 @@ export function ElectionCommissionPage() {
     enabled: Boolean(token),
   });
 
+  // Fetch candidates directly for the selected election
+  const { data: allCandidates } = useQuery({
+    queryKey: ["election-all-candidates", selectedElectionId, token],
+    queryFn: () => apiRequest<Array<{
+      _id: string;
+      status: string;
+      electionId: { _id?: string; name?: string; phase?: number; currentPhase?: number; status?: string };
+      memberId?: { _id?: string; studentId?: string; batch?: number; currentYear?: number };
+      postId?: { _id?: string; title?: string };
+      phase?: number;
+    }>>(`/elections/${selectedElectionId}/candidates`, { token }),
+    enabled: Boolean(selectedElectionId && token),
+  });
+
   const selectedElection = useMemo(
     () => (elections.data || []).find((item) => item._id === selectedElectionId) || null,
     [elections.data, selectedElectionId]
   );
 
   const pendingCandidates = useMemo(
-    () => (moderatorDetails.data?.pendingCandidates || []).filter((item) => ["Pending", "Submitted", "Under_Review"].includes(item.status)),
-    [moderatorDetails.data]
+    () => {
+      // Use direct candidates if available, fallback to moderator details
+      const candidates = allCandidates || moderatorDetails.data?.pendingCandidates || [];
+      return candidates.filter((item) => ["Pending", "Submitted", "Under_Review"].includes(item.status));
+    },
+    [allCandidates, moderatorDetails.data]
+  );
+
+  const approvedCandidates = useMemo(
+    () => {
+      const candidates = allCandidates || moderatorDetails.data?.pendingCandidates || [];
+      return candidates.filter((item) => item.status === "Approved");
+    },
+    [allCandidates, moderatorDetails.data]
   );
 
   const phase1Candidates = useMemo(
-    () => pendingCandidates.filter((item) => (item.election?.phase ?? 1) === 1),
+    () => pendingCandidates.filter((item) => {
+      const phase = item.phase ?? item.electionId?.phase ?? item.electionId?.currentPhase ?? 1;
+      return phase === 1;
+    }),
     [pendingCandidates]
+  );
+
+  const phase1Approved = useMemo(
+    () => approvedCandidates.filter((item) => {
+      const phase = item.phase ?? item.electionId?.phase ?? item.electionId?.currentPhase ?? 1;
+      return phase === 1;
+    }),
+    [approvedCandidates]
   );
 
   const phase2Candidates = useMemo(
-    () => pendingCandidates.filter((item) => item.election?.phase === 2),
+    () => pendingCandidates.filter((item) => {
+      const phase = item.phase ?? item.electionId?.phase ?? item.electionId?.currentPhase ?? 1;
+      return phase === 2;
+    }),
     [pendingCandidates]
   );
 
+  const phase2Approved = useMemo(
+    () => approvedCandidates.filter((item) => {
+      const phase = item.phase ?? item.electionId?.phase ?? item.electionId?.currentPhase ?? 1;
+      return phase === 2;
+    }),
+    [approvedCandidates]
+  );
+
+  // Combined list of ALL candidates for the Decision lane dropdown (pending + approved)
+  const allCandidatesForReview = useMemo(
+    () => [...pendingCandidates, ...approvedCandidates],
+    [pendingCandidates, approvedCandidates]
+  );
+
   const phase1ByBatch = useMemo(() => {
-    return phase1Candidates.reduce<Record<string, Candidate[]>>((groups, candidate) => {
-      const batchKey = candidate.member?.batch ? `Batch ${candidate.member.batch}` : "Unknown batch";
+    return phase1Candidates.reduce<Record<string, typeof phase1Candidates>>((groups, candidate) => {
+      const batchKey = candidate.memberId?.batch ? `Batch ${candidate.memberId.batch}` : "Unknown batch";
       if (!groups[batchKey]) groups[batchKey] = [];
       groups[batchKey].push(candidate);
       return groups;
@@ -155,8 +209,8 @@ export function ElectionCommissionPage() {
   }, [phase1Candidates]);
 
   const phase2ByPost = useMemo(() => {
-    return phase2Candidates.reduce<Record<string, Candidate[]>>((groups, candidate) => {
-      const postKey = candidate.post?.title || candidate.election?.name || "Executive post";
+    return phase2Candidates.reduce<Record<string, typeof phase2Candidates>>((groups, candidate) => {
+      const postKey = candidate.postId?.title || candidate.electionId?.name || "Executive post";
       if (!groups[postKey]) groups[postKey] = [];
       groups[postKey].push(candidate);
       return groups;
@@ -381,32 +435,81 @@ export function ElectionCommissionPage() {
           <section className="ui-card">
             <div className="ui-card__header">
               <h3 className="ui-card__title">Review - Phase 1</h3>
-              <Badge variant="info">{phase1Candidates.length} pending</Badge>
+              <div className="ui-flex ui-flex-gap-2">
+                <Badge variant="info">{phase1Candidates.length} pending</Badge>
+                <Badge variant="success">{phase1Approved.length} approved</Badge>
+              </div>
             </div>
             <div className="ui-card__body">
               <p style={{ marginTop: 0, color: "var(--muted)" }}>Batch-wise representative nominations are reviewed here before the main election opens.</p>
-              <div style={{ display: "grid", gap: 12 }}>
-                {Object.keys(phase1ByBatch).length === 0 ? (
-                  <EmptyState icon={Users} title="No Phase 1 candidates" description="Batch representative nominations awaiting review will appear here." size="sm" />
-                ) : (
-                  Object.entries(phase1ByBatch).map(([batch, items]) => (
-                    <div key={batch} style={{ padding: 14, borderRadius: 14, border: "1px solid var(--border)", background: "var(--surface)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
-                        <strong>{batch}</strong>
-                        <Badge variant="neutral">{items.length} candidates</Badge>
+              
+              {/* Pending candidates */}
+              {Object.keys(phase1ByBatch).length > 0 && (
+                <>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 600, margin: '0 0 12px', color: 'var(--text)' }}>Pending Review</h4>
+                  <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
+                    {Object.entries(phase1ByBatch).map(([batch, items]) => (
+                      <div key={batch} style={{ padding: 14, borderRadius: 14, border: "1px solid var(--border)", background: "var(--surface)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                          <strong>{batch}</strong>
+                          <Badge variant="neutral">{items.length} candidates</Badge>
+                        </div>
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {items.map((item) => (
+                            <div key={item._id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "8px 10px", borderRadius: 10, background: "var(--panel-strong)", border: "1px solid var(--border)" }}>
+                              <span>{item.memberId?.studentId || item._id}</span>
+                              <Badge variant={item.status === "Rejected" ? "error" : item.status === "Approved" ? "success" : "warning"}>{item.status}</Badge>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div style={{ display: "grid", gap: 8 }}>
-                        {items.map((item) => (
-                          <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "8px 10px", borderRadius: 10, background: "var(--panel-strong)", border: "1px solid var(--border)" }}>
-                            <span>{item.member?.studentId || item.id}</span>
-                            <Badge variant={item.status === "Rejected" ? "error" : item.status === "Approved" ? "success" : "warning"}>{item.status}</Badge>
-                          </div>
-                        ))}
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Approved candidates (can be re-evaluated) */}
+              {phase1Approved.length > 0 && (
+                <>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 600, margin: '16px 0 12px', color: 'var(--text)' }}>Approved (Can Re-evaluate)</h4>
+                  <div style={{ display: "grid", gap: 12 }}>
+                    {Object.entries(phase1Approved.reduce<Record<string, typeof phase1Approved>>((groups, candidate) => {
+                      const batchKey = candidate.memberId?.batch ? `Batch ${candidate.memberId.batch}` : "Unknown batch";
+                      if (!groups[batchKey]) groups[batchKey] = [];
+                      groups[batchKey].push(candidate);
+                      return groups;
+                    }, {})).map(([batch, items]) => (
+                      <div key={batch} style={{ padding: 14, borderRadius: 14, border: "2px solid #10b981", background: "#d1fae5" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                          <strong style={{ fontSize: '0.95rem', color: '#065f46' }}>{batch}</strong>
+                          <Badge variant="success">{items.length} approved</Badge>
+                        </div>
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {items.map((item) => (
+                            <div key={item._id} style={{ 
+                              display: "flex", 
+                              justifyContent: "space-between", 
+                              alignItems: 'center',
+                              gap: 10, 
+                              padding: "10px 12px", 
+                              borderRadius: 10, 
+                              background: "rgba(255,255,255,0.8)", 
+                              border: "1px solid #10b981" 
+                            }}>
+                              <span style={{ fontWeight: 500, color: '#111' }}>{item.memberId?.studentId || item._id}</span>
+                              <Badge variant="success">{item.status}</Badge>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))
-                )}
-              </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {Object.keys(phase1ByBatch).length === 0 && phase1Approved.length === 0 && (
+                <EmptyState icon={Users} title="No Phase 1 candidates" description="Batch representative nominations awaiting review will appear here." size="sm" />
+              )}
             </div>
           </section>
 
@@ -430,8 +533,8 @@ export function ElectionCommissionPage() {
                         </div>
                         <div style={{ display: "grid", gap: 8 }}>
                           {items.map((item) => (
-                            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "8px 10px", borderRadius: 10, background: "var(--panel-strong)", border: "1px solid var(--border)" }}>
-                              <span>{item.member?.studentId || item.id}</span>
+                            <div key={item._id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "8px 10px", borderRadius: 10, background: "var(--panel-strong)", border: "1px solid var(--border)" }}>
+                              <span>{item.memberId?.studentId || item._id}</span>
                               <Badge variant={item.status === "Rejected" ? "error" : item.status === "Approved" ? "success" : "warning"}>{item.status}</Badge>
                             </div>
                           ))}
@@ -459,11 +562,16 @@ export function ElectionCommissionPage() {
                   <label className="ui-input-label">Candidate</label>
                   <select className="ui-select" value={candidateId} onChange={(e) => setCandidateId(e.target.value)}>
                     <option value="">Select candidate…</option>
-                    {pendingCandidates.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {(item.election?.phase ?? 1) === 1 ? `Phase 1 - ${item.member?.studentId || item.id}` : `${item.post?.title || "Phase 2"} - ${item.member?.studentId || item.id}`}
-                      </option>
-                    ))}
+                    {allCandidatesForReview.map((item) => {
+                      const phase = item.phase ?? item.electionId?.phase ?? item.electionId?.currentPhase ?? 1;
+                      const studentId = item.memberId?.studentId || item._id;
+                      const statusBadge = item.status === 'Approved' ? ' ✓' : '';
+                      return (
+                        <option key={item._id} value={item._id}>
+                          {phase === 1 ? `Phase 1 - ${studentId}${statusBadge}` : `${item.postId?.title || "Phase 2"} - ${studentId}${statusBadge}`}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
                 <div className="ui-input-wrap">

@@ -24,6 +24,7 @@ import { AbsenceAlertsPage } from "../pages/meetings/AbsenceAlertsPage";
 import { ModernElectionsPage } from "../pages/elections/ModernElectionsPage";
 import { ElectionCreatePage } from "../pages/elections/ElectionCreatePage";
 import { ElectionDetailPage } from "../pages/elections/ElectionDetailPage";
+import { ElectionEditPage } from "../pages/elections/ElectionEditPage";
 import { ElectionCandidatesPage } from "../pages/elections/ElectionCandidatesPage";
 import { ElectionVotingPage } from "../pages/elections/ElectionVotingPage";
 import { ElectionResultsPage } from "../pages/elections/ElectionResultsPage";
@@ -227,6 +228,11 @@ export const routeDefinitions: RouteDef[] = [
   {
     path: "/dashboard/elections/:id",
     element: <ElectionDetailPage />,
+  },
+  {
+    path: "/dashboard/elections/:id/edit",
+    element: <ElectionEditPage />,
+    requiredRoles: ["Election Commissioner", "Moderator"],
   },
   {
     path: "/dashboard/elections/:id/candidates",

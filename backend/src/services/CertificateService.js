@@ -81,6 +81,13 @@ class CertificateService {
       .populate("requesterMemberId", "studentId batch currentYear status");
   }
 
+  static async listAllIssued() {
+    return CertificateRequest.find({ status: "Approved" })
+      .sort({ approvedAt: -1 })
+      .populate("requesterUserId", "firstName lastName email")
+      .populate("requesterMemberId", "studentId batch currentYear status");
+  }
+
   static async reviewByModerator(id, payload, actorId, roles, requestId) {
     if (!this.isModerator(roles)) {
       throw new ApiError(403, "Moderator role required");

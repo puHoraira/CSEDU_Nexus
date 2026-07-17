@@ -51,6 +51,53 @@ class ElectionService {
     return item;
   }
 
+  static async updateElection(electionId, payload, actorId, requestId) {
+    const election = await Election.findById(electionId);
+    if (!election) throw new ApiError(404, "Election not found");
+
+    // Update allowed fields
+    if (payload.name) election.name = payload.name;
+    if (payload.termId) election.termId = payload.termId;
+    
+    // Update dates if provided
+    if (payload.startsOn) {
+      election.startsOn = new Date(payload.startsOn);
+      // Also update phase1 dates
+      if (election.phase1) {
+        election.phase1.votingStart = new Date(payload.startsOn);
+      } else {
+        election.phase1 = { votingStart: new Date(payload.startsOn) };
+      }
+    }
+    
+    if (payload.endsOn) {
+      election.endsOn = new Date(payload.endsOn);
+      // Also update phase1 dates
+      if (election.phase1) {
+        election.phase1.votingEnd = new Date(payload.endsOn);
+      } else if (!election.phase1) {
+        election.phase1 = { votingEnd: new Date(payload.endsOn) };
+      } else {
+        election.phase1.votingEnd = new Date(payload.endsOn);
+      }
+    }
+
+    await election.save();
+
+    await AuditService.log({
+      actorId,
+      action: "ELECTION_UPDATED",
+      resource: "Election",
+      resourceId: election._id.toString(),
+      requestId,
+      metadata: { 
+        updatedFields: Object.keys(payload),
+      },
+    });
+
+    return election;
+  }
+
   static async getElection(electionId) {
     const election = await Election.findById(electionId);
     if (!election) throw new ApiError(404, "Election not found");
@@ -468,14 +515,15 @@ class ElectionService {
       const mappedStatus = statusMap[newStatus] || newStatus;
       
       // Validate state transitions - allow Phase 2 elections to skip Phase 1
+      // Also allow backward transitions (reopening) for mistaken status changes
       const validTransitions = {
         'Draft': ['Setup', 'Phase1_Active', 'Phase2_Active', 'Cancelled'], // Allow direct to Phase2
         'Setup': ['Phase1_Active', 'Phase2_Active', 'Cancelled'], // Allow direct to Phase2
         'Phase1_Active': ['Phase1_Completed', 'Cancelled'],
-        'Phase1_Completed': ['Phase2_Active', 'Completed', 'Cancelled'],
+        'Phase1_Completed': ['Phase1_Active', 'Phase2_Active', 'Completed', 'Cancelled'], // Allow reopening Phase 1
         'Phase2_Active': ['Phase2_Completed', 'Cancelled'],
-        'Phase2_Completed': ['Completed'],
-        'Completed': [],
+        'Phase2_Completed': ['Phase2_Active', 'Completed'], // Allow reopening Phase 2
+        'Completed': ['Phase2_Active', 'Phase1_Active'], // Allow reopening completed elections
         'Cancelled': []
       };
       
@@ -805,14 +853,21 @@ class ElectionService {
     const member = await Member.findOne({ userId: actorUserId });
     if (!member) throw new ApiError(404, "Member record not found. You must be a registered member to apply");
 
-    // Check if already nominated
+    // Check if already nominated (allow reapplication if previous was rejected)
     const existing = await ElectionCandidate.findOne({
       electionId,
       memberId: member._id,
       phase: 1,
     });
     if (existing) {
-      throw new ApiError(409, `You have already applied for this election. Status: ${existing.status}`);
+      // Allow reapplication only if previous application was rejected
+      if (existing.status === "Rejected") {
+        // Delete the old rejected application to allow a fresh one
+        await ElectionCandidate.findByIdAndDelete(existing._id);
+      } else {
+        // Application is still pending, approved, or in another non-rejected state
+        throw new ApiError(409, `You have already applied for this election. Current status: ${existing.status}`);
+      }
     }
 
     // --- Eligibility checks (same as addCandidate) ---
@@ -848,14 +903,16 @@ class ElectionService {
       throw new ApiError(400, `Minimum attendance of 75% required. Your attendance: ${attendance}%`);
     }
 
-    // Create candidate record with status "Pending" (needs EC approval)
+    // Create candidate record with status "Submitted" (needs EC approval)
     const candidate = await ElectionCandidate.create({
       electionId,
       memberId: member._id,
       phase: 1,
       postId: null, // Phase 1 = batch representative, no post
       batch: member.batch.toString(),
-      status: "Pending", // Requires EC review and approval
+      status: "Submitted", // Requires EC review and approval
+      nominationType: "Self_Nomination",
+      submittedAt: new Date(),
       eligibilityDetails: {
         cgpa,
         attendancePercentage: attendance,
@@ -896,6 +953,33 @@ class ElectionService {
       .populate({ path: 'candidateId', select: 'postId phase', populate: { path: 'postId', select: 'title' } });
     
     return votes;
+  }
+
+  static async getVotingStats(electionId) {
+    const election = await Election.findById(electionId);
+    if (!election) throw new ApiError(404, "Election not found");
+
+    // Count votes by phase
+    const phase1Votes = await Vote.countDocuments({ electionId, phase: 1 });
+    const phase2Votes = await Vote.countDocuments({ electionId, phase: 2 });
+
+    // Count eligible voters (all active members)
+    const eligibleVoters = await Member.countDocuments({ 
+      'membershipStatus.status': 'Active' 
+    });
+
+    return {
+      phase1: {
+        totalVotes: phase1Votes,
+        eligibleVoters,
+        turnoutPercentage: eligibleVoters > 0 ? (phase1Votes / eligibleVoters) * 100 : 0,
+      },
+      phase2: {
+        totalVotes: phase2Votes,
+        eligibleVoters,
+        turnoutPercentage: eligibleVoters > 0 ? (phase2Votes / eligibleVoters) * 100 : 0,
+      },
+    };
   }
 }
 

@@ -54,6 +54,7 @@ export function ModernCertificatesPage() {
   const { data: mine = [],  isLoading: loadMine  } = useQuery({ queryKey: ['cert-my', token],    queryFn: () => apiRequest<CertReq[]>('/certificates/my', { token }),                    enabled: Boolean(token) });
   const { data: modInbox = [], isLoading: loadMod } = useQuery({ queryKey: ['cert-mod', token],   queryFn: () => apiRequest<CertReq[]>('/certificates/inbox/moderator', { token }),       enabled: Boolean(token && isMod) });
   const { data: chairInbox = [], isLoading: loadChair } = useQuery({ queryKey: ['cert-chair', token], queryFn: () => apiRequest<CertReq[]>('/certificates/inbox/chairman', { token }), enabled: Boolean(token && isChair) });
+  const { data: allIssued = [], isLoading: loadIssued } = useQuery({ queryKey: ['cert-issued', token], queryFn: () => apiRequest<CertReq[]>('/certificates/issued', { token }), enabled: Boolean(token && isMod) });
 
   const createMut = useMutation({
     mutationFn: () => {
@@ -361,6 +362,48 @@ export function ModernCertificatesPage() {
           onReject={id => chairMut.mutate({ id, action: 'Rejected' })}
           isPending={chairMut.isPending}
         />
+      )}
+
+      {/* All Issued Certificates (Moderator view) */}
+      {isMod && (
+        <div className="ui-card">
+          <div className="ui-card__header">
+            <div>
+              <p className="ui-text-xs ui-text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>History</p>
+              <h3 className="ui-card__title">All Issued Certificates</h3>
+            </div>
+          </div>
+          {loadIssued ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+          ) : allIssued.length === 0 ? (
+            <EmptyState icon={Award} title="No certificates issued yet" size="sm" />
+          ) : (
+            <div>
+              {allIssued.map((req, i) => {
+                const name = `${req.requesterUserId?.firstName ?? ''} ${req.requesterUserId?.lastName ?? ''}`.trim() || req.requesterUserId?.email || 'Unknown';
+                return (
+                  <div key={req._id} style={{
+                    display: 'flex', alignItems: 'center', gap: 14, padding: '13px 22px',
+                    borderBottom: i < allIssued.length - 1 ? '1px solid var(--border)' : 'none',
+                  }}>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981', flexShrink: 0 }}>
+                      <Award size={17} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.88rem', color: 'var(--text)' }}>{name}</p>
+                      <p className="ui-text-xs ui-text-muted">
+                        {req.certificateNo} · {req.requesterMemberId?.studentId && `ID: ${req.requesterMemberId.studentId} · `}{req.purpose}
+                      </p>
+                      {req.createdAt && <p className="ui-text-xs ui-text-muted" style={{ opacity: 0.7 }}>{formatDateTime(req.createdAt)}</p>}
+                    </div>
+                    <Badge variant="success" icon={CheckCircle}>Issued</Badge>
+                    <Button variant="primary" size="sm" leftIcon={Download} onClick={() => downloadCert(req._id)}>Download</Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

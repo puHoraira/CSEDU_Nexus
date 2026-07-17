@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Vote, Calendar, Clock, Users, BarChart2, Play, Square, CheckCircle, AlertCircle, ArrowLeft, Image, UserPlus } from 'lucide-react';
+import { Vote, Calendar, Clock, Users, BarChart2, Play, Square, CheckCircle, AlertCircle, ArrowLeft, Image, UserPlus, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -75,10 +75,39 @@ export function ElectionDetailPage() {
   const { data: myApplication, isLoading: isLoadingApplication } = useQuery({
     queryKey: ['my-election-application', id, token],
     queryFn: async () => {
-      const candidates = await apiRequest<Array<{ memberId?: { userId?: { _id?: string } }; status: string }>>(`/elections/${id}/candidates`, { token });
-      return candidates.find(c => c.memberId?.userId?._id === user?._id);
+      try {
+        const candidates = await apiRequest<Array<{ 
+          _id: string;
+          memberId?: { _id?: string; userId?: { _id?: string } }; 
+          status: string;
+        }>>(`/elections/${id}/candidates`, { token });
+        
+        // Compare string versions of IDs to ensure match
+        const userIdStr = user?._id?.toString();
+        
+        // Try to find by userId comparison
+        const app = candidates.find(c => {
+          const candidateUserId = c.memberId?.userId?._id?.toString();
+          return candidateUserId === userIdStr;
+        });
+        
+        console.log('[Election Detail] Current user ID:', userIdStr);
+        console.log('[Election Detail] All candidates:', candidates.map(c => ({
+          id: c._id,
+          memberUserId: c.memberId?.userId?._id?.toString(),
+          status: c.status
+        })));
+        console.log('[Election Detail] Found application:', app);
+        
+        return app || null; // Return null instead of undefined if not found
+      } catch (error) {
+        console.error('[Election Detail] Error fetching candidates:', error);
+        return null;
+      }
     },
     enabled: Boolean(hasValidId && token && user),
+    staleTime: 0, // Always refetch to ensure fresh data
+    refetchOnMount: true,
   });
 
   // Check user's eligibility from profile
@@ -201,8 +230,11 @@ export function ElectionDetailPage() {
   const canAcceptNominations = ['Draft', 'Setup', 'Phase1_Active'].includes(election.status);
   const isEligible = profile?.membership?.electionEligibility?.isEligibleForCandidacy ?? false;
   const hasApplied = Boolean(myApplication);
+  const wasRejected = myApplication?.status === 'Rejected';
+  
   // Don't show Apply button while checking application status
-  const canApply = !isLoadingApplication && isPhase1 && canAcceptNominations && isEligible && !hasApplied && !canManage;
+  // Allow reapplication if previous application was rejected
+  const canApply = !isLoadingApplication && isPhase1 && canAcceptNominations && isEligible && (!hasApplied || wasRejected) && !canManage;
 
   return (
     <div className="ui-page">
@@ -220,20 +252,36 @@ export function ElectionDetailPage() {
               <Button variant="success" size="sm" leftIcon={UserPlus}
                 isLoading={applyMut.isPending}
                 onClick={() => {
-                  if (window.confirm('Apply as a candidate for this election?\n\nYour application will be reviewed by the Election Commission.')) {
+                  const message = wasRejected 
+                    ? 'Reapply as a candidate for this election?\n\nYour previous application was rejected. This will submit a new application for Election Commission review.'
+                    : 'Apply as a candidate for this election?\n\nYour application will be reviewed by the Election Commission.';
+                  if (window.confirm(message)) {
                     applyMut.mutate();
                   }
                 }}>
-                Apply as Candidate
+                {wasRejected ? 'Reapply as Candidate' : 'Apply as Candidate'}
               </Button>
             )}
-            {hasApplied && myApplication && (
-              <Badge variant={
-                myApplication.status === 'Approved' ? 'success' :
-                myApplication.status === 'Rejected' ? 'error' : 'warning'
-              }>
-                Application: {myApplication.status}
-              </Badge>
+            {hasApplied && myApplication && !wasRejected && (
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '4px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+              }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Already Applied
+                </span>
+                <Badge variant={
+                  myApplication.status === 'Approved' ? 'success' :
+                  myApplication.status === 'Rejected' ? 'error' : 'warning'
+                } style={{ width: 'fit-content' }}>
+                  Status: {myApplication.status}
+                </Badge>
+              </div>
             )}
             {canManage && (
               <Button variant="outline" size="sm" leftIcon={Image}
@@ -296,8 +344,8 @@ export function ElectionDetailPage() {
                 myApplication?.status === 'Approved' ? 'success' :
                 myApplication?.status === 'Rejected' ? 'error' : 'info'
               }>
-                <strong>Application Status: {myApplication?.status}</strong>
-                {myApplication?.status === 'Pending' && (
+                <strong>Application Status: {myApplication?.status === 'Submitted' ? 'Pending Review' : myApplication?.status}</strong>
+                {(myApplication?.status === 'Submitted' || myApplication?.status === 'Under_Review') && (
                   <p style={{ margin: '8px 0 0' }}>Your application is being reviewed by the Election Commission. You'll be notified once it's approved.</p>
                 )}
                 {myApplication?.status === 'Approved' && (
@@ -497,6 +545,7 @@ export function ElectionDetailPage() {
             <div style={{ marginTop: 20, padding: '16px', background: 'var(--surface)', borderRadius: 12 }}>
               <p className="ui-text-sm ui-text-muted" style={{ marginBottom: 12 }}>Election Commission Controls</p>
               <div className="ui-flex ui-flex-gap-2 ui-flex-wrap">
+                {/* Forward progression buttons */}
                 {(election.status === 'Draft' || election.status === 'Setup') && (
                   <Button variant="success" size="sm" leftIcon={Play} 
                     isLoading={statusMut.isPending}
@@ -512,11 +561,22 @@ export function ElectionDetailPage() {
                   </Button>
                 )}
                 {election.status === 'Phase1_Completed' && (
-                  <Button variant="success" size="sm" leftIcon={Play} 
-                    isLoading={statusMut.isPending}
-                    onClick={() => statusMut.mutate({ status: 'Phase2_Active', phase: 2 })}>
-                    Start Phase 2
-                  </Button>
+                  <>
+                    <Button variant="success" size="sm" leftIcon={Play} 
+                      isLoading={statusMut.isPending}
+                      onClick={() => statusMut.mutate({ status: 'Phase2_Active', phase: 2 })}>
+                      Start Phase 2
+                    </Button>
+                    <Button variant="outline" size="sm" leftIcon={RotateCcw} 
+                      isLoading={statusMut.isPending}
+                      onClick={() => {
+                        if (window.confirm('Reopen Phase 1 voting? This will set the election back to Phase 1 Active status.')) {
+                          statusMut.mutate({ status: 'Phase1_Active', phase: 1 });
+                        }
+                      }}>
+                      Reopen Phase 1
+                    </Button>
+                  </>
                 )}
                 {election.status === 'Phase2_Active' && (
                   <Button variant="warning" size="sm" leftIcon={CheckCircle} 
@@ -526,10 +586,32 @@ export function ElectionDetailPage() {
                   </Button>
                 )}
                 {(election.status === 'Phase2_Completed') && (
-                  <Button variant="neutral" size="sm" leftIcon={Square} 
+                  <>
+                    <Button variant="neutral" size="sm" leftIcon={Square} 
+                      isLoading={statusMut.isPending}
+                      onClick={() => statusMut.mutate({ status: 'Completed' })}>
+                      Mark as Completed
+                    </Button>
+                    <Button variant="outline" size="sm" leftIcon={RotateCcw} 
+                      isLoading={statusMut.isPending}
+                      onClick={() => {
+                        if (window.confirm('Reopen Phase 2 voting? This will set the election back to Phase 2 Active status.')) {
+                          statusMut.mutate({ status: 'Phase2_Active', phase: 2 });
+                        }
+                      }}>
+                      Reopen Phase 2
+                    </Button>
+                  </>
+                )}
+                {election.status === 'Completed' && (
+                  <Button variant="outline" size="sm" leftIcon={RotateCcw} 
                     isLoading={statusMut.isPending}
-                    onClick={() => statusMut.mutate({ status: 'Completed' })}>
-                    Mark as Completed
+                    onClick={() => {
+                      if (window.confirm('Reopen this election? You can choose to reopen Phase 2 or go back to Phase 1.\n\nClick OK to reopen Phase 2.')) {
+                        statusMut.mutate({ status: 'Phase2_Active', phase: 2 });
+                      }
+                    }}>
+                    Reopen Election
                   </Button>
                 )}
                 {(election.status === 'Draft' || election.status === 'Setup' || isActive) && (
