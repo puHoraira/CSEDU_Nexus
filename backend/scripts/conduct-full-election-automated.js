@@ -13,13 +13,20 @@
  * 9. Report any errors found and fix them
  */
 
+console.log('🚀 Starting election test script...');
+
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
+console.log('✅ Dependencies loaded');
+
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/csedu';
 const API_BASE = 'http://localhost:5000/api/v1';
 const axios = require('axios');
+
+console.log('📡 API Base:', API_BASE);
+console.log('🗄️  MongoDB URI:', MONGODB_URI ? 'Configured' : 'Not configured');
 
 // Test data configuration
 const BATCHES = [2020, 2021, 2022, 2023];
@@ -196,12 +203,12 @@ async function createTestStudents() {
         // Create user
         const userDoc = {
           email,
-          password: hashedPassword,
+          passwordHash: hashedPassword, // FIXED: Use passwordHash not password
           firstName: `Student${i}`,
           lastName: `Batch${batch}`,
           roles: ['General Member'],
-          isEmailVerified: true,
-          status: 'Active',
+          emailVerified: true, // FIXED: Use emailVerified not isEmailVerified
+          isActive: true, // FIXED: Use isActive not status: 'Active'
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -215,22 +222,42 @@ async function createTestStudents() {
           studentId,
           batch,
           currentYear,
-          academicYearLevel: currentYear,
-          department: 'CSE',
-          contactNumber: `01700000${i}`,
-          status: 'Active',
+          academicYearLevel: ['First_Year', 'Second_Year', 'Third_Year', 'Fourth_Year'][currentYear - 1] || 'First_Year',
+          session: `${batch}-${batch + 1}`,
+          admissionYear: batch,
+          expectedGraduationYear: batch + 4,
+          academicRecord: {
+            currentCgpa: 3.0 + Math.random() * 0.5, // 3.0 to 3.5
+            totalCreditsCompleted: currentYear * 40,
+            totalCreditsRequired: 160,
+            semesterResults: [],
+            isGraduating: false
+          },
+          attendanceRecord: {
+            overallAttendancePercentage: 80 + Math.random() * 15, // 80% to 95%
+            semesterAttendance: [],
+            lastUpdated: new Date()
+          },
+          disciplinaryRecord: {
+            totalActions: 0,
+            actions: [],
+            hasActiveDisciplinaryActions: false
+          },
           membershipStatus: {
             status: 'Active',
-            since: new Date('2024-01-01')
+            joinDate: new Date(batch, 8, 1), // September 1st
+            lastActiveDate: new Date()
           },
-          ecEligibility: {
-            isEligible: true,
-            yearsInEc: i <= CANDIDATES_PER_BATCH ? 1 : 0 // First few have EC experience
-          },
-          attendance: {
-            totalMeetings: 10,
-            attendedMeetings: 9,
-            attendanceRate: 90
+          ecExperience: i <= CANDIDATES_PER_BATCH ? [{
+            postName: 'Test Position',
+            startDate: new Date(batch, 8, 1),
+            isCurrent: false,
+            eventsOrganized: 2
+          }] : [],
+          clubParticipation: {
+            eventsParticipated: 5,
+            eventsOrganized: i <= CANDIDATES_PER_BATCH ? 2 : 0,
+            volunteerHours: 10
           },
           createdAt: new Date(),
           updatedAt: new Date()
@@ -870,5 +897,13 @@ async function runFullElectionCycle() {
 
 // Run the script
 runFullElectionCycle()
-  .then(() => process.exit(0))
-  .catch(() => process.exit(1));
+  .then(() => {
+    console.log('\n✅ Script completed successfully');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('\n💥 Script failed with error:');
+    console.error(error);
+    console.error('\nStack trace:', error.stack);
+    process.exit(1);
+  });

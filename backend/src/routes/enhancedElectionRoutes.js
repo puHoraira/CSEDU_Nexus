@@ -38,6 +38,13 @@ router.put(
   EnhancedElectionController.update
 );
 
+router.delete(
+  "/:electionId",
+  authorize(["Moderator", "Chief Patron", "Chairman"]),
+  validate(enhancedElectionValidators.electionId, "params"),
+  EnhancedElectionController.deleteElection
+);
+
 // Election Commission Routes
 router.post(
   "/:electionId/commission",

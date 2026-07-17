@@ -396,6 +396,19 @@ class EnhancedElectionController {
       new ApiResponse(200, terms, "Active terms retrieved successfully")
     );
   });
+
+  // Election Deletion
+  static deleteElection = asyncHandler(async (req, res) => {
+    const { electionId } = req.params;
+    const result = await EnhancedElectionService.deleteElection(
+      electionId,
+      req.auth.userId,
+      req.requestMeta.requestId
+    );
+    return res.json(
+      new ApiResponse(200, result, "Election deleted successfully")
+    );
+  });
 }
 
 module.exports = { EnhancedElectionController };

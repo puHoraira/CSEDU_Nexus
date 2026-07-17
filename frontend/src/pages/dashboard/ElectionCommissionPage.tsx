@@ -353,7 +353,16 @@ export function ElectionCommissionPage() {
               >
                 Move to Phase 2
               </Button>
-              <Button variant="outline" leftIcon={Square} onClick={() => phaseMutation.mutate({ nextPhase: phase, nextStatus: "Completed" })} disabled={!selectedElectionId || phaseMutation.isPending}>
+              <Button 
+                variant="outline" 
+                leftIcon={Square} 
+                onClick={() => {
+                  const currentPhase = selectedElection?.currentPhase || selectedElection?.phase || 1;
+                  const nextStatus = currentPhase === 1 ? "Phase1_Completed" : currentPhase === 2 ? "Phase2_Completed" : "Completed";
+                  phaseMutation.mutate({ nextPhase: currentPhase, nextStatus });
+                }} 
+                disabled={!selectedElectionId || phaseMutation.isPending}
+              >
                 Close current stage
               </Button>
             </div>

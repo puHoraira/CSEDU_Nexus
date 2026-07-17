@@ -7,7 +7,7 @@ const notificationSchema = new mongoose.Schema(
     message: { type: String, required: true, trim: true },
     category: {
       type: String,
-      enum: ["System", "Meeting", "Membership", "Governance", "Certificate", "Event", "Workshop", "General", "Announcement"],
+      enum: ["System", "Meeting", "Membership", "Governance", "Certificate", "Event", "Workshop", "Election", "General", "Announcement"],
       default: "System",
     },
     actionUrl: { type: String, default: "", trim: true },

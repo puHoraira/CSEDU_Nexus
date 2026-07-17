@@ -1,4 +1,5 @@
 const { EcMemberService } = require("../services/EcMemberService");
+const { EcTermService } = require("../services/EcTermService");
 const { asyncHandler } = require("../core/asyncHandler");
 const { ApiResponse } = require("../core/ApiResponse");
 
@@ -95,6 +96,70 @@ class EcMemberController {
     return res
       .status(200)
       .json(new ApiResponse(200, results, "Search results"));
+  });
+
+  /**
+   * POST /api/v1/ec-members/terms
+   * Create a new EC term
+   */
+  static createTerm = asyncHandler(async (req, res) => {
+    const term = await EcTermService.createTerm(req.body, req.auth.userId);
+
+    return res
+      .status(201)
+      .json(new ApiResponse(201, term, "EC term created successfully"));
+  });
+
+  /**
+   * PUT /api/v1/ec-members/terms/:termId
+   * Update an EC term
+   */
+  static updateTerm = asyncHandler(async (req, res) => {
+    const { termId } = req.params;
+    const term = await EcTermService.updateTerm(termId, req.body, req.auth.userId);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, term, "EC term updated successfully"));
+  });
+
+  /**
+   * DELETE /api/v1/ec-members/terms/:termId
+   * Delete an EC term
+   */
+  static deleteTerm = asyncHandler(async (req, res) => {
+    const { termId } = req.params;
+    const result = await EcTermService.deleteTerm(termId, req.auth.userId);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, result, "EC term deleted successfully"));
+  });
+
+  /**
+   * GET /api/v1/ec-members/terms/:termId
+   * Get a single EC term
+   */
+  static getTermById = asyncHandler(async (req, res) => {
+    const { termId } = req.params;
+    const term = await EcTermService.getTermById(termId);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, term, "EC term retrieved successfully"));
+  });
+
+  /**
+   * GET /api/v1/ec-members/terms/:termId/statistics
+   * Get statistics for a term
+   */
+  static getTermStatistics = asyncHandler(async (req, res) => {
+    const { termId } = req.params;
+    const stats = await EcTermService.getTermStatistics(termId);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, stats, "Term statistics retrieved successfully"));
   });
 }
 

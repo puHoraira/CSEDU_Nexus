@@ -821,6 +821,120 @@ class EnhancedElectionService {
   static async updatePhase(electionId, payload, actorId, requestId) {
     return ElectionCommissionService.updateElectionPhase(electionId, payload, actorId, requestId);
   }
+
+  /**
+   * Delete an election and all related data (cascading delete)
+   * @param {string} electionId - Election ID to delete
+   * @param {string} actorId - User ID performing the deletion
+   * @param {string} requestId - Request ID for audit
+   * @returns {Promise<Object>} Deletion summary
+   */
+  static async deleteElection(electionId, actorId, requestId) {
+    const { Election } = require("../models/Election");
+    const { ElectionCandidate } = require("../models/ElectionCandidate");
+    const { Vote } = require("../models/Vote");
+    const { ElectionNomination } = require("../models/ElectionNomination");
+    const { ElectionDispute } = require("../models/ElectionDispute");
+    const { VoteRecording } = require("../models/VoteRecording");
+    const { EcAppointment } = require("../models/EcAppointment");
+    const { ElectionCommission } = require("../models/ElectionCommission");
+    const cloudinary = require("cloudinary").v2;
+
+    const election = await Election.findById(electionId);
+    if (!election) {
+      throw new ApiError(404, "Election not found");
+    }
+
+    // Prevent deletion of active elections
+    if (["Phase1_Active", "Phase2_Active"].includes(election.status)) {
+      throw new ApiError(
+        400,
+        "Cannot delete an active election. Please cancel it first."
+      );
+    }
+
+    // Start deletion process - collect statistics
+    const deletionStats = {
+      electionId,
+      electionName: election.name,
+      deletedAt: new Date(),
+      deletedBy: actorId,
+      cascadedDeletes: {}
+    };
+
+    try {
+      // 1. Delete all votes for this election
+      const votesResult = await Vote.deleteMany({ electionId });
+      deletionStats.cascadedDeletes.votes = votesResult.deletedCount;
+
+      // 2. Delete all vote recordings (and cleanup Cloudinary assets)
+      const voteRecordings = await VoteRecording.find({ electionId });
+      deletionStats.cascadedDeletes.voteRecordings = voteRecordings.length;
+      
+      // Delete from Cloudinary
+      for (const recording of voteRecordings) {
+        try {
+          if (recording.cloudinaryPublicId) {
+            await cloudinary.uploader.destroy(recording.cloudinaryPublicId, {
+              resource_type: "video"
+            });
+          }
+        } catch (cloudinaryError) {
+          console.error(
+            `Failed to delete Cloudinary asset ${recording.cloudinaryPublicId}:`,
+            cloudinaryError
+          );
+          // Continue with deletion even if Cloudinary cleanup fails
+        }
+      }
+      
+      await VoteRecording.deleteMany({ electionId });
+
+      // 3. Delete all candidates for this election
+      const candidatesResult = await ElectionCandidate.deleteMany({ electionId });
+      deletionStats.cascadedDeletes.candidates = candidatesResult.deletedCount;
+
+      // 4. Delete all nominations for this election
+      const nominationsResult = await ElectionNomination.deleteMany({ electionId });
+      deletionStats.cascadedDeletes.nominations = nominationsResult.deletedCount;
+
+      // 5. Delete all disputes for this election
+      const disputesResult = await ElectionDispute.deleteMany({ electionId });
+      deletionStats.cascadedDeletes.disputes = disputesResult.deletedCount;
+
+      // 6. Delete election commission if exists
+      if (election.commissionId) {
+        await ElectionCommission.findByIdAndDelete(election.commissionId);
+        deletionStats.cascadedDeletes.commission = 1;
+      }
+
+      // 7. Note: We don't delete EcAppointments as they are historical records
+      // They reference termId, not electionId directly
+      deletionStats.cascadedDeletes.appointments = 0;
+      deletionStats.note = "EC Appointments preserved as historical records";
+
+      // 8. Finally, delete the election itself
+      await Election.findByIdAndDelete(electionId);
+
+      // Log the deletion in audit trail
+      console.log(
+        `Election ${electionId} deleted by ${actorId}`,
+        JSON.stringify(deletionStats)
+      );
+
+      return {
+        success: true,
+        message: "Election and all related data deleted successfully",
+        stats: deletionStats
+      };
+    } catch (error) {
+      console.error("Error during election deletion:", error);
+      throw new ApiError(
+        500,
+        `Failed to delete election: ${error.message}`
+      );
+    }
+  }
 }
 
 module.exports = { EnhancedElectionService };
