@@ -1,7 +1,7 @@
 import { FormEvent, useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Vote, Calendar, Clock, CheckCircle, Plus, Users, Trophy, Play, Square, BarChart2, Image } from 'lucide-react';
+import { Vote, Calendar, Clock, CheckCircle, Plus, Users, Trophy, Play, Square, BarChart2, Image, Trash2, Pencil } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { queryKeys, invalidateQueries } from '../../lib/queryKeys';
@@ -88,6 +88,16 @@ export function ModernElectionsPage() {
     onSuccess: async (_data, variables) => { 
       await Promise.all(invalidateQueries.elections.all(qc, token)); 
       toast.success('Status updated'); 
+    },
+    onError: e => toast.error(normalizeApiError(e)),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => 
+      apiRequest(`/enhanced-elections/${id}`, { method: 'DELETE', token }),
+    onSuccess: async () => {
+      await Promise.all(invalidateQueries.elections.all(qc, token));
+      toast.success('Election deleted successfully');
     },
     onError: e => toast.error(normalizeApiError(e)),
   });
@@ -328,6 +338,21 @@ export function ModernElectionsPage() {
                               <Button variant="danger" size="sm" leftIcon={Square} 
                                 isLoading={statusMut.isPending && statusMut.variables?.id === el._id}
                                 onClick={() => statusMut.mutate({ id: el._id, status: 'Closed', phase: el.phase })}>Close</Button>
+                            )}
+                            {!isActive && (
+                              <>
+                                <Button variant="ghost" size="sm" leftIcon={Pencil} 
+                                  href={`/dashboard/elections/${el._id}/edit`}>Edit</Button>
+                                <Button variant="ghost" size="sm" leftIcon={Trash2}
+                                  isLoading={deleteMut.isPending && deleteMut.variables === el._id}
+                                  onClick={() => {
+                                    if (window.confirm(`Delete election "${el.name}"? This will delete all related votes, candidates, nominations, and disputes. This action cannot be undone.`)) {
+                                      deleteMut.mutate(el._id);
+                                    }
+                                  }}>
+                                  Delete
+                                </Button>
+                              </>
                             )}
                           </>
                         )}

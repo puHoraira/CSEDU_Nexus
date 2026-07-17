@@ -127,6 +127,11 @@ class AdminController {
     const item = await AdminService.getAlumniById(req.params.id);
     return ApiResponse.ok(res, item, "Alumni details");
   });
+
+  static verifyUserEmail = asyncHandler(async (req, res) => {
+    const item = await AdminService.verifyUserEmail(req.params.id, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "Email verified by admin");
+  });
 }
 
 module.exports = { AdminController };

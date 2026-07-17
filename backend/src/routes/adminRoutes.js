@@ -50,6 +50,7 @@ router.get("/alumni/:id", authenticate, authorize(["System Admin", "Moderator", 
 router.get("/users/:id", authenticate, authorize(["System Admin", "Moderator", "Chief Patron"]), AdminController.getUserById);
 router.put("/users/:id", authenticate, authorize(["System Admin"]), AdminController.updateUser);
 router.delete("/users/:id", authenticate, authorize(["System Admin"]), AdminController.deactivateUser);
+router.post("/users/:id/verify-email", authenticate, authorize(["System Admin", "Moderator", "Chief Patron"]), AdminController.verifyUserEmail);
 router.put("/users/:id/change-type", authenticate, authorize(["System Admin"]), AdminController.changeUserType);
 router.delete("/users/:id/permanent", authenticate, authorize(["System Admin"]), AdminController.deleteUserCompletely);
 

@@ -64,7 +64,11 @@ type Alumni = {
   avatarUrl?: string;
 };
 
-const clean = (v?: string | null) => (v ? v.replace(/_/g, ' ') : '');
+const clean = (v?: string | number | null) => {
+  if (!v) return '';
+  const str = typeof v === 'string' ? v : String(v);
+  return str.replace(/_/g, ' ');
+};
 
 function Avatar({ name, src }: { name: string; src?: string }) {
   if (src) return <img src={src} alt={name} className="ui-avatar" />;

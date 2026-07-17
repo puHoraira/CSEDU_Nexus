@@ -24,22 +24,23 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { label: 'Dashboard',     to: '/dashboard',                     icon: Home, dynamic: true },
-  { label: 'Profile',       to: '/dashboard/profile',             icon: UserCircle },
-  { label: 'Events',        to: '/dashboard/events',              icon: Calendar },
-  { label: 'Workshops',     to: '/dashboard/workshops',           icon: BookOpen },
-  { label: 'Meetings',      to: '/dashboard/meetings',            icon: Users },
-  { label: 'Elections',     to: '/dashboard/elections',           icon: Vote },
-  { label: 'Governance',    to: '/dashboard/governance/ec-terms', icon: FileText,    roles: ['Moderator','Chief Patron','President','General Secretary'] },
-  { label: 'Finance',       to: '/dashboard/finance',             icon: DollarSign,  roles: ['Treasurer','Moderator','Chief Patron'] },
-  { label: 'Certificates',  to: '/dashboard/certificates',        icon: Award },
-  { label: 'Rooms',         to: '/dashboard/admin/rooms',         icon: DoorOpen,    roles: ['System Admin', 'Moderator','Chief Patron'] },
-  { label: 'Notifications', to: '/dashboard/notifications',       icon: Bell },
+  { label: 'Dashboard',       to: '/dashboard',                         icon: Home, dynamic: true },
+  { label: 'Profile',         to: '/dashboard/profile',                 icon: UserCircle },
+  { label: 'Events',          to: '/dashboard/events',                  icon: Calendar },
+  { label: 'Workshops',       to: '/dashboard/workshops',               icon: BookOpen },
+  { label: 'Meetings',        to: '/dashboard/meetings',                icon: Users },
+  { label: 'Elections',       to: '/dashboard/elections',               icon: Vote },
+  { label: 'EC Terms',        to: '/dashboard/governance/ec-terms',     icon: FileText,    roles: ['Moderator','Chief Patron','President','General Secretary'] },
+  { label: 'EC Appointments', to: '/dashboard/governance/ec-appointments', icon: Shield,  roles: ['Moderator','Chief Patron','President','General Secretary'] },
+  { label: 'Finance',         to: '/dashboard/finance',                 icon: DollarSign,  roles: ['Treasurer','Moderator','Chief Patron'] },
+  { label: 'Certificates',    to: '/dashboard/certificates',            icon: Award },
+  { label: 'Rooms',           to: '/dashboard/admin/rooms',             icon: DoorOpen,    roles: ['System Admin', 'Moderator','Chief Patron'] },
+  { label: 'Notifications',   to: '/dashboard/notifications',           icon: Bell },
   // Role-specific pages — shown only to the relevant role
-  { label: 'Moderator',     to: '/dashboard/moderator',           icon: Shield,      roles: ['Moderator'] },
-  { label: 'Chief Patron',  to: '/dashboard/chief-patron',        icon: Gavel,       roles: ['Chief Patron'] },
-  { label: 'EC Commission', to: '/dashboard/election-commission', icon: Vote,        roles: ['Election Commissioner'] },
-  { label: 'Alumni Portal', to: '/dashboard/alumni',              icon: GraduationCap, roles: ['Alumni'] },
+  { label: 'Moderator',       to: '/dashboard/moderator',               icon: Shield,      roles: ['Moderator'] },
+  { label: 'Chief Patron',    to: '/dashboard/chief-patron',            icon: Gavel,       roles: ['Chief Patron'] },
+  { label: 'EC Commission',   to: '/dashboard/election-commission',     icon: Vote,        roles: ['Election Commissioner'] },
+  { label: 'Alumni Portal',   to: '/dashboard/alumni',                  icon: GraduationCap, roles: ['Alumni'] },
 ];
 
 export function EnhancedSidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Props) {

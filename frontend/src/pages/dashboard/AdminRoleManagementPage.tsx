@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Shield, Search, UserCog, UserPlus, UserMinus, Users } from "lucide-react";
+import { Shield, Search, UserCog, UserPlus, UserMinus, Users, Mail, MailCheck } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { apiRequest, normalizeApiError } from "../../lib/api";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -19,6 +19,8 @@ type UserRow = {
   academicYearLevel: string | null;
   memberStatus: string | null;
   roles: string[];
+  emailVerified?: boolean;
+  isActive?: boolean;
 };
 
 type Feedback = { variant: "success" | "error"; text: string } | null;
@@ -66,6 +68,19 @@ export function AdminRoleManagementPage() {
       }),
     onSuccess: async () => {
       setFeedback({ variant: "success", text: `Role "${roleName}" revoked successfully.` });
+      await queryClient.invalidateQueries({ queryKey: ["admin-users", token] });
+    },
+    onError: (error) => setFeedback({ variant: "error", text: normalizeApiError(error) }),
+  });
+
+  const verifyEmailMutation = useMutation({
+    mutationFn: (targetUserId: string) =>
+      apiRequest(`/admin/users/${targetUserId}/verify-email`, {
+        method: "POST",
+        token,
+      }),
+    onSuccess: async () => {
+      setFeedback({ variant: "success", text: "Email verified successfully by admin" });
       await queryClient.invalidateQueries({ queryKey: ["admin-users", token] });
     },
     onError: (error) => setFeedback({ variant: "error", text: normalizeApiError(error) }),
@@ -226,6 +241,7 @@ export function AdminRoleManagementPage() {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Student ID</th>
+                    <th>Status</th>
                     <th>Roles</th>
                     <th style={{ textAlign: "right" }}>Actions</th>
                   </tr>
@@ -236,6 +252,18 @@ export function AdminRoleManagementPage() {
                       <td className="ui-font-medium">{u.name}</td>
                       <td className="ui-text-sm ui-text-muted">{u.email}</td>
                       <td>{u.studentId || "—"}</td>
+                      <td>
+                        <div className="ui-flex ui-flex-gap-2">
+                          {u.emailVerified ? (
+                            <Badge variant="success" icon={MailCheck}>Verified</Badge>
+                          ) : (
+                            <Badge variant="warning" icon={Mail}>Unverified</Badge>
+                          )}
+                          {u.isActive === false && (
+                            <Badge variant="neutral">Inactive</Badge>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         {u.roles.length > 0 ? (
                           <div className="ui-flex ui-flex-gap-2 ui-flex-wrap">
@@ -248,13 +276,31 @@ export function AdminRoleManagementPage() {
                         )}
                       </td>
                       <td style={{ textAlign: "right" }}>
-                        <Button
-                          variant={userId === u.id ? "primary" : "outline"}
-                          size="sm"
-                          onClick={() => setUserId(u.id)}
-                        >
-                          {userId === u.id ? "Selected" : "Select"}
-                        </Button>
+                        <div className="ui-flex ui-flex-gap-2" style={{ justifyContent: "flex-end" }}>
+                          <Button
+                            variant={userId === u.id ? "primary" : "outline"}
+                            size="sm"
+                            onClick={() => setUserId(u.id)}
+                          >
+                            {userId === u.id ? "Selected" : "Select"}
+                          </Button>
+                          {!u.emailVerified && (
+                            <Button
+                              variant="success"
+                              size="sm"
+                              leftIcon={MailCheck}
+                              isLoading={verifyEmailMutation.isPending && verifyEmailMutation.variables === u.id}
+                              onClick={() => {
+                                if (window.confirm(`Manually verify email for ${u.name}?`)) {
+                                  verifyEmailMutation.mutate(u.id);
+                                }
+                              }}
+                              title="Manually verify this user's email"
+                            >
+                              Verify
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -13,7 +13,7 @@ class AdminService {
 
   static async listUsersWithRoles() {
     const now = new Date();
-    const users = await User.find({}).sort({ createdAt: -1 }).select("firstName lastName email isActive");
+    const users = await User.find({}).sort({ createdAt: -1 }).select("firstName lastName email isActive emailVerified");
     const userIds = users.map((item) => item._id);
 
     const [members, teachers, assignments] = await Promise.all([
@@ -49,6 +49,7 @@ class AdminService {
         name: `${user.firstName} ${user.lastName}`,
         email: user.email,
         isActive: user.isActive,
+        emailVerified: user.emailVerified || false,
         userType: teacher ? 'Teacher' : member ? 'Student' : 'User',
         studentId: member?.studentId || null,
         batch: member?.batch || null,
@@ -595,6 +596,37 @@ class AdminService {
     });
 
     return { id: userId, reactivated: true };
+  }
+
+  /**
+   * Manually verify a user's email (admin bypass)
+   */
+  static async verifyUserEmail(userId, actorId, requestId) {
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    if (user.emailVerified) {
+      throw new ApiError(400, 'Email is already verified');
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    await AuditService.log({
+      actorId,
+      action: "EMAIL_VERIFIED_BY_ADMIN",
+      resource: "User",
+      resourceId: user._id.toString(),
+      requestId,
+      metadata: { 
+        email: user.email,
+        verifiedBy: "admin"
+      }
+    });
+
+    return { id: userId, emailVerified: true };
   }
 
   static async changeUserType(userId, payload, actorId, requestId) {
