@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Bell, Moon, Sun, User, LogOut, ChevronDown, Settings, Menu, Languages } from 'lucide-react';
+import { Bell, Moon, Sun, User, LogOut, ChevronDown, Settings, Menu, Languages } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
@@ -11,6 +11,7 @@ import { apiRequest, normalizeApiError } from '../../lib/api';
 import { formatRelativeTime } from '../../lib/utils';
 import { categoryMeta, tint } from '../../lib/notifications';
 import { getUserTypeDisplayName, getUserType } from '../../utils/dashboardRouter';
+import { GlobalSearchBox } from '../search/GlobalSearchBox';
 import toast from 'react-hot-toast';
 
 type UnreadPayload = { unreadCount: number };
@@ -86,17 +87,10 @@ export function EnhancedHeader({ onMobileMenuToggle }: Props) {
         <Menu size={20} />
       </button>
 
-      {/* Search */}
-      <label className="ui-header__search">
-        <Search size={15} style={{ color: 'var(--muted)', flexShrink: 0 }} />
-        <input 
-          placeholder={t('header.searchPlaceholder')} 
-          autoComplete="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck="false"
-        />
-      </label>
+      {/* Global Search */}
+      <GlobalSearchBox 
+        placeholder={t('header.searchPlaceholder')}
+      />
 
       <div className="ui-header__actions">
         {/* Language Toggle */}

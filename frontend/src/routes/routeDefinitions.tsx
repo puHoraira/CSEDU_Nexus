@@ -67,6 +67,9 @@ import { AlumniDetailsPage } from "../pages/admin/AlumniDetailsPage";
 import { StudentDashboard } from "../pages/dashboard/StudentDashboard";
 import { TeacherDashboard } from "../pages/dashboard/TeacherDashboard";
 import { AlumniDashboard } from "../pages/dashboard/AlumniDashboard";
+import { SocialPostsPage } from "../pages/posts/SocialPostsPage";
+import { ChatPage } from "../pages/chat/ChatPage";
+import { UserProfilePage } from "../pages/profile/UserProfilePage";
 
 type RouteDef = {
   path: string;
@@ -85,6 +88,10 @@ export const routeDefinitions: RouteDef[] = [
   
   // Common routes
   { path: "/dashboard/profile", element: <ModernProfilePage /> },
+  { path: "/dashboard/user/:userId", element: <UserProfilePage /> },
+  { path: "/dashboard/posts", element: <SocialPostsPage /> },
+  { path: "/dashboard/chat", element: <ChatPage /> },
+  { path: "/dashboard/chat/:userId", element: <ChatPage /> },
   { path: "/dashboard/settings", element: <SettingsPage /> },
   { path: "/dashboard/notifications", element: <NotificationsPage /> },
   { path: "/dashboard/help", element: <HelpPage /> },

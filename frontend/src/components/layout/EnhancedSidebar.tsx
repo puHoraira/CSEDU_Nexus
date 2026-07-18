@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Home, Calendar, Users, Vote, FileText, DollarSign,
   Award, Bell, Settings, ChevronLeft, ChevronRight, UserCircle, LogOut, BookOpen,
-  Shield, GraduationCap, Gavel, DoorOpen, Briefcase
+  Shield, GraduationCap, Gavel, DoorOpen, Briefcase, MessageCircle, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { getDefaultDashboardRoute, getUserType } from '../../utils/dashboardRouter';
@@ -26,6 +26,8 @@ type NavItem = {
 const NAV: NavItem[] = [
   { label: 'Dashboard',       to: '/dashboard',                         icon: Home, dynamic: true },
   { label: 'Profile',         to: '/dashboard/profile',                 icon: UserCircle },
+  { label: 'Posts',           to: '/dashboard/posts',                   icon: Sparkles },
+  { label: 'Messages',        to: '/dashboard/chat',                    icon: MessageCircle },
   { label: 'Events',          to: '/dashboard/events',                  icon: Calendar },
   { label: 'Workshops',       to: '/dashboard/workshops',               icon: BookOpen },
   { label: 'Meetings',        to: '/dashboard/meetings',                icon: Users },

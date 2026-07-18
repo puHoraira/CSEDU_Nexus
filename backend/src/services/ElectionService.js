@@ -931,30 +931,31 @@ class ElectionService {
     const electionPhase = election.currentPhase || election.phase || 1;
     const isNonFull = electionType === "phase2_only" || electionType === "single_post";
 
-    // Only allow self-nomination for Phase 1 (full elections) or Phase 2 (non-full elections)
-    if (!isNonFull && electionPhase !== 1) {
-      throw new ApiError(400, "Self-nomination is only available for Phase 1 (Batch Representative) elections");
-    }
-
-    // Check if election is in nomination period or active
-    const validStatuses = isNonFull
-      ? ['Draft', 'Setup', 'Phase2_Active']
-      : ['Draft', 'Setup', 'Phase1_Active'];
+    // Allow self-nomination in Phase 1 and Phase 2 for full elections
+    // For non-full elections, allow during Draft/Setup/Phase2_Active
+    const validStatuses = electionPhase === 1
+      ? ['Draft', 'Setup', 'Phase1_Active']
+      : electionPhase === 2
+      ? ['Draft', 'Setup', 'Phase1_Completed', 'Phase2_Active']
+      : [];
+    
     if (!validStatuses.includes(election.status)) {
       throw new ApiError(400, "This election is not accepting nominations at this time");
     }
 
     // Determine candidate phase and post
-    let candidatePhase = 1;
+    let candidatePhase = electionPhase; // Use current phase
     let candidatePostId = null;
     let candidateBatch;
 
-    if (isNonFull) {
-      candidatePhase = 2;
+    if (candidatePhase === 1) {
+      // Phase 1: Batch representative
+      candidateBatch = undefined; // Will be set from member.batch later
+    } else if (candidatePhase === 2) {
+      // Phase 2: Office bearer - must specify post
       if (electionType === "single_post") {
         candidatePostId = election.targetPost?._id || election.targetPost;
       } else {
-        // phase2_only: postId must be provided in request body
         candidatePostId = payload?.postId;
         if (!candidatePostId) {
           throw new ApiError(400, "You must specify which EC post you are nominating for");
@@ -966,7 +967,7 @@ class ElectionService {
     const member = await Member.findOne({ userId: actorUserId });
     if (!member) throw new ApiError(404, "Member record not found. You must be a registered member to apply");
 
-    if (!isNonFull) {
+    if (candidatePhase === 1) {
       candidateBatch = member.batch.toString();
     }
 

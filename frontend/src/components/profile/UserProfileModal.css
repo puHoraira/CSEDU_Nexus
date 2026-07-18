@@ -1,0 +1,469 @@
+/* ============================================
+   USER PROFILE MODAL - Dark/Light Mode Support
+   ============================================ */
+
+.profile-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+html[data-theme="light"] .profile-modal-overlay {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.profile-modal {
+  position: relative;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+
+.profile-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.profile-modal-close:hover {
+  background: rgba(0, 0, 0, 0.7);
+  transform: scale(1.1);
+}
+
+html[data-theme="light"] .profile-modal-close {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+}
+
+html[data-theme="light"] .profile-modal-close:hover {
+  background: #fff;
+}
+
+/* ========== LOADING & ERROR STATES ========== */
+.profile-loading,
+.profile-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+
+.profile-loading .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--surface);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ========== PROFILE HEADER ========== */
+.profile-header {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profile-cover {
+  height: 120px;
+  background: var(--gradient-primary);
+  position: relative;
+}
+
+.profile-info-wrapper {
+  position: relative;
+  padding: 0 24px 20px;
+  margin-top: -40px;
+}
+
+.profile-avatar-large {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  border: 4px solid var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  margin-bottom: 16px;
+}
+
+.profile-avatar-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-initials {
+  text-transform: uppercase;
+}
+
+.profile-main-info {
+  margin-bottom: 16px;
+}
+
+.profile-name {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.profile-designation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.profile-student-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.profile-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.profile-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.profile-actions .btn {
+  flex: 1;
+}
+
+/* ========== PROFILE TABS ========== */
+.profile-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.profile-tab {
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  bottom: -1px;
+}
+
+.profile-tab:hover {
+  color: var(--text);
+}
+
+.profile-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ========== PROFILE CONTENT ========== */
+.profile-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.profile-about {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.profile-section {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.bio-text {
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ========== INFO LIST ========== */
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.info-item svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ========== SOCIAL LINKS ========== */
+.social-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.social-link:hover {
+  background: var(--surface-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.social-link svg {
+  flex-shrink: 0;
+}
+
+/* ========== SKILLS ========== */
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-tag {
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ========== EC EXPERIENCE ========== */
+.ec-experience-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ec-experience-item {
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 12px;
+  border-left: 3px solid var(--accent);
+}
+
+.ec-post-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.ec-duration {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.ec-duration svg {
+  flex-shrink: 0;
+}
+
+/* ========== POSTS PREVIEW ========== */
+.posts-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post-preview-item {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.post-preview-item:hover {
+  border-color: var(--accent);
+  transform: translateX(4px);
+}
+
+.post-preview-content {
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.post-preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ========== EMPTY STATE ========== */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 640px) {
+  .profile-modal {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .profile-modal-overlay {
+    padding: 0;
+  }
+
+  .profile-cover {
+    height: 100px;
+  }
+
+  .profile-info-wrapper {
+    padding: 0 16px 16px;
+  }
+
+  .profile-avatar-large {
+    width: 80px;
+    height: 80px;
+    font-size: 1.5rem;
+  }
+
+  .profile-name {
+    font-size: 1.5rem;
+  }
+
+  .profile-tabs {
+    padding: 0 16px;
+  }
+
+  .profile-tab {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+
+  .profile-content {
+    padding: 16px;
+  }
+
+  .social-links {
+    grid-template-columns: 1fr;
+  }
+}

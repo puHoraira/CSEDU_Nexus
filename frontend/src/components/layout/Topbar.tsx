@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Moon, Search, Sun } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tantml:react-query";
+import { Bell, Moon, Sun } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { useTheme } from "../../theme/ThemeContext";
 import { apiRequest, normalizeApiError } from "../../lib/api";
+import { GlobalSearchBox } from "../search/GlobalSearchBox";
 
 type UnreadCountPayload = { unreadCount: number };
 type NotificationRow = {
@@ -97,10 +98,7 @@ export function Topbar() {
 
   return (
     <header className="topbar">
-      <label className="topbar__search">
-        <Search size={16} />
-        <input placeholder="Search members, events, notices..." />
-      </label>
+      <GlobalSearchBox />
 
       <div className="topbar__actions">
         <button type="button" className="icon-button" onClick={toggleTheme} title={resolvedTheme === "dark" ? "Switch to day mode" : "Switch to night mode"}>

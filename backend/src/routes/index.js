@@ -20,6 +20,10 @@ const { yearPromotionRoutes } = require("./yearPromotionRoutes");
 const { adminMemberRoutes } = require("./adminMemberRoutes");
 const { ecMemberRoutes } = require("./ecMemberRoutes");
 const { roomRoutes } = require("./roomRoutes");
+const { postRoutes } = require("./postRoutes");
+const { chatRoutes } = require("./chatRoutes");
+const { userRoutes } = require("./userRoutes");
+const { searchRoutes } = require("./searchRoutes");
 
 const apiRouter = express.Router();
 
@@ -43,6 +47,10 @@ apiRouter.use("/upload", uploadRoutes);
 apiRouter.use("/workshops", workshopRoutes);
 apiRouter.use("/year-promotion", yearPromotionRoutes);
 apiRouter.use("/ec-members", ecMemberRoutes);
+apiRouter.use("/posts", postRoutes);
+apiRouter.use("/chat", chatRoutes);
+apiRouter.use("/users", userRoutes);
+apiRouter.use("/search", searchRoutes);
 apiRouter.use("/", roomRoutes);
 apiRouter.use("/", eventRegistrationRoutes);
 

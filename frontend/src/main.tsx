@@ -14,6 +14,7 @@ import "./styles/tailwind.css";
 import "./styles/index.css";
 import "./styles/mobile-responsive.css"; // Mobile responsive styles
 import "./styles/profile-mobile.css"; // Profile page mobile styles
+import "./styles/mobile.css"; // CRITICAL: Mobile overrides (must be last)
 
 function AppWithEffects() {
   useMouseGlow();

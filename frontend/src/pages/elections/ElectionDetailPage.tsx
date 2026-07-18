@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Vote, Calendar, Clock, Users, BarChart2, Play, Square, CheckCircle, AlertCircle, ArrowLeft, Image, UserPlus, RotateCcw } from 'lucide-react';
+import { Vote, Calendar, Clock, Users, BarChart2, Play, Square, CheckCircle, AlertCircle, ArrowLeft, Image, UserPlus, RotateCcw, X } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -63,6 +64,10 @@ export function ElectionDetailPage() {
   const { token, user } = useAuth();
   const qc = useQueryClient();
   const { openPosterGenerator, PosterModal } = usePosterGenerator();
+
+  // State for Phase 2 post selection modal
+  const [showPostSelectionModal, setShowPostSelectionModal] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const hasValidId = Boolean(id && /^[a-fA-F0-9]{24}$/.test(id));
   const canManage = Boolean(user?.roles.some(r => ['Election Commissioner', 'Moderator'].includes(r)));
@@ -169,6 +174,29 @@ export function ElectionDetailPage() {
     enabled: Boolean(hasValidId && token),
   });
 
+  // Fetch eligible posts for Phase 2 application
+  const { data: eligiblePosts = [] } = useQuery({
+    queryKey: ['eligible-posts', id, token, user?._id],
+    queryFn: async () => {
+      try {
+        // Get member ID first
+        const memberRes = await apiRequest<{ _id: string }>('/membership/members/me', { token });
+        const memberId = memberRes._id;
+        
+        // Fetch eligible posts for this member
+        const response = await apiRequest<{ eligiblePosts: Array<{ _id: string; title: string; code: string; requiredEcYears?: number }> }>(
+          `/enhanced-elections/${id}/eligible-posts?memberId=${memberId}`,
+          { token }
+        );
+        return response.eligiblePosts || [];
+      } catch (e) {
+        console.error('Failed to fetch eligible posts:', e);
+        return [];
+      }
+    },
+    enabled: Boolean(hasValidId && token && user && (election?.currentPhase ?? 1) === 2),
+  });
+
   const statusMut = useMutation({
     mutationFn: ({ status, phase }: { status: string; phase?: number }) =>
       apiRequest(`/elections/${id}/phase`, { 
@@ -190,9 +218,14 @@ export function ElectionDetailPage() {
     }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['my-election-application', id, token] });
+      setShowPostSelectionModal(false);
+      setSelectedPostId(null);
       toast.success('Application submitted! Your candidacy is pending Election Commission review.');
     },
-    onError: e => toast.error(normalizeApiError(e)),
+    onError: e => {
+      toast.error(normalizeApiError(e));
+      setShowPostSelectionModal(false);
+    },
   });
 
   if (!hasValidId) {
@@ -231,18 +264,27 @@ export function ElectionDetailPage() {
   const daysLeft = Math.max(0, Math.ceil((ends.getTime() - now.getTime()) / 86400000));
 
   // Determine if user can apply as candidate
-  const isPhase1 = (election.currentPhase ?? 1) === 1;
+  const currentPhase = election.currentPhase ?? 1;
+  const isPhase1 = currentPhase === 1;
+  const isPhase2 = currentPhase === 2;
   const isNonFull = election.electionType === 'phase2_only' || election.electionType === 'single_post';
-  const canAcceptNominations = isNonFull
-    ? ['Draft', 'Setup', 'Phase2_Active'].includes(election.status)
-    : ['Draft', 'Setup', 'Phase1_Active'].includes(election.status);
+  
+  // Allow nominations during:
+  // - Phase 1: Draft, Setup, Phase1_Active
+  // - Phase 2: Draft, Setup, Phase1_Completed, Phase2_Active
+  const canAcceptNominations = isPhase1
+    ? ['Draft', 'Setup', 'Phase1_Active'].includes(election.status)
+    : isPhase2
+    ? ['Draft', 'Setup', 'Phase1_Completed', 'Phase2_Active'].includes(election.status)
+    : false;
+    
   const isEligible = profile?.membership?.electionEligibility?.isEligibleForCandidacy ?? false;
   const hasApplied = Boolean(myApplication);
   const wasRejected = myApplication?.status === 'Rejected';
 
   // Don't show Apply button while checking application status
   // Allow reapplication if previous application was rejected
-  const canApply = !isLoadingApplication && (isPhase1 || isNonFull) && canAcceptNominations && isEligible && (!hasApplied || wasRejected) && !canManage;
+  const canApply = !isLoadingApplication && canAcceptNominations && isEligible && (!hasApplied || wasRejected) && !canManage;
 
   return (
     <div className="ui-page">
@@ -260,14 +302,20 @@ export function ElectionDetailPage() {
               <Button variant="success" size="sm" leftIcon={UserPlus}
                 isLoading={applyMut.isPending}
                 onClick={() => {
-                  const message = wasRejected
-                    ? 'Reapply as a candidate for this election?\n\nYour previous application was rejected. This will submit a new application for Election Commission review.'
-                    : 'Apply as a candidate for this election?\n\nYour application will be reviewed by the Election Commission.';
-                  if (window.confirm(message)) {
-                    applyMut.mutate(election.electionType === 'single_post' ? election.targetPost?._id : undefined);
+                  if (isPhase2) {
+                    // Show post selection modal for Phase 2
+                    setShowPostSelectionModal(true);
+                  } else {
+                    // Phase 1: Direct application
+                    const message = wasRejected
+                      ? 'Reapply as a candidate for this election?\n\nYour previous application was rejected. This will submit a new application for Election Commission review.'
+                      : 'Apply as a candidate for this election?\n\nYour application will be reviewed by the Election Commission.';
+                    if (window.confirm(message)) {
+                      applyMut.mutate(election.electionType === 'single_post' ? election.targetPost?._id : undefined);
+                    }
                   }
                 }}>
-                {wasRejected ? 'Reapply as Candidate' : 'Apply as Candidate'}
+                {wasRejected ? 'Reapply as Candidate' : isPhase2 ? 'Apply for Phase 2 Post' : 'Apply as Candidate'}
               </Button>
             )}
             {hasApplied && myApplication && !wasRejected && (
@@ -638,6 +686,154 @@ export function ElectionDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Phase 2 Post Selection Modal */}
+      {showPostSelectionModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px',
+        }} onClick={() => setShowPostSelectionModal(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            style={{
+              background: 'var(--card-bg)',
+              borderRadius: 16,
+              maxWidth: 600,
+              width: '100%',
+              maxHeight: '80vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700 }}>Select EC Post</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
+                  Choose which office-bearer position you want to apply for
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPostSelectionModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 8,
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={20} style={{ color: 'var(--muted)' }} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+              {eligiblePosts.length === 0 ? (
+                <Alert variant="warning">
+                  <strong>No Eligible Posts</strong>
+                  <p style={{ margin: '8px 0 0', fontSize: '0.9rem' }}>
+                    You are not currently eligible for any Phase 2 office-bearer positions. This may be due to:
+                  </p>
+                  <ul style={{ margin: '8px 0 0 20px', fontSize: '0.85rem' }}>
+                    <li>Insufficient EC experience years for available posts</li>
+                    <li>Academic year requirements not met</li>
+                    <li>All positions already filled</li>
+                  </ul>
+                  <p style={{ margin: '8px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
+                    Contact the Election Commission for more information.
+                  </p>
+                </Alert>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {eligiblePosts.map((post) => (
+                    <motion.button
+                      key={post._id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectedPostId(post._id)}
+                      style={{
+                        padding: '16px 20px',
+                        border: `2px solid ${selectedPostId === post._id ? 'var(--accent)' : 'var(--border)'}`,
+                        borderRadius: 12,
+                        background: selectedPostId === post._id ? 'rgba(var(--accent-rgb), 0.1)' : 'var(--surface)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)' }}>
+                          {post.title}
+                        </h3>
+                        {selectedPostId === post._id && (
+                          <CheckCircle size={20} style={{ color: 'var(--accent)' }} />
+                        )}
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted)' }}>
+                        Code: {post.code}
+                        {post.requiredEcYears != null && ` • Required EC Years: ${post.requiredEcYears}`}
+                      </p>
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid var(--border)',
+              display: 'flex',
+              gap: 12,
+              justifyContent: 'flex-end',
+            }}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowPostSelectionModal(false);
+                  setSelectedPostId(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="success"
+                leftIcon={UserPlus}
+                disabled={!selectedPostId || applyMut.isPending}
+                isLoading={applyMut.isPending}
+                onClick={() => {
+                  if (!selectedPostId) return;
+                  const selectedPost = eligiblePosts.find(p => p._id === selectedPostId);
+                  if (window.confirm(`Apply for ${selectedPost?.title || 'this post'}?\n\nYour application will be reviewed by the Election Commission.`)) {
+                    applyMut.mutate(selectedPostId);
+                  }
+                }}
+              >
+                Submit Application
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Poster Generator Modal */}
       {PosterModal}

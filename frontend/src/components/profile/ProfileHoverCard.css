@@ -1,0 +1,257 @@
+/* ============================================
+   PROFILE HOVER CARD - Dark/Light Mode Support
+   ============================================ */
+
+.profile-hover-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-hover-card {
+  position: absolute;
+  z-index: 1000;
+  width: 320px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(12px);
+}
+
+/* Placement variants */
+.profile-hover-card.placement-top {
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.profile-hover-card.placement-bottom {
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.profile-hover-card.placement-left {
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.profile-hover-card.placement-right {
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Loading state */
+.hover-card-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.spinner-small {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--surface);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Card Header */
+.hover-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.hover-card-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #fff;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.hover-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hover-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hover-card-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hover-card-designation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 4px 0;
+}
+
+.hover-card-student-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* Bio */
+.hover-card-bio {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.4;
+  margin: 0 0 12px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Quick Info */
+.hover-card-quick-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  background: var(--surface);
+  border-radius: 10px;
+}
+
+.quick-info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.quick-info-item svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.quick-info-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Roles */
+.hover-card-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.role-tag-small {
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* Actions */
+.hover-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hover-card-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.hover-card-btn.btn-primary {
+  background: var(--gradient-primary);
+  color: #fff;
+}
+
+.hover-card-btn.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.hover-card-btn.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.hover-card-btn.btn-secondary:hover {
+  background: var(--surface-soft);
+  border-color: var(--accent);
+}
+
+/* Error state */
+.hover-card-error {
+  padding: 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .profile-hover-card {
+    width: 280px;
+  }
+
+  .hover-card-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 1rem;
+  }
+
+  .hover-card-name {
+    font-size: 0.95rem;
+  }
+}
