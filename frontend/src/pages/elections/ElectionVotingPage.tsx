@@ -172,8 +172,17 @@ export function ElectionVotingPage() {
 
   const isLoading    = electionLoading || candidatesLoading || votesLoading;
   const isPhase1     = (election?.currentPhase ?? 1) === 1;
+  const currentPhase = election?.currentPhase ?? 1;
   const maxVotes     = election?.phase1?.maxVotesPerVoter || 5;
-  const votedIds     = new Set(myVotes.map((v) => v.candidateId));
+  
+  // Filter votes by current phase: Phase 1 votes are for batch representatives (no postId),
+  // Phase 2 votes are for office bearers (with postId)
+  const currentPhaseVotes = myVotes.filter((v: any) => {
+    const votePhase = v.phase ?? (v.postId ? 2 : 1);
+    return votePhase === currentPhase;
+  });
+  
+  const votedIds     = new Set(currentPhaseVotes.map((v) => v.candidateId));
   const hasVoted     = votedIds.size > 0;
   const isActive     = Boolean(election?.status?.includes('Active'));
 

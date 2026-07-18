@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   User, Mail, Phone, GraduationCap, CalendarDays, IdCard, Pencil,
   BookOpen, Percent, Vote, ShieldCheck, Award, Droplet, Cake,
-  TrendingUp, CheckCircle2, XCircle, Layers, Trash2,
+  TrendingUp, CheckCircle2, XCircle, Layers, Trash2, Plus, Edit,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
@@ -34,11 +34,15 @@ type PopulatedUser = {
 };
 
 type EcExperience = {
+  _id?: string;
   postName: string;
   startDate?: string;
   endDate?: string;
   isCurrent?: boolean;
   performanceRating?: string;
+  eventsOrganized?: number;
+  meetingsAttended?: number;
+  totalMeetings?: number;
 };
 
 type StudentDetail = {
@@ -121,6 +125,18 @@ export function StudentDetailsPage() {
   const [showDeactivate, setShowDeactivate] = useState(false);
   const [showChangeType, setShowChangeType] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showEcExperienceModal, setShowEcExperienceModal] = useState(false);
+  const [editingExperience, setEditingExperience] = useState<any>(null);
+  const [ecExpForm, setEcExpForm] = useState({
+    postName: '',
+    startDate: '',
+    endDate: '',
+    isCurrent: false,
+    performanceRating: 'Not_Rated',
+    eventsOrganized: '0',
+    meetingsAttended: '0',
+    totalMeetings: '0',
+  });
 
   const { data: student, isLoading, isError, error } = useQuery({
     queryKey: ['admin-student', id, token],
@@ -154,6 +170,113 @@ export function StudentDetailsPage() {
     },
     onError: (e) => setFormError(normalizeApiError(e)),
   });
+
+  // EC Experience mutations
+  const addEcExpMutation = useMutation({
+    mutationFn: () =>
+      apiRequest(`/admin/students/${id}/ec-experience`, {
+        method: 'POST',
+        token,
+        body: JSON.stringify({
+          postName: ecExpForm.postName,
+          startDate: ecExpForm.startDate || undefined,
+          endDate: ecExpForm.endDate || undefined,
+          isCurrent: ecExpForm.isCurrent,
+          performanceRating: ecExpForm.performanceRating,
+          eventsOrganized: Number(ecExpForm.eventsOrganized),
+          meetingsAttended: Number(ecExpForm.meetingsAttended),
+          totalMeetings: Number(ecExpForm.totalMeetings),
+        }),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-student', id, token] });
+      setShowEcExperienceModal(false);
+      setEditingExperience(null);
+      toast.success('EC experience added successfully');
+    },
+    onError: (e) => toast.error(normalizeApiError(e)),
+  });
+
+  const updateEcExpMutation = useMutation({
+    mutationFn: () =>
+      apiRequest(`/admin/students/${id}/ec-experience/${editingExperience._id}`, {
+        method: 'PUT',
+        token,
+        body: JSON.stringify({
+          postName: ecExpForm.postName,
+          startDate: ecExpForm.startDate || undefined,
+          endDate: ecExpForm.endDate || undefined,
+          isCurrent: ecExpForm.isCurrent,
+          performanceRating: ecExpForm.performanceRating,
+          eventsOrganized: Number(ecExpForm.eventsOrganized),
+          meetingsAttended: Number(ecExpForm.meetingsAttended),
+          totalMeetings: Number(ecExpForm.totalMeetings),
+        }),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-student', id, token] });
+      setShowEcExperienceModal(false);
+      setEditingExperience(null);
+      toast.success('EC experience updated successfully');
+    },
+    onError: (e) => toast.error(normalizeApiError(e)),
+  });
+
+  const deleteEcExpMutation = useMutation({
+    mutationFn: (experienceId: string) =>
+      apiRequest(`/admin/students/${id}/ec-experience/${experienceId}`, {
+        method: 'DELETE',
+        token,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-student', id, token] });
+      toast.success('EC experience deleted successfully');
+    },
+    onError: (e) => toast.error(normalizeApiError(e)),
+  });
+
+  function openAddEcExperience() {
+    setEditingExperience(null);
+    setEcExpForm({
+      postName: '',
+      startDate: '',
+      endDate: '',
+      isCurrent: false,
+      performanceRating: 'Not_Rated',
+      eventsOrganized: '0',
+      meetingsAttended: '0',
+      totalMeetings: '0',
+    });
+    setShowEcExperienceModal(true);
+  }
+
+  function openEditEcExperience(exp: any) {
+    setEditingExperience(exp);
+    setEcExpForm({
+      postName: exp.postName || '',
+      startDate: exp.startDate ? exp.startDate.split('T')[0] : '',
+      endDate: exp.endDate ? exp.endDate.split('T')[0] : '',
+      isCurrent: exp.isCurrent || false,
+      performanceRating: exp.performanceRating || 'Not_Rated',
+      eventsOrganized: String(exp.eventsOrganized || 0),
+      meetingsAttended: String(exp.meetingsAttended || 0),
+      totalMeetings: String(exp.totalMeetings || 0),
+    });
+    setShowEcExperienceModal(true);
+  }
+
+  function submitEcExperience(e: FormEvent) {
+    e.preventDefault();
+    if (!ecExpForm.postName.trim()) {
+      toast.error('Post name is required');
+      return;
+    }
+    if (editingExperience) {
+      updateEcExpMutation.mutate();
+    } else {
+      addEcExpMutation.mutate();
+    }
+  }
 
   function openEdit() {
     if (!student) return;
@@ -365,6 +488,11 @@ export function StudentDetailsPage() {
       <div className="ui-card">
         <div className="ui-card__header">
           <h3 className="ui-card__title ui-flex ui-flex-gap-2" style={{ alignItems: 'center' }}><Award size={17} /> EC Experience</h3>
+          {canEdit && (
+            <Button variant="primary" size="sm" leftIcon={Plus} onClick={openAddEcExperience}>
+              Add Experience
+            </Button>
+          )}
         </div>
         <div className="ui-card__body ui-card__body--flush">
           {student.ecExperience && student.ecExperience.length > 0 ? (
@@ -377,6 +505,7 @@ export function StudentDetailsPage() {
                     <th>To</th>
                     <th>Rating</th>
                     <th>Status</th>
+                    {canEdit && <th>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -387,6 +516,49 @@ export function StudentDetailsPage() {
                       <td>{exp.isCurrent ? 'Present' : fmtDate(exp.endDate)}</td>
                       <td>{clean(exp.performanceRating) || '—'}</td>
                       <td><Badge variant={exp.isCurrent ? 'success' : 'neutral'}>{exp.isCurrent ? 'Current' : 'Past'}</Badge></td>
+                      {canEdit && (
+                        <td>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              onClick={() => openEditEcExperience(exp)}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                border: '1px solid var(--border)',
+                                background: 'var(--surface)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                              title="Edit"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (exp._id && confirm(`Delete EC experience: ${exp.postName}?`)) {
+                                  deleteEcExpMutation.mutate(exp._id);
+                                }
+                              }}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                border: '1px solid #ef4444',
+                                background: 'var(--surface)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                color: '#ef4444',
+                              }}
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -536,6 +708,139 @@ export function StudentDetailsPage() {
           />
         </>
       )}
+
+      {/* EC Experience Modal */}
+      <Modal
+        isOpen={showEcExperienceModal}
+        onClose={() => {
+          setShowEcExperienceModal(false);
+          setEditingExperience(null);
+        }}
+        title={editingExperience ? 'Edit EC Experience' : 'Add EC Experience'}
+        description={`${editingExperience ? 'Update' : 'Add'} executive committee experience for ${name}`}
+        size="md"
+        footer={
+          <div className="ui-flex ui-flex-gap-2" style={{ justifyContent: 'flex-end' }}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowEcExperienceModal(false);
+                setEditingExperience(null);
+              }}
+              disabled={addEcExpMutation.isPending || updateEcExpMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              leftIcon={CheckCircle2}
+              onClick={submitEcExperience}
+              isLoading={addEcExpMutation.isPending || updateEcExpMutation.isPending}
+            >
+              {editingExperience ? 'Update' : 'Add'} Experience
+            </Button>
+          </div>
+        }
+      >
+        <form onSubmit={submitEcExperience} className="ui-flex-col" style={{ gap: 16 }}>
+          <label className="ui-input-wrap">
+            <span className="ui-input-label">Post Name *</span>
+            <input
+              className="ui-input"
+              type="text"
+              value={ecExpForm.postName}
+              onChange={(e) => setEcExpForm({ ...ecExpForm, postName: e.target.value })}
+              placeholder="e.g. President, Vice President"
+              required
+            />
+          </label>
+
+          <div className="ui-grid-2" style={{ gap: 16 }}>
+            <label className="ui-input-wrap">
+              <span className="ui-input-label">Start Date</span>
+              <input
+                className="ui-input"
+                type="date"
+                value={ecExpForm.startDate}
+                onChange={(e) => setEcExpForm({ ...ecExpForm, startDate: e.target.value })}
+              />
+            </label>
+
+            <label className="ui-input-wrap">
+              <span className="ui-input-label">End Date</span>
+              <input
+                className="ui-input"
+                type="date"
+                value={ecExpForm.endDate}
+                onChange={(e) => setEcExpForm({ ...ecExpForm, endDate: e.target.value })}
+                disabled={ecExpForm.isCurrent}
+              />
+            </label>
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={ecExpForm.isCurrent}
+              onChange={(e) => setEcExpForm({ ...ecExpForm, isCurrent: e.target.checked, endDate: e.target.checked ? '' : ecExpForm.endDate })}
+            />
+            <span style={{ fontSize: '0.9rem' }}>Currently serving in this position</span>
+          </label>
+
+          <label className="ui-input-wrap">
+            <span className="ui-input-label">Performance Rating</span>
+            <select
+              className="ui-input"
+              value={ecExpForm.performanceRating}
+              onChange={(e) => setEcExpForm({ ...ecExpForm, performanceRating: e.target.value })}
+            >
+              <option value="Not_Rated">Not Rated</option>
+              <option value="Excellent">Excellent</option>
+              <option value="Good">Good</option>
+              <option value="Satisfactory">Satisfactory</option>
+              <option value="Needs_Improvement">Needs Improvement</option>
+            </select>
+          </label>
+
+          <div className="ui-grid-3" style={{ gap: 16 }}>
+            <label className="ui-input-wrap">
+              <span className="ui-input-label">Events Organized</span>
+              <input
+                className="ui-input"
+                type="number"
+                min="0"
+                value={ecExpForm.eventsOrganized}
+                onChange={(e) => setEcExpForm({ ...ecExpForm, eventsOrganized: e.target.value })}
+                placeholder="0"
+              />
+            </label>
+
+            <label className="ui-input-wrap">
+              <span className="ui-input-label">Meetings Attended</span>
+              <input
+                className="ui-input"
+                type="number"
+                min="0"
+                value={ecExpForm.meetingsAttended}
+                onChange={(e) => setEcExpForm({ ...ecExpForm, meetingsAttended: e.target.value })}
+                placeholder="0"
+              />
+            </label>
+
+            <label className="ui-input-wrap">
+              <span className="ui-input-label">Total Meetings</span>
+              <input
+                className="ui-input"
+                type="number"
+                min="0"
+                value={ecExpForm.totalMeetings}
+                onChange={(e) => setEcExpForm({ ...ecExpForm, totalMeetings: e.target.value })}
+                placeholder="0"
+              />
+            </label>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

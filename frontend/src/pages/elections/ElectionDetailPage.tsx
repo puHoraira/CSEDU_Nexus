@@ -26,6 +26,8 @@ type ElectionDetail = {
   phase1EndsOn?: string;
   phase2StartsOn?: string;
   createdAt?: string;
+  electionType?: 'full' | 'phase2_only' | 'single_post';
+  targetPost?: { _id: string; title: string } | null;
 };
 
 type CandidateStats = {
@@ -182,7 +184,10 @@ export function ElectionDetailPage() {
   });
 
   const applyMut = useMutation({
-    mutationFn: () => apiRequest(`/elections/${id}/self-nominate`, { method: 'POST', token }),
+    mutationFn: (postId?: string) => apiRequest(`/elections/${id}/self-nominate`, {
+      method: 'POST', token,
+      body: JSON.stringify({ postId: postId || null }),
+    }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['my-election-application', id, token] });
       toast.success('Application submitted! Your candidacy is pending Election Commission review.');
@@ -227,14 +232,17 @@ export function ElectionDetailPage() {
 
   // Determine if user can apply as candidate
   const isPhase1 = (election.currentPhase ?? 1) === 1;
-  const canAcceptNominations = ['Draft', 'Setup', 'Phase1_Active'].includes(election.status);
+  const isNonFull = election.electionType === 'phase2_only' || election.electionType === 'single_post';
+  const canAcceptNominations = isNonFull
+    ? ['Draft', 'Setup', 'Phase2_Active'].includes(election.status)
+    : ['Draft', 'Setup', 'Phase1_Active'].includes(election.status);
   const isEligible = profile?.membership?.electionEligibility?.isEligibleForCandidacy ?? false;
   const hasApplied = Boolean(myApplication);
   const wasRejected = myApplication?.status === 'Rejected';
-  
+
   // Don't show Apply button while checking application status
   // Allow reapplication if previous application was rejected
-  const canApply = !isLoadingApplication && isPhase1 && canAcceptNominations && isEligible && (!hasApplied || wasRejected) && !canManage;
+  const canApply = !isLoadingApplication && (isPhase1 || isNonFull) && canAcceptNominations && isEligible && (!hasApplied || wasRejected) && !canManage;
 
   return (
     <div className="ui-page">
@@ -252,11 +260,11 @@ export function ElectionDetailPage() {
               <Button variant="success" size="sm" leftIcon={UserPlus}
                 isLoading={applyMut.isPending}
                 onClick={() => {
-                  const message = wasRejected 
+                  const message = wasRejected
                     ? 'Reapply as a candidate for this election?\n\nYour previous application was rejected. This will submit a new application for Election Commission review.'
                     : 'Apply as a candidate for this election?\n\nYour application will be reviewed by the Election Commission.';
                   if (window.confirm(message)) {
-                    applyMut.mutate();
+                    applyMut.mutate(election.electionType === 'single_post' ? election.targetPost?._id : undefined);
                   }
                 }}>
                 {wasRejected ? 'Reapply as Candidate' : 'Apply as Candidate'}
@@ -372,7 +380,7 @@ export function ElectionDetailPage() {
                   isLoading={applyMut.isPending}
                   onClick={() => {
                     if (window.confirm('Apply as a candidate for this election?\n\nYour application will be reviewed by the Election Commission before being approved.')) {
-                      applyMut.mutate();
+                      applyMut.mutate(election.electionType === 'single_post' ? election.targetPost?._id : undefined);
                     }
                   }}>
                   Apply as Candidate

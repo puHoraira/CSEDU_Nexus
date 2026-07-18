@@ -4,11 +4,19 @@ const createElectionSchema = z.object({
   name: z.string().min(3),
   termId: z.string().min(10),
   phase: z.union([z.literal(1), z.literal(2)]),
+  electionType: z.enum(["full", "phase2_only", "single_post"]).default("full"),
+  targetPost: z.string().min(10).optional().nullable(),
   startsOn: z.string().datetime(),
   endsOn: z.string().datetime(),
 }).refine((data) => new Date(data.endsOn).getTime() > new Date(data.startsOn).getTime(), {
   message: "endsOn must be later than startsOn",
   path: ["endsOn"],
+}).refine((data) => {
+  if (data.electionType === "single_post" && !data.targetPost) return false;
+  return true;
+}, {
+  message: "targetPost is required for single_post election type",
+  path: ["targetPost"],
 });
 
 const addCandidateSchema = z.object({
@@ -57,6 +65,10 @@ const cancelCandidateSchema = z.object({
   reason: z.string().min(3),
 });
 
+const selfNominateSchema = z.object({
+  postId: z.string().min(10).optional().nullable(),
+}).optional();
+
 module.exports = {
   createElectionSchema,
   addCandidateSchema,
@@ -64,4 +76,5 @@ module.exports = {
   updateElectionPhaseSchema,
   validateCandidateSchema,
   cancelCandidateSchema,
+  selfNominateSchema,
 };

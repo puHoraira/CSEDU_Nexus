@@ -16,12 +16,84 @@ const { GovernanceService } = require("./GovernanceService");
 const { NotificationService } = require("./NotificationService");
 
 class ElectionService {
+  /**
+   * Calculate EC experience years for a member
+   * Based on their ecExperience array
+   * 
+   * Handles two scenarios:
+   * 1. Automatic appointments with termId - count unique terms
+   * 2. Manual entries without termId - calculate based on date ranges
+   */
+  static computeEcYears(member) {
+    console.log('\n🚨🚨🚨 [ElectionService] computeEcYears CALLED 🚨🚨🚨');
+    console.log('🔢 [ElectionService.computeEcYears] Starting calculation for member:', member.studentId);
+    console.log('🔢 [ElectionService.computeEcYears] EC Experience array:', JSON.stringify(member.ecExperience, null, 2));
+    
+    const entries = member.ecExperience || [];
+    console.log('🔢 [ElectionService.computeEcYears] Number of entries:', entries.length);
+    
+    if (entries.length === 0) {
+      console.log('🔢 [ElectionService.computeEcYears] No entries found, returning 0');
+      return 0;
+    }
+    
+    // Collect all unique calendar years where member had EC experience
+    const uniqueYears = new Set();
+    
+    for (const exp of entries) {
+      console.log('🔢 [ElectionService.computeEcYears] Processing entry:', exp.postName);
+      
+      // Use startDate field (from Member schema) or startsOn (legacy)
+      const startDate = exp.startDate || exp.startsOn;
+      const endDate = exp.endDate || exp.endsOn || (exp.isCurrent ? new Date() : null);
+      
+      console.log('🔢 [ElectionService.computeEcYears]   startDate:', startDate);
+      console.log('🔢 [ElectionService.computeEcYears]   endDate:', endDate);
+      
+      if (!startDate) {
+        console.log('🔢 [ElectionService.computeEcYears]   ⚠️  No start date, skipping');
+        continue;
+      }
+      
+      const start = new Date(startDate);
+      const end = endDate ? new Date(endDate) : new Date(); // If no end date, assume current
+      
+      // Add all years from start to end
+      const startYear = start.getFullYear();
+      const endYear = end.getFullYear();
+      
+      console.log(`🔢 [ElectionService.computeEcYears]   Years range: ${startYear} to ${endYear}`);
+      
+      for (let year = startYear; year <= endYear; year++) {
+        uniqueYears.add(year);
+        console.log('🔢 [ElectionService.computeEcYears]     Added year:', year);
+      }
+    }
+    
+    console.log('🔢 [ElectionService.computeEcYears] Unique years collected:', Array.from(uniqueYears).sort());
+    console.log('🔢 [ElectionService.computeEcYears] Final result:', uniqueYears.size);
+    
+    // Return count of unique years (this represents years of experience)
+    return uniqueYears.size;
+  }
+
   static async createElection(payload, actorId, requestId) {
+    const electionType = payload.electionType || "full";
+
     // Map the simple `phase` field to `currentPhase` and set phase-specific dates
     const electionData = {
       ...payload,
+      electionType,
+      targetPost: payload.targetPost || null,
       currentPhase: payload.phase || 1,
     };
+
+    // For non-full elections, force phase 2 start
+    if (electionType === "phase2_only" || electionType === "single_post") {
+      electionData.currentPhase = 2;
+      electionData.phase1 = { status: "Not_Started" };
+      electionData.usePerBatchPhase1 = false;
+    }
 
     // Also populate phase-specific voting dates from top-level startsOn/endsOn
     if (payload.startsOn && payload.endsOn) {
@@ -99,7 +171,7 @@ class ElectionService {
   }
 
   static async getElection(electionId) {
-    const election = await Election.findById(electionId);
+    const election = await Election.findById(electionId).populate('targetPost', 'title code');
     if (!election) throw new ApiError(404, "Election not found");
     // Lazily apply any due auto-transition so reads never show a stale window.
     await ElectionAutomationService.processElection(election).catch(() => {});
@@ -109,7 +181,7 @@ class ElectionService {
   static async listElections(requestingUserId = null) {
     // Apply any due auto-transitions before listing so statuses are fresh.
     await ElectionAutomationService.runAutomationCheck().catch(() => {});
-    const elections = await Election.find({}).sort({ createdAt: -1 });
+    const elections = await Election.find({}).sort({ createdAt: -1 }).populate('targetPost', 'title code');
     
     if (requestingUserId) {
       const { Member } = require("../models/Member");
@@ -135,26 +207,6 @@ class ElectionService {
       const targetYears = election.targetYears || [];
       return targetYears.length === 0 || targetYears.includes("All_Years");
     });
-  }
-
-  /**
-   * Compute completed EC experience in whole years from a member's ecExperience[].
-   * Each entry contributes (endDate|now - startDate). Overlapping terms are summed
-   * conservatively; the constitution counts "years of working in the EC".
-   */
-  static computeEcYears(member) {
-    const entries = member.ecExperience || [];
-    if (entries.length === 0) return 0;
-    let totalMs = 0;
-    const now = Date.now();
-    for (const e of entries) {
-      if (!e.startDate) continue;
-      const start = new Date(e.startDate).getTime();
-      const end = e.endDate ? new Date(e.endDate).getTime() : now;
-      if (end > start) totalMs += end - start;
-    }
-    const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
-    return Math.floor(totalMs / YEAR_MS);
   }
 
   static async addCandidate(payload, actorId, requestId) {
@@ -197,7 +249,8 @@ class ElectionService {
     }
 
     // Phase 2 candidates must be approved Phase 1 representatives (ARTICLE XIV.3.ii).
-    if (electionPhase === 2) {
+    // UNLESS this is a phase2_only or single_post election where Phase 1 is skipped.
+    if (electionPhase === 2 && (election.electionType || "full") === "full") {
       const phase1Rep = await ElectionCandidate.findOne({
         electionId: payload.electionId,
         memberId: payload.memberId,
@@ -210,13 +263,21 @@ class ElectionService {
       }
     }
 
+    // For single_post elections, enforce the targetPost constraint
+    if ((election.electionType === "single_post") && payload.postId) {
+      if (payload.postId.toString() !== election.targetPost?.toString()) {
+        throw new ApiError(400, "This election only accepts candidates for the designated post");
+      }
+    }
+
     let post = null;
     if (payload.postId) {
       post = await EcPost.findById(payload.postId);
       if (!post) throw new ApiError(404, "EC post not found");
 
       // Per-post year + EC-experience eligibility (ARTICLE XIV.4 / XV.2).
-      const memberEcYears = payload.memberEcYears != null ? payload.memberEcYears : this.computeEcYears(member);
+      // Always calculate EC years from member data on backend (ignore frontend value)
+      const memberEcYears = this.computeEcYears(member);
       const check = await policyRegistry.evaluate("ec.holdPost", {
         memberYear: member.currentYear,
         memberEcYears,
@@ -263,11 +324,22 @@ class ElectionService {
       .populate("postId", "title code displayOrder")
       .sort({ createdAt: 1 });
 
+    console.log(`[listCandidates] Election ${electionId}: currentPhase=${election.currentPhase}, phase=${election.phase}`);
+    console.log(`[listCandidates] Total candidates found: ${candidates.length}`);
+    console.log(`[listCandidates] Candidates phases:`, candidates.map(c => ({ id: c._id, phase: c.phase, post: c.postId?.title || 'no-post' })));
+
     // Voter-scoped ballot: in Phase 1, a voter may only see candidates from
     // their own batch (Constitution ARTICLE XIV — batch representative voting).
+    // In Phase 2, voters only see Phase 2 candidates (office bearers).
     // Commissioners/managers omit scopeToVoter to see everyone.
     if (options.scopeToVoter && options.requestingUserId) {
       const phase = election.currentPhase || election.phase || 1;
+      console.log(`[listCandidates] scopeToVoter=true, resolved phase=${phase}`);
+      
+      // Filter candidates by current phase
+      const phaseCandidates = candidates.filter((c) => c.phase === phase);
+      console.log(`[listCandidates] After phase filter: ${phaseCandidates.length} candidates for phase ${phase}`);
+      
       if (phase === 1) {
         const voter = await Member.findOne({ userId: options.requestingUserId }).select("batch");
         if (voter?.batch == null) return []; // can't resolve batch → leak nothing
@@ -280,12 +352,16 @@ class ElectionService {
           if (!sub || sub.status !== "Active") return [];
         }
 
-        return candidates.filter((c) => {
+        return phaseCandidates.filter((c) => {
           const denorm = c.batch != null ? c.batch.toString() : null;
           const memberBatch = c.memberId?.batch != null ? c.memberId.batch.toString() : null;
           return denorm === voterBatch || memberBatch === voterBatch;
         });
       }
+      
+      // Phase 2 (or any other phase): return all candidates for that phase
+      console.log(`[listCandidates] Returning ${phaseCandidates.length} Phase ${phase} candidates`);
+      return phaseCandidates;
     }
 
     return candidates;
@@ -516,16 +592,29 @@ class ElectionService {
       
       // Validate state transitions - allow Phase 2 elections to skip Phase 1
       // Also allow backward transitions (reopening) for mistaken status changes
-      const validTransitions = {
-        'Draft': ['Setup', 'Phase1_Active', 'Phase2_Active', 'Cancelled'], // Allow direct to Phase2
-        'Setup': ['Phase1_Active', 'Phase2_Active', 'Cancelled'], // Allow direct to Phase2
-        'Phase1_Active': ['Phase1_Completed', 'Cancelled'],
-        'Phase1_Completed': ['Phase1_Active', 'Phase2_Active', 'Completed', 'Cancelled'], // Allow reopening Phase 1
-        'Phase2_Active': ['Phase2_Completed', 'Cancelled'],
-        'Phase2_Completed': ['Phase2_Active', 'Completed'], // Allow reopening Phase 2
-        'Completed': ['Phase2_Active', 'Phase1_Active'], // Allow reopening completed elections
-        'Cancelled': []
-      };
+      let validTransitions;
+      if ((election.electionType || "full") !== "full") {
+        // Non-full elections skip Phase 1 states entirely
+        validTransitions = {
+          'Draft': ['Setup', 'Phase2_Active', 'Cancelled'],
+          'Setup': ['Phase2_Active', 'Cancelled'],
+          'Phase2_Active': ['Phase2_Completed', 'Cancelled'],
+          'Phase2_Completed': ['Phase2_Active', 'Completed'],
+          'Completed': ['Phase2_Active'],
+          'Cancelled': []
+        };
+      } else {
+        validTransitions = {
+          'Draft': ['Setup', 'Phase1_Active', 'Phase2_Active', 'Cancelled'],
+          'Setup': ['Phase1_Active', 'Phase2_Active', 'Cancelled'],
+          'Phase1_Active': ['Phase1_Completed', 'Cancelled'],
+          'Phase1_Completed': ['Phase1_Active', 'Phase2_Active', 'Completed', 'Cancelled'],
+          'Phase2_Active': ['Phase2_Completed', 'Cancelled'],
+          'Phase2_Completed': ['Phase2_Active', 'Completed'],
+          'Completed': ['Phase2_Active', 'Phase1_Active'],
+          'Cancelled': []
+        };
+      }
       
       const allowedNext = validTransitions[currentStatus] || [];
       
@@ -834,44 +923,69 @@ class ElectionService {
    * - Sets status to "Pending" (requires EC approval)
    * - Only for Phase 1 (batch representative) elections
    */
-  static async selfNominate(electionId, actorUserId, requestId) {
-    const election = await Election.findById(electionId);
+  static async selfNominate(electionId, actorUserId, requestId, payload = {}) {
+    const election = await Election.findById(electionId).populate('targetPost', 'title');
     if (!election) throw new ApiError(404, "Election not found");
 
-    // Only allow self-nomination for active Phase 1 elections
+    const electionType = election.electionType || "full";
     const electionPhase = election.currentPhase || election.phase || 1;
-    if (electionPhase !== 1) {
+    const isNonFull = electionType === "phase2_only" || electionType === "single_post";
+
+    // Only allow self-nomination for Phase 1 (full elections) or Phase 2 (non-full elections)
+    if (!isNonFull && electionPhase !== 1) {
       throw new ApiError(400, "Self-nomination is only available for Phase 1 (Batch Representative) elections");
     }
 
     // Check if election is in nomination period or active
-    if (!['Draft', 'Setup', 'Phase1_Active'].includes(election.status)) {
+    const validStatuses = isNonFull
+      ? ['Draft', 'Setup', 'Phase2_Active']
+      : ['Draft', 'Setup', 'Phase1_Active'];
+    if (!validStatuses.includes(election.status)) {
       throw new ApiError(400, "This election is not accepting nominations at this time");
+    }
+
+    // Determine candidate phase and post
+    let candidatePhase = 1;
+    let candidatePostId = null;
+    let candidateBatch;
+
+    if (isNonFull) {
+      candidatePhase = 2;
+      if (electionType === "single_post") {
+        candidatePostId = election.targetPost?._id || election.targetPost;
+      } else {
+        // phase2_only: postId must be provided in request body
+        candidatePostId = payload?.postId;
+        if (!candidatePostId) {
+          throw new ApiError(400, "You must specify which EC post you are nominating for");
+        }
+      }
     }
 
     // Find member record for the authenticated user
     const member = await Member.findOne({ userId: actorUserId });
     if (!member) throw new ApiError(404, "Member record not found. You must be a registered member to apply");
 
+    if (!isNonFull) {
+      candidateBatch = member.batch.toString();
+    }
+
     // Check if already nominated (allow reapplication if previous was rejected)
     const existing = await ElectionCandidate.findOne({
       electionId,
       memberId: member._id,
-      phase: 1,
+      phase: candidatePhase,
     });
     if (existing) {
-      // Allow reapplication only if previous application was rejected
       if (existing.status === "Rejected") {
-        // Delete the old rejected application to allow a fresh one
         await ElectionCandidate.findByIdAndDelete(existing._id);
       } else {
-        // Application is still pending, approved, or in another non-rejected state
         throw new ApiError(409, `You have already applied for this election. Current status: ${existing.status}`);
       }
     }
 
     // --- Eligibility checks (same as addCandidate) ---
-    
+
     // Active membership required
     const memberStatus = member.membershipStatus?.status || member.status || "Unknown";
     if (memberStatus !== "Active") {
@@ -894,23 +1008,36 @@ class ElectionService {
     // Eligibility thresholds: CGPA >= 3.0, Attendance >= 75%
     const cgpa = member.academicRecord?.currentCgpa || 0;
     const attendance = member.attendanceRecord?.overallAttendancePercentage || 0;
-    
+
     if (cgpa < 3.0) {
       throw new ApiError(400, `Minimum CGPA of 3.0 required. Your CGPA: ${cgpa.toFixed(2)}`);
     }
-    
+
     if (attendance < 75) {
       throw new ApiError(400, `Minimum attendance of 75% required. Your attendance: ${attendance}%`);
+    }
+
+    // For Phase 2 candidates, validate post eligibility
+    if (candidatePhase === 2 && candidatePostId) {
+      const post = await EcPost.findById(candidatePostId);
+      if (!post) throw new ApiError(404, "EC post not found");
+      const memberEcYears = this.computeEcYears(member);
+      const check = await policyRegistry.evaluate("ec.holdPost", {
+        memberYear: member.currentYear,
+        memberEcYears,
+        post,
+      });
+      if (!check.allowed) throw new ApiError(400, check.reason || "You are not eligible for this post");
     }
 
     // Create candidate record with status "Submitted" (needs EC approval)
     const candidate = await ElectionCandidate.create({
       electionId,
       memberId: member._id,
-      phase: 1,
-      postId: null, // Phase 1 = batch representative, no post
-      batch: member.batch.toString(),
-      status: "Submitted", // Requires EC review and approval
+      phase: candidatePhase,
+      postId: candidatePostId || null,
+      batch: candidateBatch || undefined,
+      status: "Submitted",
       nominationType: "Self_Nomination",
       submittedAt: new Date(),
       eligibilityDetails: {
@@ -926,7 +1053,7 @@ class ElectionService {
       resource: "ElectionCandidate",
       resourceId: candidate._id.toString(),
       requestId,
-      metadata: { electionId, phase: 1, batch: member.batch },
+      metadata: { electionId, phase: candidatePhase, batch: candidateBatch, postId: candidatePostId },
     });
 
     // Notify Election Commissioners

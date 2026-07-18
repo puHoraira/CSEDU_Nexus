@@ -402,6 +402,17 @@ class EnhancedElectionController {
 
   // Get eligible posts for a member in Phase 2
   static getEligiblePosts = asyncHandler(async (req, res) => {
+    console.log('\n🚨 [EnhancedElectionController.getEligiblePosts] ENDPOINT HIT - TIMESTAMP:', new Date().toISOString());
+    console.log('🚨 [EnhancedElectionController.getEligiblePosts] Params:', req.params);
+    console.log('🚨 [EnhancedElectionController.getEligiblePosts] Query:', req.query);
+    
+    // FORCE CLEAR REQUIRE CACHE - REMOVE THIS AFTER TESTING
+    const servicePath = require.resolve('../services/EnhancedElectionService');
+    delete require.cache[servicePath];
+    console.log('🔄 [EnhancedElectionController.getEligiblePosts] FORCE RELOADED SERVICE FROM:', servicePath);
+    
+    const { EnhancedElectionService } = require('../services/EnhancedElectionService');
+    
     const { electionId } = req.params;
     const { memberId } = req.query;
     
@@ -416,10 +427,20 @@ class EnhancedElectionController {
       targetMemberId = member._id;
     }
     
+    console.log('🚨 [EnhancedElectionController.getEligiblePosts] Calling service with:', {
+      targetMemberId,
+      electionId
+    });
+    
     const eligibility = await EnhancedElectionService.getEligiblePostsForMember(
       targetMemberId,
       electionId
     );
+    
+    console.log('🚨 [EnhancedElectionController.getEligiblePosts] Service returned:', {
+      memberEcYears: eligibility?.member?.ecYears,
+      eligibilityCount: eligibility?.eligibility?.length
+    });
     
     return res.json(
       new ApiResponse(200, eligibility, "Eligible posts retrieved successfully")

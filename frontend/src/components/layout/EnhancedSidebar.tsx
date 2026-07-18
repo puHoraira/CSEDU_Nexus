@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Home, Calendar, Users, Vote, FileText, DollarSign,
   Award, Bell, Settings, ChevronLeft, ChevronRight, UserCircle, LogOut, BookOpen,
-  Shield, GraduationCap, Gavel, DoorOpen
+  Shield, GraduationCap, Gavel, DoorOpen, Briefcase
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { getDefaultDashboardRoute, getUserType } from '../../utils/dashboardRouter';

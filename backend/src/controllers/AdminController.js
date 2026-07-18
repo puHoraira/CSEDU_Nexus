@@ -86,6 +86,25 @@ class AdminController {
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // EC EXPERIENCE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static addEcExperience = asyncHandler(async (req, res) => {
+    const item = await AdminService.addEcExperience(req.params.id, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.created(res, item, "EC experience added");
+  });
+
+  static updateEcExperience = asyncHandler(async (req, res) => {
+    const item = await AdminService.updateEcExperience(req.params.id, req.params.experienceId, req.body, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "EC experience updated");
+  });
+
+  static deleteEcExperience = asyncHandler(async (req, res) => {
+    const item = await AdminService.deleteEcExperience(req.params.id, req.params.experienceId, req.auth.userId, req.requestMeta.requestId);
+    return ApiResponse.ok(res, item, "EC experience deleted");
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // ALUMNI MANAGEMENT
   // ═══════════════════════════════════════════════════════════════════════════
 

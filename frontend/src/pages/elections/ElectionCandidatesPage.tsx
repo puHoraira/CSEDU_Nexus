@@ -1,8 +1,8 @@
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, UserPlus, GraduationCap, Hash, Calendar } from 'lucide-react';
+import { CheckCircle, XCircle, UserPlus, Hash, Calendar } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError } from '../../lib/api';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -18,6 +18,14 @@ type CandidateRow = {
   status: 'Submitted' | 'Under_Review' | 'Approved' | 'Rejected' | 'Withdrawn' | 'Pending';
   rejectionReason?: string;
   postId?: { title?: string } | null;
+  phase?: number;
+  votingResults?: {
+    totalVotes?: number;
+    votePercentage?: number;
+    rank?: number;
+    isWinner?: boolean;
+    isRunnerUp?: boolean;
+  };
   memberId?: {
     studentId?: string;
     currentYear?: number;
@@ -47,6 +55,12 @@ type EligibilityResponse = {
     studentId: string;
     currentYear: number;
     ecYears: number;
+    ecExperience?: Array<{
+      postName: string;
+      startDate: string;
+      endDate?: string;
+      isCurrent?: boolean;
+    }>;
   };
   eligibility: PostEligibility[];
 };
@@ -70,7 +84,7 @@ export function ElectionCandidatesPage() {
   const qc = useQueryClient();
   const hasValidId = Boolean(id && /^[a-fA-F0-9]{24}$/.test(id));
 
-  const [form, setForm] = useState({ memberId: '', postId: '', memberEcYears: 0 });
+  const [form, setForm] = useState({ memberId: '', postId: '' });
   const [showForm, setShowForm] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
   const [processingCandidateId, setProcessingCandidateId] = useState<string | null>(null);
@@ -90,51 +104,53 @@ export function ElectionCandidatesPage() {
     enabled: Boolean(token),
   });
 
-  const { data: posts = [] } = useQuery({
-    queryKey: ['ec-posts-for-candidacy', token],
-    queryFn: () => apiRequest<Array<{ _id: string; title: string; isActive?: boolean }>>('/governance/ec-posts', { token }),
-    enabled: Boolean(token),
-  });
-
   const { data: candidates = [], isLoading } = useQuery({
     queryKey: ['election-candidates', id, token],
-    queryFn: () => apiRequest<CandidateRow[]>(`/elections/${id}/candidates`, { token }),
+    queryFn: () => apiRequest<CandidateRow[]>(`/enhanced-elections/${id}/candidates`, { token }),
     enabled: Boolean(hasValidId && token),
   });
 
-  // Fetch election to know current phase so we can hide postId for Phase 1
   const { data: election } = useQuery({
     queryKey: ['election-detail', id, token],
-    queryFn: () => apiRequest<{ _id: string; currentPhase: number; name: string }>(`/elections/${id}`, { token }),
+    queryFn: () => apiRequest<{ _id: string; currentPhase: number; name: string }>(`/enhanced-elections/${id}`, { token }),
     enabled: Boolean(hasValidId && token),
   });
 
   const isPhase1 = (election?.currentPhase ?? 1) === 1;
 
   // Fetch eligible posts for selected member (Phase 2 only)
-  const { data: eligibility, isLoading: eligibilityLoading } = useQuery({
+  const { data: eligibility, isLoading: eligibilityLoading, error: eligibilityError } = useQuery({
     queryKey: ['member-eligibility', id, selectedMemberForEligibility || form.memberId, token],
-    queryFn: () => apiRequest<EligibilityResponse>(
-      `/enhanced-elections/${id}/eligible-posts?memberId=${selectedMemberForEligibility || form.memberId}`, 
-      { token }
-    ),
+    queryFn: async () => {
+      const result = await apiRequest<EligibilityResponse>(
+        `/enhanced-elections/${id}/eligible-posts?memberId=${selectedMemberForEligibility || form.memberId}`, 
+        { token }
+      );
+      console.log('✅ Eligibility API Response:', result);
+      return result;
+    },
     enabled: Boolean(hasValidId && token && !isPhase1 && (selectedMemberForEligibility || form.memberId)),
+    retry: false, // Don't retry on error
+    onError: (error) => {
+      console.error('❌ Eligibility API Error:', error);
+    },
   });
 
   const addMut = useMutation({
-    mutationFn: () => apiRequest('/elections/candidates', {
+    mutationFn: () => apiRequest('/enhanced-elections/candidates', {
       method: 'POST', token,
       body: JSON.stringify({
         electionId: id,
         memberId: form.memberId,
         // Never send postId for Phase 1 — backend will reject it
         postId: isPhase1 ? null : (form.postId || null),
-        memberEcYears: form.memberEcYears,
+        phase: isPhase1 ? 1 : 2,
+        // EC years are calculated on the backend from member's ecExperience
       }),
     }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['election-candidates', id, token] });
-      setForm({ memberId: '', postId: '', memberEcYears: 0 });
+      setForm({ memberId: '', postId: '' });
       setShowForm(false);
       toast.success('Candidate added');
     },
@@ -144,8 +160,8 @@ export function ElectionCandidatesPage() {
   const validateMut = useMutation({
     mutationFn: ({ candidateId, action, reason }: { candidateId: string; action: 'Approved' | 'Rejected'; reason?: string }) => {
       setProcessingCandidateId(candidateId);
-      return apiRequest(`/elections/candidates/${candidateId}/validate`, {
-        method: 'PATCH', token,
+      return apiRequest(`/enhanced-elections/candidates/${candidateId}/review`, {
+        method: 'POST', token,
         body: JSON.stringify({ action, reason: reason || '' }),
       });
     },
@@ -176,9 +192,15 @@ export function ElectionCandidatesPage() {
         `batch ${m.batch}`.includes(searchLower)
       );
     });
-  // Group by post
-  const byPost = candidates.reduce((acc, c) => {
-    const key = c.postId?.title || 'Batch Representative';
+  // Group candidates by phase-appropriate context
+  // Note: Check individual candidate's phase, not just election phase
+  // Some elections in Phase 2 may still have Phase 1 candidates (batch reps)
+  const grouped = candidates.reduce((acc, c) => {
+    // Determine grouping based on candidate's actual phase or post assignment
+    const candidateIsPhase1 = !c.postId; // Phase 1 candidates don't have postId
+    const key = candidateIsPhase1
+      ? `Batch ${c.memberId?.batch || 'Unknown'}`
+      : (c.postId?.title || 'Unassigned Post');
     if (!acc[key]) acc[key] = [];
     acc[key].push(c);
     return acc;
@@ -187,10 +209,13 @@ export function ElectionCandidatesPage() {
   return (
     <div className="ui-page">
       <PageHeader
-        title="Candidate Management"
-        description="Review and manage candidacy eligibility"
+        title={isPhase1 ? 'Phase 1 — Batch Representative Candidates' : 'Phase 2 — Office Bearer Candidates'}
+        description={isPhase1
+          ? 'Add and review batch representative candidates. Top 5 per batch become Executive Members.'
+          : 'Manage office bearer candidates for EC posts 1-11. Only Phase 1 winners are eligible.'
+        }
         backButton
-        breadcrumbs={[{ label: 'Elections', href: '/dashboard/elections' }, { label: 'Candidates' }]}
+        breadcrumbs={[{ label: 'Elections', href: '/dashboard/elections' }, { label: isPhase1 ? 'Phase 1 Candidates' : 'Phase 2 Candidates' }]}
         actions={
           <Button leftIcon={UserPlus} onClick={() => setShowForm(v => !v)}>
             {showForm ? 'Cancel' : 'Add Candidate'}
@@ -200,34 +225,35 @@ export function ElectionCandidatesPage() {
 
       {!hasValidId && <Alert variant="error">Invalid election link.</Alert>}
 
-      {/* Eligibility guide */}
-      <div className="ui-card">
-        <div className="ui-card__body" style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          {[
-            { icon: GraduationCap, title: 'Phase 1 — Batch Representatives', desc: 'Any active member can apply. No EC experience required. Top 5 from each batch advance to Phase 2.' },
-            { icon: Hash,          title: 'Phase 2 — Office Bearers', desc: 'Phase 1 winners compete for 11 EC posts. Each post has minimum year and EC experience requirements.' },
-          ].map(item => {
-            const Icon = item.icon;
-            return (
-              <div key={item.title} style={{ display: 'flex', gap: 12, flex: 1, minWidth: 280 }}>
-                <div style={{ padding: 10, borderRadius: 12, background: 'var(--gradient-primary)', color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
-                  <Icon size={18} />
-                </div>
-                <div>
-                  <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: '0.88rem', color: 'var(--text)' }}>{item.title}</p>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--muted)', lineHeight: 1.5 }}>{item.desc}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {!isPhase1 && (
-          <div style={{ padding: '0 20px 20px' }}>
-            <Alert variant="info">
-              <strong>Phase 2 Requirements:</strong> When adding candidates, the system will automatically check their eligibility based on current year and EC experience. Only eligible posts will be available for selection.
-            </Alert>
+      {/* Phase indicator banner */}
+      <div style={{
+        padding: '16px 20px',
+        borderRadius: 12,
+        background: isPhase1 ? 'rgba(59,130,246,0.08)' : 'rgba(147,51,234,0.08)',
+        border: `1px solid ${isPhase1 ? 'rgba(59,130,246,0.2)' : 'rgba(147,51,234,0.2)'}`,
+        marginBottom: 8,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: isPhase1 ? 'rgba(59,130,246,0.15)' : 'rgba(147,51,234,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontSize: '1.1rem',
+            color: isPhase1 ? '#2563eb' : '#7c3aed',
+          }}>
+            {election?.currentPhase ?? 1}
           </div>
-        )}
+          <div>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)' }}>
+              {isPhase1 ? 'Phase 1 — Batch Representatives' : 'Phase 2 — Office Bearers'}
+            </p>
+            <p style={{ margin: '2px 0 0', fontSize: '0.82rem', color: 'var(--muted)' }}>
+              {isPhase1
+                ? 'Candidates compete within their own batch. No post assignment — each batch elects up to 5 representatives.'
+                : 'Phase 1 winners compete for specific EC posts. Each post has minimum year and EC experience requirements.'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Add form */}
@@ -275,36 +301,57 @@ export function ElectionCandidatesPage() {
                     {memberSearch && <p className="ui-text-xs ui-text-muted" style={{ marginTop: 4 }}>Showing {filteredMembers.length} members</p>}
                   </div>
 
-                  {/* Post selector with eligibility checking for Phase 2 */}
+                  {/* Post selector — only shown for Phase 2 */}
+                  {!isPhase1 && (
                   <div className="ui-input-wrap">
                     <label className="ui-input-label">
-                      Post {isPhase1 ? '(leave empty for Phase 1)' : '* required for Phase 2'}
+                      Post * (required for Phase 2)
                     </label>
-                    {!isPhase1 && eligibilityLoading && form.memberId && (
+                    {eligibilityLoading && form.memberId && (
                       <div style={{ padding: 12, textAlign: 'center', fontSize: '0.85rem', color: 'var(--muted)' }}>
                         <Spinner size="sm" /> Checking eligibility...
                       </div>
                     )}
-                    {!isPhase1 && !eligibilityLoading && form.memberId && eligibility && (
+                    {eligibilityError && form.memberId && (
+                      <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.3)', marginBottom: 12 }}>
+                        <p style={{ margin: 0, fontSize: '0.82rem', color: '#dc2626', fontWeight: 600 }}>
+                          ⚠️ Cannot load eligibility data
+                        </p>
+                        <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#dc2626', fontFamily: 'monospace', background: 'rgba(255,255,255,0.5)', padding: '6px 8px', borderRadius: 4 }}>
+                          Error: {normalizeApiError(eligibilityError)}
+                        </p>
+                        <p style={{ margin: '8px 0 0', fontSize: '0.75rem', color: '#dc2626' }}>
+                          <strong>Possible causes:</strong>
+                        </p>
+                        <ul style={{ margin: '4px 0 0 20px', fontSize: '0.75rem', color: '#dc2626', paddingLeft: 0, lineHeight: 1.6 }}>
+                          <li>Member record not found in database</li>
+                          <li>Election ID is invalid or election not found</li>
+                          <li>Backend API error (check console for details)</li>
+                        </ul>
+                      </div>
+                    )}
+                    {!eligibilityLoading && !eligibilityError && form.memberId && eligibility && eligibility.member && (
                       <div style={{ marginBottom: 12 }}>
                         <div style={{ padding: 12, background: 'var(--panel)', borderRadius: 12, border: '1px solid var(--border)' }}>
                           <p style={{ margin: '0 0 8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>
                             Member Qualifications
                           </p>
                           <div style={{ display: 'flex', gap: 16, fontSize: '0.8rem', color: 'var(--muted)' }}>
-                            <span>Year: <strong style={{ color: 'var(--text)' }}>{eligibility.member.currentYear}</strong></span>
-                            <span>EC Experience: <strong style={{ color: 'var(--text)' }}>{eligibility.member.ecYears} {eligibility.member.ecYears === 1 ? 'year' : 'years'}</strong></span>
+                            <span>Year: <strong style={{ color: 'var(--text)' }}>{eligibility.member?.currentYear || 'N/A'}</strong></span>
+                            <span>EC Experience: <strong style={{ color: 'var(--text)' }}>
+                              {eligibility.member?.ecYears ?? 0} {eligibility.member?.ecYears === 1 ? 'year' : 'years'}
+                            </strong></span>
                           </div>
                           <div style={{ marginTop: 12 }}>
                             <p style={{ margin: '0 0 6px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text)' }}>
-                              {eligibility.eligibility.filter(e => e.isEligible).length} eligible posts:
+                              {eligibility.eligibility?.filter(e => e.isEligible).length || 0} eligible posts:
                             </p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                              {eligibility.eligibility.filter(e => e.isEligible).map(e => (
+                              {eligibility.eligibility?.filter(e => e.isEligible).map(e => (
                                 <Badge key={e.post._id} variant="success" style={{ fontSize: '0.75rem' }}>
                                   {e.post.title}
                                 </Badge>
-                              ))}
+                              )) || null}
                             </div>
                           </div>
                         </div>
@@ -314,36 +361,26 @@ export function ElectionCandidatesPage() {
                       className="ui-select"
                       value={form.postId}
                       onChange={e => setForm(f => ({ ...f, postId: e.target.value }))}
-                      required={!isPhase1}
-                      disabled={!isPhase1 && !form.memberId}
+                      required
+                      disabled={!form.memberId || !eligibility?.eligibility || eligibilityError}
                     >
                       <option value="">
-                        {isPhase1 
-                          ? "— No post (Batch Representative) —" 
-                          : form.memberId 
-                            ? "— Select a post —" 
-                            : "— Select a member first —"
-                        }
+                        {!form.memberId ? "— Select a member first —" : eligibilityError ? "— Error loading posts —" : !eligibility ? "— Loading posts... —" : "— Select a post —"}
                       </option>
-                      {isPhase1 
-                        ? posts.filter(p => p.isActive !== false).map(p => (
-                            <option key={p._id} value={p._id}>{p.title}</option>
-                          ))
-                        : eligibility?.eligibility.map(e => {
-                            const label = e.isEligible 
-                              ? `✓ ${e.post.title}` 
-                              : `✗ ${e.post.title} (${e.reason})`;
-                            return (
-                              <option key={e.post._id} value={e.post._id} disabled={!e.isEligible}>
-                                {label}
-                              </option>
-                            );
-                          })
-                      }
+                      {eligibility?.eligibility?.map(e => {
+                        const label = e.isEligible
+                          ? `✓ ${e.post.title}`
+                          : `✗ ${e.post.title} (${e.reason})`;
+                        return (
+                          <option key={e.post._id} value={e.post._id} disabled={!e.isEligible}>
+                            {label}
+                          </option>
+                        );
+                      })}
                     </select>
-                    {!isPhase1 && form.postId && eligibility && (
+                    {form.postId && eligibility && (
                       (() => {
-                        const selected = eligibility.eligibility.find(e => e.post._id === form.postId);
+                        const selected = eligibility.eligibility?.find(e => e.post._id === form.postId);
                         if (!selected) return null;
                         return selected.isEligible ? (
                           <div style={{ marginTop: 8, padding: 10, background: 'rgba(34, 197, 94, 0.1)', borderRadius: 8, border: '1px solid rgba(34, 197, 94, 0.3)' }}>
@@ -361,12 +398,16 @@ export function ElectionCandidatesPage() {
                       })()
                     )}
                   </div>
-
-                  <div className="ui-input-wrap">
-                    <label className="ui-input-label">EC Years Experience</label>
-                    <input type="number" min={0} className="ui-input" value={form.memberEcYears}
-                      onChange={e => setForm(f => ({ ...f, memberEcYears: Number(e.target.value) }))} />
-                  </div>
+                  )}
+                  {/* Phase 1 info — no post needed */}
+                  {isPhase1 && (
+                    <div className="ui-input-wrap">
+                      <label className="ui-input-label">Post</label>
+                      <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', fontSize: '0.85rem', color: 'var(--muted)' }}>
+                        Not applicable — Phase 1 candidates are Batch Representatives
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="ui-flex ui-flex-gap-2" style={{ justifyContent: 'flex-end' }}>
                   <Button variant="outline" type="button" onClick={() => setShowForm(false)}>Cancel</Button>
@@ -388,12 +429,12 @@ export function ElectionCandidatesPage() {
         </div>
       )}
 
-      {/* Candidate cards grouped by post */}
-      {!isLoading && Object.entries(byPost).map(([postTitle, list]) => (
-        <div key={postTitle} className="ui-card" style={{ padding: 0 }}>
+      {/* Candidate cards grouped by batch (Phase 1) or post (Phase 2) */}
+      {!isLoading && Object.entries(grouped).map(([groupTitle, list]) => (
+        <div key={groupTitle} className="ui-card" style={{ padding: 0 }}>
           <div className="ui-card__header">
-            <h3 className="ui-card__title">{postTitle}</h3>
-            <Badge variant="neutral">{list.length} candidates</Badge>
+            <h3 className="ui-card__title">{groupTitle}</h3>
+            <Badge variant="neutral">{list.length} candidate{list.length !== 1 ? 's' : ''}</Badge>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, padding: 20 }}>
             {list.map((c, i) => {
@@ -449,6 +490,58 @@ export function ElectionCandidatesPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* Phase 1 Winner Badge (for Phase 1 candidates shown in Phase 2 election) */}
+                    {!isPhase1 && !c.postId && c.votingResults?.isWinner && (
+                      <div style={{ 
+                        marginBottom: 10, 
+                        padding: '8px 12px', 
+                        background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(34, 197, 94, 0.08) 100%)', 
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                        borderRadius: 10,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8
+                      }}>
+                        <div style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          background: 'rgba(34, 197, 94, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.9rem'
+                        }}>
+                          🏆
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: '#16a34a' }}>
+                            Phase 1 Winner
+                          </p>
+                          {c.votingResults?.totalVotes !== undefined && (
+                            <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: '#16a34a', opacity: 0.8 }}>
+                              {c.votingResults.totalVotes} votes · Rank #{c.votingResults.rank || 'N/A'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Show Phase 1 results for non-winners too (when in Phase 2) */}
+                    {!isPhase1 && !c.postId && !c.votingResults?.isWinner && c.votingResults?.totalVotes !== undefined && c.votingResults.totalVotes > 0 && (
+                      <div style={{ 
+                        marginBottom: 10, 
+                        padding: '6px 10px', 
+                        background: 'rgba(100, 116, 139, 0.08)', 
+                        border: '1px solid rgba(100, 116, 139, 0.2)',
+                        borderRadius: 8,
+                        fontSize: '0.75rem',
+                        color: 'var(--muted)'
+                      }}>
+                        Phase 1: {c.votingResults.totalVotes} votes · Rank #{c.votingResults.rank || 'N/A'} (Did not advance)
+                      </div>
+                    )}
 
                     {c.status === 'Rejected' && c.rejectionReason && (
                       <p style={{ margin: '0 0 10px', fontSize: '0.75rem', color: '#ef4444', background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 8 }}>

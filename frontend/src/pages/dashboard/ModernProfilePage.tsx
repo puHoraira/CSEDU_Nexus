@@ -6,7 +6,7 @@ import {
   Camera, User, BookOpen, Code2, Share2,
   Facebook, Linkedin, Github, Twitter,
   CheckCircle, XCircle, GraduationCap, Hash, Calendar,
-  Save, Loader2
+  Save, Loader2, Award, Briefcase
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiRequest, normalizeApiError, type ApiUser } from '../../lib/api';
@@ -30,6 +30,15 @@ type ProfilePayload = {
     academicRecord?: { currentCgpa?: number };
     attendanceRecord?: { overallAttendancePercentage?: number };
     electionEligibility?: { isEligibleForVoting?: boolean; isEligibleForCandidacy?: boolean };
+    ecExperience?: {
+      postName: string;
+      startDate?: string;
+      endDate?: string;
+      isCurrent?: boolean;
+      performanceRating?: string;
+      eventsOrganized?: number;
+      meetingsAttended?: number;
+    }[];
     yearCorrectionRequest?: {
       status: 'None' | 'Pending' | 'Approved' | 'Rejected';
       requestedYear?: number;
@@ -316,6 +325,71 @@ export function ModernProfilePage() {
               yearCorrectionRequest={profileQ.data.membership.yearCorrectionRequest}
               onRefresh={() => profileQ.refetch()}
             />
+          )}
+
+          {/* EC Experience - Only for students */}
+          {isStudent && (
+            <div className="ui-card">
+              <div className="ui-card__header">
+                <h3 className="ui-card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Briefcase size={16} />
+                  EC Experience
+                </h3>
+              </div>
+              <div className="ui-card__body">
+                {profileQ.data?.membership?.ecExperience && profileQ.data.membership.ecExperience.length > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {profileQ.data.membership.ecExperience.slice(0, 3).map((exp, idx) => (
+                        <div 
+                          key={idx} 
+                          style={{ 
+                            padding: '10px 12px', 
+                            borderRadius: 10, 
+                            background: exp.isCurrent ? 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)' : 'var(--surface)',
+                            border: exp.isCurrent ? '2px solid #3b82f6' : '1px solid var(--border)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                            <strong style={{ fontSize: '0.85rem', color: 'var(--text)' }}>{exp.postName}</strong>
+                            {exp.isCurrent && (
+                              <Badge variant="success" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>Current</Badge>
+                            )}
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--muted)' }}>
+                            {exp.startDate ? new Date(exp.startDate).getFullYear() : '—'} - {exp.isCurrent ? 'Present' : (exp.endDate ? new Date(exp.endDate).getFullYear() : '—')}
+                          </p>
+                          {exp.performanceRating && (
+                            <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: 'var(--muted)' }}>
+                              Rating: {exp.performanceRating.replace(/_/g, ' ')}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      {profileQ.data.membership.ecExperience.length > 3 && (
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'center' }}>
+                          +{profileQ.data.membership.ecExperience.length - 3} more
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Award size={14} />
+                        {profileQ.data.membership.ecExperience.filter(e => e.isCurrent).length} current position(s)
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px 10px' }}>
+                    <Award size={32} style={{ color: 'var(--muted)', marginBottom: 8, opacity: 0.5 }} />
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)', fontWeight: 500 }}>No EC Experience Yet</p>
+                    <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'var(--muted)', lineHeight: 1.5 }}>
+                      Your executive committee experience will appear here once you join the EC.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
 

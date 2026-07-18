@@ -615,18 +615,61 @@ class EnhancedElectionService {
   /**
    * Calculate EC experience years for a member
    * Based on their ecExperience array
+   * 
+   * Handles two scenarios:
+   * 1. Automatic appointments with termId - count unique terms
+   * 2. Manual entries without termId - calculate based on date ranges
    */
   static computeEcYears(member) {
-    const entries = member.ecExperience || [];
-    if (entries.length === 0) return 0;
+    console.log('\n🚨🚨🚨 computeEcYears CALLED 🚨🚨🚨');
+    console.log('🔢 [computeEcYears] Starting calculation for member:', member.studentId);
+    console.log('🔢 [computeEcYears] EC Experience array:', JSON.stringify(member.ecExperience, null, 2));
     
-    // Count unique years of EC service
+    const entries = member.ecExperience || [];
+    console.log('🔢 [computeEcYears] Number of entries:', entries.length);
+    
+    if (entries.length === 0) {
+      console.log('🔢 [computeEcYears] No entries found, returning 0');
+      return 0;
+    }
+    
+    // Collect all unique calendar years where member had EC experience
     const uniqueYears = new Set();
+    
     for (const exp of entries) {
-      if (exp.startsOn) {
-        uniqueYears.add(new Date(exp.startsOn).getFullYear());
+      console.log('🔢 [computeEcYears] Processing entry:', exp.postName);
+      
+      // Use startDate field (from Member schema) or startsOn (legacy)
+      const startDate = exp.startDate || exp.startsOn;
+      const endDate = exp.endDate || exp.endsOn || (exp.isCurrent ? new Date() : null);
+      
+      console.log('🔢 [computeEcYears]   startDate:', startDate);
+      console.log('🔢 [computeEcYears]   endDate:', endDate);
+      
+      if (!startDate) {
+        console.log('🔢 [computeEcYears]   ⚠️  No start date, skipping');
+        continue;
+      }
+      
+      const start = new Date(startDate);
+      const end = endDate ? new Date(endDate) : new Date(); // If no end date, assume current
+      
+      // Add all years from start to end
+      const startYear = start.getFullYear();
+      const endYear = end.getFullYear();
+      
+      console.log(`🔢 [computeEcYears]   Years range: ${startYear} to ${endYear}`);
+      
+      for (let year = startYear; year <= endYear; year++) {
+        uniqueYears.add(year);
+        console.log('🔢 [computeEcYears]     Added year:', year);
       }
     }
+    
+    console.log('🔢 [computeEcYears] Unique years collected:', Array.from(uniqueYears).sort());
+    console.log('🔢 [computeEcYears] Final result:', uniqueYears.size);
+    
+    // Return count of unique years (this represents years of experience)
     return uniqueYears.size;
   }
 
@@ -635,13 +678,31 @@ class EnhancedElectionService {
    * Returns posts with eligibility status
    */
   static async getEligiblePostsForMember(memberId, electionId) {
+    console.log('\n\n🚨🚨🚨 [getEligiblePostsForMember] METHOD CALLED - TIMESTAMP:', new Date().toISOString(), '🚨🚨🚨');
+    console.log('🔍 🔍 🔍 [getEligiblePostsForMember] Called with:', { memberId, electionId });
+    
+    // FORCE ERROR TO TEST IF THIS CODE IS RUNNING
+    if (memberId === '6a40ef0f9f9477fc185c9e47') {
+      console.error('🔴🔴🔴 TEST MEMBER DETECTED! EC calculation will be traced 🔴🔴🔴');
+    }
+    
     const member = await require('../models/Member').Member.findById(memberId);
     if (!member) {
+      console.error('❌ [getEligiblePostsForMember] Member not found:', memberId);
       throw new ApiError(404, "Member not found");
     }
 
+    console.log('✅ [getEligiblePostsForMember] Member found:', {
+      _id: member._id,
+      studentId: member.studentId,
+      currentYear: member.currentYear,
+      ecExperienceCount: member.ecExperience?.length || 0,
+      ecExperience: member.ecExperience
+    });
+
     const election = await Election.findById(electionId);
     if (!election) {
+      console.error('❌ [getEligiblePostsForMember] Election not found:', electionId);
       throw new ApiError(404, "Election not found");
     }
 
@@ -651,9 +712,21 @@ class EnhancedElectionService {
       code: { $not: /EXECUTIVE_MEMBER/i } 
     }).sort({ displayOrder: 1 });
 
+    console.log('📋 [getEligiblePostsForMember] Found posts:', posts.length);
+
     // Calculate member's EC experience
     const memberEcYears = this.computeEcYears(member);
     const memberYear = member.currentYear;
+
+    console.log('📊 [getEligiblePostsForMember] Calculated:', {
+      memberYear,
+      memberEcYears,
+      ecExperienceEntries: member.ecExperience?.length || 0
+    });
+    
+    console.log('⚠️ CRITICAL DEBUG - memberEcYears value RIGHT AFTER computeEcYears:', memberEcYears);
+    console.log('⚠️ CRITICAL DEBUG - memberEcYears type:', typeof memberEcYears);
+    console.log('⚠️ CRITICAL DEBUG - is it 0?', memberEcYears === 0);
 
     // Check eligibility for each post
     const eligibilityResults = posts.map(post => {
@@ -667,6 +740,15 @@ class EnhancedElectionService {
       } else if (!meetsEcExperience) {
         reason = `Requires ${post.minEcYears} ${post.minEcYears === 1 ? 'year' : 'years'} of EC experience, you have ${memberEcYears}`;
       }
+
+      console.log(`  📌 Post "${post.title}":`, {
+        minYear: post.minYear,
+        minEcYears: post.minEcYears,
+        meetsYearRequirement,
+        meetsEcExperience,
+        isEligible,
+        reason
+      });
 
       return {
         post: {
@@ -684,15 +766,34 @@ class EnhancedElectionService {
       };
     });
 
-    return {
+    const result = {
       member: {
         _id: member._id,
         studentId: member.studentId,
         currentYear: memberYear,
-        ecYears: memberEcYears
+        ecYears: memberEcYears,
+        ecExperience: member.ecExperience  // Include full ecExperience array for debugging
       },
-      eligibility: eligibilityResults
+      eligibility: eligibilityResults,
+      _debug: {
+        memberEcYearsCalculated: memberEcYears,
+        memberEcYearsType: typeof memberEcYears,
+        timestamp: new Date().toISOString(),
+        ecExperienceCount: member.ecExperience?.length || 0
+      }
     };
+
+    console.log('✅ [getEligiblePostsForMember] FINAL CHECK - memberEcYears value:', memberEcYears);
+    console.log('✅ [getEligiblePostsForMember] FINAL CHECK - result.member.ecYears:', result.member.ecYears);
+    console.log('✅ [getEligiblePostsForMember] Returning result:', JSON.stringify({
+      memberEcYears,
+      memberYear,
+      eligiblePostsCount: eligibilityResults.filter(e => e.isEligible).length,
+      totalPosts: eligibilityResults.length,
+      fullResult: result
+    }, null, 2));
+
+    return result;
   }
 
   /**
@@ -1070,5 +1171,6 @@ class EnhancedElectionService {
     }
   }
 }
+
 
 module.exports = { EnhancedElectionService };

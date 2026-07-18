@@ -36,7 +36,11 @@ const electionSchema = new mongoose.Schema(
     name: { type: String, required: true },
     description: { type: String, default: "" },
     termId: { type: mongoose.Schema.Types.ObjectId, ref: "EcTerm", required: true },
-    
+
+    // Election Type: full (2-phase), phase2_only (skip batch reps), single_post (one EC post)
+    electionType: { type: String, enum: ["full", "phase2_only", "single_post"], default: "full" },
+    targetPost: { type: mongoose.Schema.Types.ObjectId, ref: "EcPost", default: null },
+
     // Target Academic Years (for filtering who can see/vote in this election)
     targetYears: {
       type: [String],
@@ -209,6 +213,7 @@ const electionSchema = new mongoose.Schema(
 // Indexes for performance
 electionSchema.index({ termId: 1, status: 1 });
 electionSchema.index({ currentPhase: 1, status: 1 });
+electionSchema.index({ electionType: 1, status: 1 });
 electionSchema.index({ "phase1.status": 1 });
 electionSchema.index({ "phase2.status": 1 });
 electionSchema.index({ commissionId: 1 });

@@ -330,6 +330,114 @@ class AdminService {
     return member;
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EC EXPERIENCE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static async addEcExperience(studentId, payload, actorId, requestId) {
+    const member = await Member.findById(studentId);
+    if (!member) {
+      throw new ApiError(404, 'Student not found');
+    }
+
+    const newExperience = {
+      postName: payload.postName,
+      startDate: payload.startDate,
+      endDate: payload.endDate || null,
+      isCurrent: payload.isCurrent || false,
+      performanceRating: payload.performanceRating || 'Not_Rated',
+      achievements: payload.achievements || [],
+      responsibilities: payload.responsibilities || [],
+      eventsOrganized: payload.eventsOrganized || 0,
+      meetingsAttended: payload.meetingsAttended || 0,
+      totalMeetings: payload.totalMeetings || 0,
+    };
+
+    // Add postId and termId if provided
+    if (payload.postId) newExperience.postId = payload.postId;
+    if (payload.termId) newExperience.termId = payload.termId;
+
+    member.ecExperience.push(newExperience);
+    await member.save();
+
+    await AuditService.log({
+      actorId,
+      action: "EC_EXPERIENCE_ADDED",
+      resource: "Member",
+      resourceId: member._id.toString(),
+      requestId,
+      metadata: { studentId: member.studentId, postName: payload.postName }
+    });
+
+    return member;
+  }
+
+  static async updateEcExperience(studentId, experienceId, payload, actorId, requestId) {
+    const member = await Member.findById(studentId);
+    if (!member) {
+      throw new ApiError(404, 'Student not found');
+    }
+
+    const experience = member.ecExperience.id(experienceId);
+    if (!experience) {
+      throw new ApiError(404, 'EC experience entry not found');
+    }
+
+    // Update fields if provided
+    if (payload.postName) experience.postName = payload.postName;
+    if (payload.startDate) experience.startDate = payload.startDate;
+    if (payload.endDate !== undefined) experience.endDate = payload.endDate;
+    if (payload.isCurrent !== undefined) experience.isCurrent = payload.isCurrent;
+    if (payload.performanceRating) experience.performanceRating = payload.performanceRating;
+    if (payload.achievements !== undefined) experience.achievements = payload.achievements;
+    if (payload.responsibilities !== undefined) experience.responsibilities = payload.responsibilities;
+    if (payload.eventsOrganized !== undefined) experience.eventsOrganized = payload.eventsOrganized;
+    if (payload.meetingsAttended !== undefined) experience.meetingsAttended = payload.meetingsAttended;
+    if (payload.totalMeetings !== undefined) experience.totalMeetings = payload.totalMeetings;
+    if (payload.postId) experience.postId = payload.postId;
+    if (payload.termId) experience.termId = payload.termId;
+
+    await member.save();
+
+    await AuditService.log({
+      actorId,
+      action: "EC_EXPERIENCE_UPDATED",
+      resource: "Member",
+      resourceId: member._id.toString(),
+      requestId,
+      metadata: { studentId: member.studentId, experienceId, postName: experience.postName }
+    });
+
+    return member;
+  }
+
+  static async deleteEcExperience(studentId, experienceId, actorId, requestId) {
+    const member = await Member.findById(studentId);
+    if (!member) {
+      throw new ApiError(404, 'Student not found');
+    }
+
+    const experience = member.ecExperience.id(experienceId);
+    if (!experience) {
+      throw new ApiError(404, 'EC experience entry not found');
+    }
+
+    const postName = experience.postName; // Save for audit log
+    experience.remove();
+    await member.save();
+
+    await AuditService.log({
+      actorId,
+      action: "EC_EXPERIENCE_DELETED",
+      resource: "Member",
+      resourceId: member._id.toString(),
+      requestId,
+      metadata: { studentId: member.studentId, experienceId, postName }
+    });
+
+    return member;
+  }
+
   static async getStudentStats() {
     const stats = await Member.aggregate([
       {

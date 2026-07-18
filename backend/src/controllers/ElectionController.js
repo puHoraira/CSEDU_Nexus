@@ -131,7 +131,7 @@ class ElectionController {
   });
 
   static selfNominate = asyncHandler(async (req, res) => {
-    const candidate = await ElectionService.selfNominate(req.params.electionId, req.auth.userId, req.requestMeta.requestId);
+    const candidate = await ElectionService.selfNominate(req.params.electionId, req.auth.userId, req.requestMeta.requestId, req.body);
     return ApiResponse.created(res, candidate, "Application submitted successfully. Your candidacy is pending Election Commission review.");
   });
 

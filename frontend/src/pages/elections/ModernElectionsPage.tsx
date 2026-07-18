@@ -17,8 +17,9 @@ import { formatDateTime } from '../../lib/utils';
 import { usePosterGenerator } from '../../hooks/usePosterGenerator';
 import toast from 'react-hot-toast';
 
-type Election = { _id: string; name: string; phase: number; currentPhase: number; startsOn: string; endsOn: string; status: 'Draft' | 'Active' | 'Closed' };
+type Election = { _id: string; name: string; phase: number; currentPhase: number; startsOn: string; endsOn: string; status: 'Draft' | 'Active' | 'Closed'; electionType?: 'full' | 'phase2_only' | 'single_post'; targetPost?: { _id: string; title: string } | null };
 type Term     = { _id: string; name: string; status: string };
+type EcPost   = { _id: string; title: string; code: string };
 
 const STATUS_CFG: Record<string, { label: string; variant: 'success' | 'warning' | 'neutral'; icon: any }> = {
   Draft:  { label: 'Draft',  variant: 'neutral',  icon: Clock },
@@ -53,7 +54,7 @@ export function ModernElectionsPage() {
   ));
 
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', termId: '', startsOn: '', endsOn: '' });
+  const [form, setForm] = useState({ name: '', termId: '', startsOn: '', endsOn: '', electionType: 'full' as 'full' | 'phase2_only' | 'single_post', targetPost: '' });
 
   const { data: elections = [], isLoading } = useQuery({
     queryKey: queryKeys.elections.all(token),
@@ -65,20 +66,28 @@ export function ModernElectionsPage() {
     queryFn: () => apiRequest<Term[]>('/governance/ec-terms', { token }),
     enabled: Boolean(token && canCreate),
   });
+  const { data: ecPosts = [] } = useQuery({
+    queryKey: ['ec-posts', token],
+    queryFn: () => apiRequest<EcPost[]>('/governance/ec-posts', { token }),
+    enabled: Boolean(token && canCreate && form.electionType === 'single_post'),
+  });
 
   const createMut = useMutation({
     mutationFn: () => apiRequest('/elections', {
       method: 'POST', token,
-      body: JSON.stringify({ 
-        ...form, 
-        phase: 1, // Always start at Phase 1
-        startsOn: new Date(form.startsOn).toISOString(), 
-        endsOn: new Date(form.endsOn).toISOString() 
+      body: JSON.stringify({
+        name: form.name,
+        termId: form.termId,
+        electionType: form.electionType,
+        targetPost: form.electionType === 'single_post' ? form.targetPost : null,
+        phase: form.electionType === 'full' ? 1 : 2,
+        startsOn: new Date(form.startsOn).toISOString(),
+        endsOn: new Date(form.endsOn).toISOString()
       }),
     }),
     onSuccess: async () => {
       await Promise.all(invalidateQueries.elections.all(qc, token));
-      setForm({ name: '', termId: '', startsOn: '', endsOn: '' });
+      setForm({ name: '', termId: '', startsOn: '', endsOn: '', electionType: 'full', targetPost: '' });
       setShowForm(false);
       toast.success('Election created');
     },
@@ -187,6 +196,29 @@ export function ModernElectionsPage() {
               <div className="ui-card__header"><h3 className="ui-card__title">Create Election</h3></div>
               <div className="ui-card__body">
                 <form onSubmit={handleSubmit}>
+                  {/* Election Type Selector */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label className="ui-input-label">Election Type *</label>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {([
+                        { value: 'full', label: 'Full Election', desc: 'Phase 1 (Batch Reps) → Phase 2 (Office Bearers)' },
+                        { value: 'phase2_only', label: 'Direct Post Election', desc: 'Skip Phase 1. Any eligible member can contest EC posts.' },
+                        { value: 'single_post', label: 'Single Post', desc: 'Contest a single EC post (e.g., Presidential by-election)' },
+                      ] as const).map(opt => (
+                        <label key={opt.value} style={{
+                          flex: '1 1 200px', padding: '12px 16px', border: `2px solid ${form.electionType === opt.value ? 'var(--primary)' : 'var(--border)'}`,
+                          borderRadius: 8, cursor: 'pointer', background: form.electionType === opt.value ? 'var(--primary-bg, rgba(59,130,246,0.05))' : 'transparent',
+                          transition: 'all 0.2s',
+                        }}>
+                          <input type="radio" name="electionType" value={opt.value} checked={form.electionType === opt.value}
+                            onChange={() => setForm(f => ({ ...f, electionType: opt.value, targetPost: '' }))} style={{ marginRight: 8 }} />
+                          <strong>{opt.label}</strong>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>{opt.desc}</div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="ui-grid-2" style={{ marginBottom: 16 }}>
                     <div className="ui-input-wrap">
                       <label className="ui-input-label">Name *</label>
@@ -199,18 +231,32 @@ export function ModernElectionsPage() {
                         {terms.map(t => <option key={t._id} value={t._id}>{t.name} [{t.status}]</option>)}
                       </select>
                     </div>
+                    {form.electionType === 'single_post' && (
+                      <div className="ui-input-wrap">
+                        <label className="ui-input-label">Target EC Post *</label>
+                        <select className="ui-select" value={form.targetPost} onChange={e => setForm(f => ({ ...f, targetPost: e.target.value }))} required>
+                          <option value="">Select post…</option>
+                          {ecPosts.map(p => <option key={p._id} value={p._id}>{p.title}</option>)}
+                        </select>
+                      </div>
+                    )}
                     <div className="ui-input-wrap">
-                      <label className="ui-input-label">Phase 1 Starts On *</label>
+                      <label className="ui-input-label">{form.electionType === 'full' ? 'Phase 1 Starts On' : 'Voting Starts On'} *</label>
                       <input type="datetime-local" className="ui-input" value={form.startsOn} onChange={e => setForm(f => ({ ...f, startsOn: e.target.value }))} required />
                     </div>
                     <div className="ui-input-wrap">
-                      <label className="ui-input-label">Phase 1 Ends On *</label>
+                      <label className="ui-input-label">{form.electionType === 'full' ? 'Phase 1 Ends On' : 'Voting Ends On'} *</label>
                       <input type="datetime-local" className="ui-input" value={form.endsOn} onChange={e => setForm(f => ({ ...f, endsOn: e.target.value }))} required />
                     </div>
                   </div>
                   <Alert variant="info" className="ui-mb-3">
-                    <strong>Election Flow:</strong> All elections start at <strong>Phase 1</strong> (Batch Representatives). 
-                    After Phase 1 completes, the Election Commission will advance to <strong>Phase 2</strong> (Office Bearers).
+                    {form.electionType === 'full' ? (
+                      <><strong>Election Flow:</strong> Phase 1 (Batch Representatives) runs first. After Phase 1 completes, the Election Commission will advance to Phase 2 (Office Bearers).</>
+                    ) : form.electionType === 'phase2_only' ? (
+                      <><strong>Direct Election:</strong> This election starts directly at Phase 2. Any eligible active member can self-nominate for any EC post.</>
+                    ) : (
+                      <><strong>Single Post Election:</strong> This election contests a single EC post. Any eligible member can self-nominate for the selected post.</>
+                    )}
                   </Alert>
                   {terms.length === 0 && (
                     <Alert variant="warning" className="ui-mb-3">No EC terms found. Create a term first in Governance → EC Terms.</Alert>
@@ -285,7 +331,14 @@ export function ModernElectionsPage() {
                       {/* Title + status */}
                       <div className="ui-flex ui-flex-between" style={{ marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
                         <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>{el.name}</h3>
-                        <Badge variant={cfg.variant} icon={StatusIcon}>{cfg.label}</Badge>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          {el.electionType && el.electionType !== 'full' && (
+                            <Badge variant="neutral">
+                              {el.electionType === 'phase2_only' ? 'Direct' : `Single: ${el.targetPost?.title || 'Post'}`}
+                            </Badge>
+                          )}
+                          <Badge variant={cfg.variant} icon={StatusIcon}>{cfg.label}</Badge>
+                        </div>
                       </div>
 
                       <p className="ui-text-xs ui-text-muted" style={{ marginBottom: 10 }}>{phaseLabel(el.currentPhase || el.phase)}</p>

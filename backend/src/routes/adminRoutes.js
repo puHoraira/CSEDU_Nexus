@@ -36,6 +36,11 @@ router.get("/students/stats", authenticate, authorize(["System Admin", "Moderato
 router.get("/students/:id", authenticate, authorize(["System Admin", "Moderator", "Chief Patron"]), AdminController.getStudentById);
 router.put("/students/:id/academics", authenticate, authorize(["System Admin", "Moderator"]), AdminController.updateStudentAcademics);
 
+// EC Experience Management
+router.post("/students/:id/ec-experience", authenticate, authorize(["System Admin", "Moderator"]), AdminController.addEcExperience);
+router.put("/students/:id/ec-experience/:experienceId", authenticate, authorize(["System Admin", "Moderator"]), AdminController.updateEcExperience);
+router.delete("/students/:id/ec-experience/:experienceId", authenticate, authorize(["System Admin", "Moderator"]), AdminController.deleteEcExperience);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ALUMNI MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════
