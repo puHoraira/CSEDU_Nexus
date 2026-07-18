@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Moon, Sun, User, LogOut, ChevronDown, Settings, Menu, Languages } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -34,9 +34,11 @@ export function EnhancedHeader({ onMobileMenuToggle }: Props) {
   const { resolvedTheme, toggleTheme } = useTheme();
   const { language, toggleLanguage } = useLanguage();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [notifOpen, setNotifOpen]     = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const notifRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -70,10 +72,29 @@ export function EnhancedHeader({ onMobileMenuToggle }: Props) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const unread = unreadQ.data?.unreadCount ?? 0;
   const notifs = previewQ.data?.items ?? [];
   const userType = getUserType(user);
   const userTypeDisplay = getUserTypeDisplayName(userType);
+
+  const handleNotificationClick = () => {
+    if (isMobile) {
+      // On mobile, navigate directly to notifications page
+      navigate('/dashboard/notifications');
+    } else {
+      // On desktop, toggle dropdown panel
+      setNotifOpen(v => !v);
+      setProfileOpen(false);
+    }
+  };
 
   return (
     <header className="ui-header">
@@ -120,7 +141,7 @@ export function EnhancedHeader({ onMobileMenuToggle }: Props) {
         <div ref={notifRef} style={{ position: 'relative' }}>
           <button
             className={`icon-button ui-touch-target ${unread > 0 ? 'icon-button--ring' : ''}`}
-            onClick={() => { setNotifOpen(v => !v); setProfileOpen(false); }}
+            onClick={handleNotificationClick}
             aria-label={`${t('header.notifications')} ${unread > 0 ? `(${unread} ${t('header.unread')})` : ''}`}
             aria-expanded={notifOpen}
           >
@@ -129,7 +150,7 @@ export function EnhancedHeader({ onMobileMenuToggle }: Props) {
           </button>
 
           <AnimatePresence>
-            {notifOpen && (
+            {!isMobile && notifOpen && (
               <motion.div {...drop} className="ui-notif-panel">
                 <div className="ui-notif-panel__head">
                   <div>

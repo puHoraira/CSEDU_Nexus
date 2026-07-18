@@ -100,11 +100,11 @@ function WorkflowStepper({ status, electionType }: { status?: string; electionTy
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: "0.8rem", fontWeight: 700,
                   background: done
-                    ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+                    ? "var(--gradient-success)"
                     : current
-                    ? "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)"
+                    ? "var(--gradient-primary)"
                     : "var(--surface-soft)",
-                  color: done || current ? "#fff" : "var(--muted)",
+                  color: done || current ? "var(--text)" : "var(--muted)",
                   border: `2px solid ${current || done ? "transparent" : "var(--border)"}`,
                   boxShadow: current || done ? "0 4px 12px rgba(59, 130, 246, 0.3)" : "none",
                   transition: "all 0.3s ease",
@@ -128,7 +128,7 @@ function WorkflowStepper({ status, electionType }: { status?: string; electionTy
                   flex: 1,
                   height: 3,
                   margin: "0 12px",
-                  background: done ? "linear-gradient(90deg, #10b981, #059669)" : color,
+                  background: done ? "var(--gradient-success)" : color,
                   minWidth: 20, 
                   borderRadius: 3,
                   boxShadow: done ? "0 2px 6px rgba(16, 185, 129, 0.3)" : "none",
@@ -346,7 +346,7 @@ export function ElectionCommissionPage() {
   }, [selectedElection]);
 
   return (
-    <div className="ui-page" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)", minHeight: "100vh", paddingBottom: 40 }}>
+    <div className="ui-page" style={{ minHeight: "100vh", paddingBottom: 40 }}>
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -392,19 +392,19 @@ export function ElectionCommissionPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
           style={{
-            background: "linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)",
-            border: "2px solid var(--accent)",
-            boxShadow: "0 10px 30px rgba(59, 130, 246, 0.15)",
+            background: "var(--surface)",
+            border: "2px solid var(--border)",
+            boxShadow: "var(--shadow-sm)",
           }}
         >
-          <div className="ui-card__header" style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", color: "#fff", borderRadius: "12px 12px 0 0", padding: "18px 24px" }}>
-            <h3 className="ui-card__title ui-flex ui-flex-gap-2" style={{ alignItems: "center", margin: 0, color: "#fff" }}>
+          <div className="ui-card__header" style={{ background: "var(--gradient-primary)", color: "var(--text)", borderRadius: "12px 12px 0 0", padding: "18px 24px" }}>
+            <h3 className="ui-card__title ui-flex ui-flex-gap-2" style={{ alignItems: "center", margin: 0 }}>
               <Zap size={20} /> 
               Automation Status
             </h3>
             <Badge 
               variant={automation.state === "counting" ? "success" : automation.state === "due" ? "warning" : "neutral"}
-              style={{ background: "#fff", color: automation.state === "counting" ? "#10b981" : automation.state === "due" ? "#f59e0b" : "#6b7280", fontWeight: 600 }}
+              style={{ fontWeight: 600 }}
             >
               {automation.state === "counting" ? "🔥 Auto-close armed" : automation.state === "due" ? "⏰ Closing shortly" : automation.state === "no-window" ? "⚙️ No window set" : "💤 Idle"}
             </Badge>
@@ -414,13 +414,13 @@ export function ElectionCommissionPage() {
               <span className="ui-flex ui-flex-gap-2" style={{ 
                 alignItems: "center", 
                 padding: "10px 16px", 
-                background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+                background: "var(--surface-soft)",
                 borderRadius: 12,
                 fontWeight: 500,
               }}>
-                <Clock size={16} style={{ color: "#3b82f6" }} />
+                <Clock size={16} style={{ color: "var(--accent)" }} />
                 {automation.endDate
-                  ? <>Phase {automation.phase} voting ends <strong style={{ marginLeft: 4, color: "#1e40af" }}>{automation.endDate.toLocaleString()}</strong></>
+                  ? <>Phase {automation.phase} voting ends <strong style={{ marginLeft: 4, color: "var(--accent)" }}>{automation.endDate.toLocaleString()}</strong></>
                   : <>No voting window configured for Phase {automation.phase}</>}
               </span>
             </div>
@@ -459,26 +459,26 @@ export function ElectionCommissionPage() {
           whileHover={{ boxShadow: "0 15px 35px rgba(0,0,0,0.12)" }}
           transition={{ duration: 0.3 }}
           style={{
-            background: "linear-gradient(135deg, #ffffff 0%, #fef3c7 100%)",
-            border: "2px solid #fbbf24",
+            background: "var(--surface)",
+            border: "2px solid var(--border)",
             overflow: "hidden",
           }}
         >
           <div className="ui-card__header" style={{ 
-            background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", 
-            color: "#fff", 
+            background: "var(--gradient-primary)", 
+            color: "var(--text)", 
             borderRadius: "12px 12px 0 0", 
             padding: "18px 24px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
           }}>
-            <h3 className="ui-card__title" style={{ margin: 0, color: "#fff", display: "flex", alignItems: "center", gap: 10 }}>
+            <h3 className="ui-card__title" style={{ margin: 0, color: "var(--text-invert)", display: "flex", alignItems: "center", gap: 10 }}>
               <Settings size={20} />
               Setup & Control
             </h3>
             <Badge variant={selectedElection ? (selectedElection.status.includes("Active") ? "success" : selectedElection.status.includes("Completed") ? "neutral" : "warning") : "neutral"}
-              style={{ background: "#fff", color: selectedElection?.status.includes("Active") ? "#10b981" : "#6b7280", fontWeight: 600 }}
+              style={{ fontWeight: 600 }}
             >
               {selectedElection ? statusLabel(selectedElection.status) : "No election selected"}
             </Badge>
@@ -489,7 +489,7 @@ export function ElectionCommissionPage() {
                 style={{ 
                   marginBottom: 28, 
                   paddingBottom: 28, 
-                  borderBottom: "2px solid rgba(251, 191, 36, 0.3)",
+                  borderBottom: "2px solid var(--border)",
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -500,14 +500,14 @@ export function ElectionCommissionPage() {
             )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
               <label className="ui-input-wrap">
-                <span className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Election</span>
+                <span className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem" }}>Election</span>
                 <select 
                   className="ui-select" 
                   value={selectedElectionId} 
                   onChange={(e) => setSelectedElectionId(e.target.value)}
                   style={{ 
                     borderWidth: 2, 
-                    borderColor: "#d97706", 
+                    borderColor: "var(--border)", 
                     borderRadius: 12,
                     padding: "10px 14px",
                     fontSize: "0.95rem",
@@ -522,14 +522,14 @@ export function ElectionCommissionPage() {
                 </select>
               </label>
               <label className="ui-input-wrap">
-                <span className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Target phase</span>
+                <span className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem" }}>Target phase</span>
                 <select 
                   className="ui-select" 
                   value={String(phase)} 
                   onChange={(e) => setPhase(Number(e.target.value))}
                   style={{ 
                     borderWidth: 2, 
-                    borderColor: "#d97706", 
+                    borderColor: "var(--border)", 
                     borderRadius: 12,
                     padding: "10px 14px",
                     fontSize: "0.95rem",
@@ -546,14 +546,14 @@ export function ElectionCommissionPage() {
                 style={{ 
                   padding: 18, 
                   borderRadius: 16, 
-                  border: "2px solid #fbbf24", 
-                  background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-                  boxShadow: "0 4px 12px rgba(251, 191, 36, 0.2)",
+                  border: "2px solid var(--warning)", 
+                  background: "var(--surface-soft)",
+                  boxShadow: "var(--shadow-md)",
                 }}
                 whileHover={{ scale: 1.03, boxShadow: "0 8px 20px rgba(251, 191, 36, 0.3)" }}
               >
-                <p style={{ margin: 0, fontSize: "0.75rem", color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Current stage</p>
-                <p style={{ margin: "8px 0 0", fontWeight: 700, fontSize: "1rem", color: "#78350f" }}>
+                <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--warning-dark)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Current stage</p>
+                <p style={{ margin: "8px 0 0", fontWeight: 700, fontSize: "1rem", color: "var(--warning-dark)" }}>
                   {selectedElection ? phaseLabel(selectedElection.phase) : "Select an election"}
                 </p>
               </motion.div>
@@ -561,14 +561,14 @@ export function ElectionCommissionPage() {
                 style={{ 
                   padding: 18, 
                   borderRadius: 16, 
-                  border: "2px solid #60a5fa", 
-                  background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-                  boxShadow: "0 4px 12px rgba(96, 165, 250, 0.2)",
+                  border: "2px solid var(--primary)", 
+                  background: "var(--surface-soft)",
+                  boxShadow: "var(--shadow-md)",
                 }}
                 whileHover={{ scale: 1.03, boxShadow: "0 8px 20px rgba(96, 165, 250, 0.3)" }}
               >
-                <p style={{ margin: 0, fontSize: "0.75rem", color: "#1e3a8a", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Workflow rule</p>
-                <p style={{ margin: "8px 0 0", fontWeight: 700, fontSize: "0.95rem", color: "#1e40af" }}>
+                <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--primary-dark)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Workflow rule</p>
+                <p style={{ margin: "8px 0 0", fontWeight: 700, fontSize: "0.95rem", color: "var(--primary-dark)" }}>
                   Phase 1 first, then Phase 2 only for eligible voters
                 </p>
               </motion.div>
@@ -675,26 +675,26 @@ export function ElectionCommissionPage() {
             whileHover={{ scale: 1.02, boxShadow: "0 15px 35px rgba(59, 130, 246, 0.2)" }}
             transition={{ duration: 0.3 }}
             style={{
-              background: "linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%)",
-              border: "2px solid #3b82f6",
+              background: "var(--surface)",
+              border: "2px solid var(--primary)",
               overflow: "hidden",
             }}
           >
             <div className="ui-card__header" style={{ 
-              background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", 
-              color: "#fff", 
+              background: "var(--gradient-primary)", 
+              color: "var(--text-invert)", 
               borderRadius: "12px 12px 0 0", 
               padding: "18px 24px",
             }}>
-              <h3 className="ui-card__title" style={{ margin: 0, color: "#fff", display: "flex", alignItems: "center", gap: 10 }}>
+              <h3 className="ui-card__title" style={{ margin: 0, color: "var(--text-invert)", display: "flex", alignItems: "center", gap: 10 }}>
                 <Users size={20} />
                 Review - Phase 1
               </h3>
               <div className="ui-flex ui-flex-gap-2">
-                <Badge variant="info" style={{ background: "#fff", color: "#3b82f6", fontWeight: 600 }}>
+                <Badge variant="info" style={{ background: "var(--surface)", color: "var(--primary)", fontWeight: 600 }}>
                   {phase1Candidates.length} pending
                 </Badge>
-                <Badge variant="success" style={{ background: "#fff", color: "#10b981", fontWeight: 600 }}>
+                <Badge variant="success" style={{ background: "var(--surface)", color: "var(--success)", fontWeight: 600 }}>
                   {phase1Approved.length} approved
                 </Badge>
               </div>
@@ -707,7 +707,7 @@ export function ElectionCommissionPage() {
               {/* Pending candidates */}
               {Object.keys(phase1ByBatch).length > 0 && (
                 <>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 14px', color: '#1e40af', display: "flex", alignItems: "center", gap: 8 }}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 14px', color: 'var(--primary-dark)', display: "flex", alignItems: "center", gap: 8 }}>
                     <Eye size={16} />
                     Pending Review
                   </h4>
@@ -718,15 +718,15 @@ export function ElectionCommissionPage() {
                         style={{ 
                           padding: 16, 
                           borderRadius: 16, 
-                          border: "2px solid #60a5fa", 
-                          background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
-                          boxShadow: "0 4px 12px rgba(96, 165, 250, 0.15)",
+                          border: "2px solid var(--primary-soft)", 
+                          background: "var(--surface-soft)",
+                          boxShadow: "var(--shadow-sm)",
                         }}
-                        whileHover={{ scale: 1.02, boxShadow: "0 8px 20px rgba(96, 165, 250, 0.25)" }}
+                        whileHover={{ scale: 1.02, boxShadow: "var(--shadow-md)" }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-                          <strong style={{ fontSize: "1rem", color: "#1e40af" }}>{batch}</strong>
-                          <Badge variant="neutral" style={{ background: "#3b82f6", color: "#fff" }}>
+                          <strong style={{ fontSize: "1rem", color: "var(--primary-dark)" }}>{batch}</strong>
+                          <Badge variant="neutral" style={{ background: "var(--primary)", color: "var(--text-invert)" }}>
                             {items.length} candidates
                           </Badge>
                         </div>
@@ -740,13 +740,13 @@ export function ElectionCommissionPage() {
                                 gap: 10, 
                                 padding: "12px 14px", 
                                 borderRadius: 12, 
-                                background: "#fff", 
-                                border: "2px solid #93c5fd",
-                                boxShadow: "0 2px 6px rgba(59, 130, 246, 0.1)",
+                                background: "var(--surface)", 
+                                border: "2px solid var(--border)",
+                                boxShadow: "var(--shadow-sm)",
                               }}
                               whileHover={{ scale: 1.03, x: 5 }}
                             >
-                              <span style={{ fontWeight: 500, color: "#111827" }}>{item.memberId?.studentId || item._id}</span>
+                              <span style={{ fontWeight: 500, color: "var(--text)" }}>{item.memberId?.studentId || item._id}</span>
                               <Badge variant={item.status === "Rejected" ? "error" : item.status === "Approved" ? "success" : "warning"}>
                                 {item.status}
                               </Badge>
@@ -762,7 +762,7 @@ export function ElectionCommissionPage() {
               {/* Approved candidates (can be re-evaluated) */}
               {phase1Approved.length > 0 && (
                 <>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '20px 0 14px', color: '#059669', display: "flex", alignItems: "center", gap: 8 }}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '20px 0 14px', color: 'var(--success-dark)', display: "flex", alignItems: "center", gap: 8 }}>
                     <UserCheck size={16} />
                     Approved (Can Re-evaluate)
                   </h4>
@@ -778,15 +778,15 @@ export function ElectionCommissionPage() {
                         style={{ 
                           padding: 16, 
                           borderRadius: 16, 
-                          border: "2px solid #10b981", 
-                          background: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)",
-                          boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
+                          border: "2px solid var(--success)", 
+                          background: "var(--surface-soft)",
+                          boxShadow: "var(--shadow-md)",
                         }}
-                        whileHover={{ scale: 1.02, boxShadow: "0 8px 20px rgba(16, 185, 129, 0.3)" }}
+                        whileHover={{ scale: 1.02, boxShadow: "var(--shadow-lg)" }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                          <strong style={{ fontSize: '1rem', color: '#065f46' }}>{batch}</strong>
-                          <Badge variant="success" style={{ background: "#059669", color: "#fff", fontWeight: 600 }}>
+                          <strong style={{ fontSize: '1rem', color: 'var(--success-dark)' }}>{batch}</strong>
+                          <Badge variant="success" style={{ background: "var(--success)", color: "var(--text-invert)", fontWeight: 600 }}>
                             {items.length} approved
                           </Badge>
                         </div>
@@ -801,14 +801,14 @@ export function ElectionCommissionPage() {
                                 gap: 10, 
                                 padding: "12px 14px", 
                                 borderRadius: 12, 
-                                background: "#fff", 
-                                border: "2px solid #6ee7b7",
-                                boxShadow: "0 2px 6px rgba(16, 185, 129, 0.1)",
+                                background: "var(--surface)", 
+                                border: "2px solid var(--success-soft)",
+                                boxShadow: "var(--shadow-sm)",
                               }}
                               whileHover={{ scale: 1.03, x: 5 }}
                             >
-                              <span style={{ fontWeight: 500, color: '#111827', display: "flex", alignItems: "center", gap: 8 }}>
-                                <CheckCircle size={16} color="#10b981" />
+                              <span style={{ fontWeight: 500, color: 'var(--text)', display: "flex", alignItems: "center", gap: 8 }}>
+                                <CheckCircle size={16} color="var(--success)" />
                                 {item.memberId?.studentId || item._id}
                               </span>
                               <Badge variant="success">{item.status}</Badge>
@@ -832,22 +832,22 @@ export function ElectionCommissionPage() {
             whileHover={{ scale: 1.02, boxShadow: "0 15px 35px rgba(245, 158, 11, 0.2)" }}
             transition={{ duration: 0.3 }}
             style={{
-              background: "linear-gradient(135deg, #ffffff 0%, #fef3c7 100%)",
-              border: "2px solid #f59e0b",
+              background: "var(--surface)",
+              border: "2px solid var(--warning)",
               overflow: "hidden",
             }}
           >
             <div className="ui-card__header" style={{ 
-              background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", 
-              color: "#fff", 
+              background: "var(--gradient-warning)", 
+              color: "var(--text-invert)", 
               borderRadius: "12px 12px 0 0", 
               padding: "18px 24px",
             }}>
-              <h3 className="ui-card__title" style={{ margin: 0, color: "#fff", display: "flex", alignItems: "center", gap: 10 }}>
+              <h3 className="ui-card__title" style={{ margin: 0, color: "var(--text-invert)", display: "flex", alignItems: "center", gap: 10 }}>
                 <Vote size={20} />
                 Review - Phase 2
               </h3>
-              <Badge variant="warning" style={{ background: "#fff", color: "#d97706", fontWeight: 600 }}>
+              <Badge variant="warning" style={{ background: "var(--surface)", color: "var(--warning-dark)", fontWeight: 600 }}>
                 {phase2Candidates.length + phase2Approved.length} total
               </Badge>
             </div>
@@ -860,7 +860,7 @@ export function ElectionCommissionPage() {
                   {/* Pending Phase 2 Candidates */}
                   {Object.keys(phase2ByPost).length > 0 && (
                     <>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 14px', color: '#d97706', display: "flex", alignItems: "center", gap: 8 }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 14px', color: 'var(--warning-dark)', display: "flex", alignItems: "center", gap: 8 }}>
                         <Clock size={16} />
                         Pending Review
                       </h4>
@@ -871,15 +871,15 @@ export function ElectionCommissionPage() {
                             style={{ 
                               padding: 16, 
                               borderRadius: 16, 
-                              border: "2px solid #fbbf24", 
-                              background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-                              boxShadow: "0 4px 12px rgba(251, 191, 36, 0.15)",
+                              border: "2px solid var(--warning)", 
+                              background: "var(--surface-soft)",
+                              boxShadow: "var(--shadow-md)",
                             }}
-                            whileHover={{ scale: 1.02, boxShadow: "0 8px 20px rgba(251, 191, 36, 0.25)" }}
+                            whileHover={{ scale: 1.02, boxShadow: "var(--shadow-lg)" }}
                           >
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-                              <strong style={{ fontSize: "1rem", color: "#92400e" }}>{post}</strong>
-                              <Badge variant="neutral" style={{ background: "#f59e0b", color: "#fff" }}>
+                              <strong style={{ fontSize: "1rem", color: "var(--warning-dark)" }}>{post}</strong>
+                              <Badge variant="neutral" style={{ background: "var(--warning)", color: "var(--text-invert)" }}>
                                 {items.length} candidates
                               </Badge>
                             </div>
@@ -893,13 +893,13 @@ export function ElectionCommissionPage() {
                                     gap: 10, 
                                     padding: "12px 14px", 
                                     borderRadius: 12, 
-                                    background: "#fff", 
-                                    border: "2px solid #fcd34d",
-                                    boxShadow: "0 2px 6px rgba(245, 158, 11, 0.1)",
+                                    background: "var(--surface)", 
+                                    border: "2px solid var(--border)",
+                                    boxShadow: "var(--shadow-sm)",
                                   }}
                                   whileHover={{ scale: 1.03, x: 5 }}
                                 >
-                                  <span style={{ fontWeight: 500, color: "#111827" }}>{item.memberId?.studentId || item._id}</span>
+                                  <span style={{ fontWeight: 500, color: "var(--text)" }}>{item.memberId?.studentId || item._id}</span>
                                   <Badge variant={item.status === "Rejected" ? "error" : item.status === "Approved" ? "success" : "warning"}>
                                     {item.status}
                                   </Badge>
@@ -915,7 +915,7 @@ export function ElectionCommissionPage() {
                   {/* Approved Phase 2 Candidates */}
                   {phase2Approved.length > 0 && (
                     <>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '20px 0 14px', color: '#059669', display: "flex", alignItems: "center", gap: 8 }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '20px 0 14px', color: 'var(--success-dark)', display: "flex", alignItems: "center", gap: 8 }}>
                         <UserCheck size={16} />
                         Approved (Can Re-evaluate)
                       </h4>
@@ -931,15 +931,15 @@ export function ElectionCommissionPage() {
                             style={{ 
                               padding: 16, 
                               borderRadius: 16, 
-                              border: "2px solid #10b981", 
-                              background: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)",
-                              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
+                              border: "2px solid var(--success)", 
+                              background: "var(--surface-soft)",
+                              boxShadow: "var(--shadow-md)",
                             }}
-                            whileHover={{ scale: 1.02, boxShadow: "0 8px 20px rgba(16, 185, 129, 0.3)" }}
+                            whileHover={{ scale: 1.02, boxShadow: "var(--shadow-lg)" }}
                           >
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                              <strong style={{ fontSize: '1rem', color: '#065f46' }}>{post}</strong>
-                              <Badge variant="success" style={{ background: "#059669", color: "#fff", fontWeight: 600 }}>
+                              <strong style={{ fontSize: '1rem', color: 'var(--success-dark)' }}>{post}</strong>
+                              <Badge variant="success" style={{ background: "var(--success)", color: "var(--text-invert)", fontWeight: 600 }}>
                                 {items.length} approved
                               </Badge>
                             </div>
@@ -954,14 +954,14 @@ export function ElectionCommissionPage() {
                                     gap: 10, 
                                     padding: "12px 14px", 
                                     borderRadius: 12, 
-                                    background: "#fff", 
-                                    border: "2px solid #6ee7b7",
-                                    boxShadow: "0 2px 6px rgba(16, 185, 129, 0.1)",
+                                    background: "var(--surface)", 
+                                    border: "2px solid var(--success-soft)",
+                                    boxShadow: "var(--shadow-sm)",
                                   }}
                                   whileHover={{ scale: 1.03, x: 5 }}
                                 >
-                                  <span style={{ fontWeight: 500, color: '#111827', display: "flex", alignItems: "center", gap: 8 }}>
-                                    <CheckCircle size={16} color="#10b981" />
+                                  <span style={{ fontWeight: 500, color: 'var(--text)', display: "flex", alignItems: "center", gap: 8 }}>
+                                    <CheckCircle size={16} color="var(--success)" />
                                     {item.memberId?.studentId || item._id}
                                   </span>
                                   <Badge variant="success">{item.status}</Badge>
@@ -994,22 +994,21 @@ export function ElectionCommissionPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.0 }}
           style={{
-            background: "linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%)",
-            border: "2px solid #a855f7",
-            overflow: "hidden",
+            background: "var(--surface)",
+            border: "2px solid var(--accent)",
           }}
         >
           <div className="ui-card__header" style={{ 
-            background: "linear-gradient(135deg, #a855f7 0%, #9333ea 100%)", 
-            color: "#fff", 
+            background: "var(--gradient-accent)", 
+            color: "var(--text-invert)", 
             borderRadius: "12px 12px 0 0", 
             padding: "18px 24px",
           }}>
-            <h3 className="ui-card__title" style={{ margin: 0, color: "#fff", display: "flex", alignItems: "center", gap: 10 }}>
+            <h3 className="ui-card__title" style={{ margin: 0, color: "var(--text-invert)", display: "flex", alignItems: "center", gap: 10 }}>
               <CheckCircle2 size={20} />
               Decision lane
             </h3>
-            <Badge variant="neutral" style={{ background: "#fff", color: "#9333ea", fontWeight: 600 }}>
+            <Badge variant="neutral" style={{ background: "var(--surface)", color: "var(--accent)", fontWeight: 600 }}>
               Review selected candidate
             </Badge>
           </div>
@@ -1017,14 +1016,14 @@ export function ElectionCommissionPage() {
             <form onSubmit={handleReviewSubmit}>
               <div className="ui-grid-3" style={{ marginBottom: 20, gap: 18 }}>
                 <div className="ui-input-wrap">
-                  <label className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Candidate</label>
+                  <label className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text)" }}>Candidate</label>
                   <select 
                     className="ui-select" 
                     value={candidateId} 
                     onChange={(e) => setCandidateId(e.target.value)}
                     style={{ 
                       borderWidth: 2, 
-                      borderColor: "#c084fc", 
+                      borderColor: "var(--border)", 
                       borderRadius: 12,
                       padding: "10px 14px",
                       fontSize: "0.95rem",
@@ -1044,14 +1043,14 @@ export function ElectionCommissionPage() {
                   </select>
                 </div>
                 <div className="ui-input-wrap">
-                  <label className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Decision</label>
+                  <label className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text)" }}>Decision</label>
                   <select 
                     className="ui-select" 
                     value={decision} 
                     onChange={(e) => setDecision(e.target.value as "Approved" | "Rejected")}
                     style={{ 
                       borderWidth: 2, 
-                      borderColor: "#c084fc", 
+                      borderColor: "var(--border)", 
                       borderRadius: 12,
                       padding: "10px 14px",
                       fontSize: "0.95rem",
@@ -1062,7 +1061,7 @@ export function ElectionCommissionPage() {
                   </select>
                 </div>
                 <div className="ui-input-wrap">
-                  <label className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Reason</label>
+                  <label className="ui-input-label" style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text)" }}>Reason</label>
                   <input 
                     className="ui-input" 
                     value={reason} 
@@ -1070,7 +1069,7 @@ export function ElectionCommissionPage() {
                     placeholder="Optional note for the decision"
                     style={{ 
                       borderWidth: 2, 
-                      borderColor: "#c084fc", 
+                      borderColor: "var(--border)", 
                       borderRadius: 12,
                       padding: "10px 14px",
                       fontSize: "0.95rem",
@@ -1112,14 +1111,14 @@ export function ElectionCommissionPage() {
                 >
                   Publish current phase
                 </Button>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 12, padding: "10px 16px", background: "linear-gradient(135deg, #fae8ff 0%, #f3e8ff 100%)", borderRadius: 12, cursor: "pointer" }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 12, padding: "10px 16px", background: "var(--surface-soft)", borderRadius: 12, cursor: "pointer" }}>
                   <input 
                     type="checkbox" 
                     checked={autoCreateAppointments} 
                     onChange={(e) => setAutoCreateAppointments(e.target.checked)}
                     style={{ width: 18, height: 18, cursor: "pointer" }}
                   />
-                  <span style={{ fontSize: '0.95rem', fontWeight: 500, color: "#6b21a8" }}>Auto-create appointments</span>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 500, color: "var(--accent)" }}>Auto-create appointments</span>
                 </label>
               </div>
             </form>
@@ -1132,21 +1131,21 @@ export function ElectionCommissionPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.1 }}
           style={{
-            background: "linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%)",
-            border: "2px solid #6366f1",
+            background: "var(--surface)",
+            border: "2px solid var(--primary-soft)",
           }}
         >
           <div className="ui-card__header" style={{ 
-            background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", 
-            color: "#fff", 
+            background: "var(--gradient-primary)", 
+            color: "var(--text-invert)", 
             borderRadius: "12px 12px 0 0", 
             padding: "18px 24px",
           }}>
-            <h3 className="ui-card__title" style={{ margin: 0, color: "#fff", display: "flex", alignItems: "center", gap: 10 }}>
+            <h3 className="ui-card__title" style={{ margin: 0, color: "var(--text-invert)", display: "flex", alignItems: "center", gap: 10 }}>
               <History size={20} />
               Audit trail
             </h3>
-            <Badge variant="neutral" style={{ background: "#fff", color: "#4f46e5", fontWeight: 600 }}>
+            <Badge variant="neutral" style={{ background: "var(--surface)", color: "var(--primary)", fontWeight: 600 }}>
               {moderatorDetails.data?.recentAudit?.length || 0} entries
             </Badge>
           </div>
@@ -1166,20 +1165,20 @@ export function ElectionCommissionPage() {
                       gap: 14, 
                       padding: "14px 16px", 
                       borderRadius: 14, 
-                      background: "linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%)", 
-                      border: "2px solid #c7d2fe",
-                      boxShadow: "0 2px 6px rgba(99, 102, 241, 0.1)",
+                      background: "var(--surface-soft)", 
+                      border: "2px solid var(--border)",
+                      boxShadow: "var(--shadow-sm)",
                     }}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    whileHover={{ scale: 1.02, boxShadow: "0 4px 12px rgba(99, 102, 241, 0.2)" }}
+                    whileHover={{ scale: 1.02, boxShadow: "var(--shadow-md)" }}
                   >
                     <div>
-                      <strong style={{ display: "block", marginBottom: 6, fontSize: "0.95rem", color: "#1e1b4b" }}>{row.action}</strong>
-                      <span style={{ color: "#6366f1", fontSize: "0.85rem", fontWeight: 500 }}>{row.resource}</span>
+                      <strong style={{ display: "block", marginBottom: 6, fontSize: "0.95rem", color: "var(--text)" }}>{row.action}</strong>
+                      <span style={{ color: "var(--primary)", fontSize: "0.85rem", fontWeight: 500 }}>{row.resource}</span>
                     </div>
-                    <span style={{ color: "#64748b", fontSize: "0.82rem", whiteSpace: "nowrap", alignSelf: "flex-start", padding: "4px 10px", background: "rgba(255,255,255,0.7)", borderRadius: 8 }}>
+                    <span style={{ color: "var(--muted)", fontSize: "0.82rem", whiteSpace: "nowrap", alignSelf: "flex-start", padding: "4px 10px", background: "var(--surface)", borderRadius: 8 }}>
                       {new Date(row.createdAt).toLocaleString()}
                     </span>
                   </motion.div>
