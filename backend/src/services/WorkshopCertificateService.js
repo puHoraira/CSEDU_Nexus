@@ -159,9 +159,21 @@ class WorkshopCertificateService {
         issueDate: new Date(cert.issuedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
         verifyCode: cert.verifyCode,
       });
-      const buffer = await htmlPdf.generatePdf({ content: html }, { format: "A4", landscape: true, printBackground: true });
-      cert.pdfData = `data:application/pdf;base64,${buffer.toString("base64")}`;
-      await cert.save();
+      
+      try {
+        // Timeout protection: if PDF generation takes > 30 seconds, fail gracefully
+        const pdfPromise = htmlPdf.generatePdf({ content: html }, { format: "A4", landscape: true, printBackground: true });
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('PDF generation timeout')), 30000)
+        );
+        
+        const buffer = await Promise.race([pdfPromise, timeoutPromise]);
+        cert.pdfData = `data:application/pdf;base64,${buffer.toString("base64")}`;
+        await cert.save();
+      } catch (error) {
+        console.error('[WorkshopCertificate] PDF generation failed:', error.message);
+        throw new ApiError(500, "Certificate PDF generation failed. Please contact support.");
+      }
     }
     return cert;
   }
