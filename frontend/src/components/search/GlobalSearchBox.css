@@ -52,7 +52,7 @@
   border: none !important;
   background: transparent !important;
   font-size: 0.9rem !important;
-  color: rgba(226, 232, 240, 0.9) !important;
+  color: rgba(30, 41, 59, 0.9) !important;
   outline: none !important;
   min-width: 0 !important;
   font-weight: 400 !important;
@@ -451,6 +451,14 @@
 
 [data-theme="light"] .search-input::placeholder {
   color: rgba(100, 116, 139, 0.6) !important;
+}
+
+[data-theme="dark"] .search-input {
+  color: rgba(226, 232, 240, 0.9) !important;
+}
+
+[data-theme="dark"] .search-input::placeholder {
+  color: rgba(148, 163, 184, 0.6) !important;
 }
 
 [data-theme="light"] .search-icon {
