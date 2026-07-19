@@ -214,6 +214,14 @@ export function VideoRecorder({
   onRecordingComplete,
   onError,
 }: VideoRecorderProps) {
+  console.log('🎥 [VideoRecorder] Component mounted/rendered', {
+    electionId,
+    voterId,
+    hasToken: !!token,
+    voteTimestamp,
+    sessionExpired
+  });
+
   const { stream, status: cameraStatus, error: cameraError } = useCameraPermission();
   const { start: startRecording, stop, status: mediaStatus, blob: recordedBlob } = useMediaRecorder(stream);
 
@@ -254,10 +262,13 @@ export function VideoRecorder({
 
   // Drive state machine: camera permission
   useEffect(() => {
+    console.log('🎥 [VideoRecorder] Camera status changed:', { cameraStatus, cameraError });
+    
     if (cameraStatus === 'pending')     { setRecorderState('requesting_permission'); return; }
     if (cameraStatus === 'unsupported') { setRecorderState('unsupported'); setErrorDetail(cameraError); return; }
     if (cameraStatus === 'denied')      { setRecorderState('permission_denied'); setErrorDetail(cameraError); return; }
     if (cameraStatus === 'granted' && !recordingStartedRef.current) {
+      console.log('🎥 [VideoRecorder] Camera granted, setting ready state');
       setRecorderState('ready');
     }
   }, [cameraStatus, cameraError]);
@@ -265,11 +276,13 @@ export function VideoRecorder({
   // Auto-start recording when camera is granted
   useEffect(() => {
     if (cameraStatus === 'granted' && stream && !recordingStartedRef.current && mediaStatus !== 'unsupported') {
+      console.log('🎥 [VideoRecorder] Auto-starting recording...');
       recordingStartedRef.current = true;
       stoppedRef.current = false;
       setRecorderState('recording');
       startRecording();
       onSessionStart(); // notify parent to start the 30-second session timer
+      console.log('🎥 [VideoRecorder] Recording started, session timer triggered');
     }
   }, [cameraStatus, stream, mediaStatus, startRecording, onSessionStart]);
 
@@ -288,13 +301,18 @@ export function VideoRecorder({
     if (stoppedRef.current) return;
     if (postVoteTimerRef.current !== null) return; // already scheduled
 
+    console.log('🎥 [VideoRecorder] Vote cast detected!', { voteTimestamp });
+
     // Schedule stop after post-vote window
     const remaining = (voteTimestamp + POST_VOTE_WAIT_MS) - Date.now();
     const delay = Math.max(0, remaining);
 
+    console.log(`🎥 [VideoRecorder] Scheduling stop in ${delay}ms (post-vote wait: ${POST_VOTE_WAIT_MS}ms)`);
+
     postVoteTimerRef.current = setTimeout(() => {
       postVoteTimerRef.current = null;
       if (!stoppedRef.current) {
+        console.log('🎥 [VideoRecorder] Stopping recording after post-vote window');
         stoppedRef.current = true;
         stop(voteTimestamp, false); // clip around vote event
       }
@@ -327,6 +345,12 @@ export function VideoRecorder({
   useEffect(() => {
     if (!recordedBlob || mediaStatus !== 'stopped') return;
 
+    console.log('🎥 [VideoRecorder] Blob produced', { 
+      blobSize: recordedBlob.size, 
+      mediaStatus,
+      recorderState 
+    });
+
     // Discarded path — blob is null in the hook when discard=true, but guard anyway
     if (recorderState === 'discarded') return;
 
@@ -336,12 +360,14 @@ export function VideoRecorder({
 
     if (recordedBlob.size > MAX_BLOB_BYTES) {
       const msg = `Recording is too large (${formatMB(recordedBlob.size)} MB).`;
+      console.error('🎥 [VideoRecorder] Upload blocked - file too large');
       setErrorDetail(msg);
       setRecorderState('upload_failed');
       onError(msg);
       return;
     }
 
+    console.log('🎥 [VideoRecorder] Starting upload...');
     setRecorderState('uploading');
     upload(recordedBlob);
   }, [recordedBlob, mediaStatus, recorderState, upload, onError]);
@@ -356,6 +382,7 @@ export function VideoRecorder({
     if (recorderState === 'complete' && !completedRef.current) {
       const id = videoRecordingIdRef.current;
       if (id) {
+        console.log('🎥 [VideoRecorder] Upload complete! Video ID:', id);
         completedRef.current = true;
         toast.success('Recording saved successfully!');
         onRecordingComplete(id);

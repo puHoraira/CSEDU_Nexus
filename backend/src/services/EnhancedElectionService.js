@@ -175,24 +175,57 @@ class EnhancedElectionService {
       }
     }
 
-    const member = await Member.findOne({ userId: actorId }).populate("userId", "firstName lastName email");
-    if (!member) {
-      throw new ApiError(404, "Member record not found");
+    // If memberId is provided in payload (admin/EC adding candidate), use that
+    // Otherwise, use the logged-in user's member record (self-nomination)
+    console.log('\n🔥🔥🔥 [submitCandidateApplication] RAW PAYLOAD DEBUG 🔥🔥🔥');
+    console.log('🔢 [submitCandidateApplication] payload.memberId:', payload.memberId);
+    console.log('🔢 [submitCandidateApplication] payload.memberId type:', typeof payload.memberId);
+    console.log('🔢 [submitCandidateApplication] payload.memberId truthy?:', !!payload.memberId);
+    console.log('🔢 [submitCandidateApplication] full payload:', JSON.stringify(payload));
+    console.log('🔥🔥🔥 END RAW PAYLOAD DEBUG 🔥🔥🔥\n');
+    
+    const targetMemberId = payload.memberId || null;
+    
+    let member;
+    if (targetMemberId) {
+      // Admin or EC is adding a candidate - use the specified member
+      member = await Member.findById(targetMemberId).populate("userId", "firstName lastName email");
+      if (!member) {
+        throw new ApiError(404, "Specified member not found");
+      }
+    } else {
+      // Self-nomination - use the logged-in user's member record
+      member = await Member.findOne({ userId: actorId }).populate("userId", "firstName lastName email");
+      if (!member) {
+        throw new ApiError(404, "Your member record not found");
+      }
     }
+
+    console.log('\n🚨🚨🚨 [submitCandidateApplication] MEMBER DATA CHECK 🚨🚨🚨');
+    console.log('🔢 [submitCandidateApplication] targetMemberId from payload:', targetMemberId);
+    console.log('🔢 [submitCandidateApplication] actorId (logged-in user):', actorId);
+    console.log('🔢 [submitCandidateApplication] member.studentId:', member.studentId);
+    console.log('🔢 [submitCandidateApplication] member.currentYear:', member.currentYear);
+    console.log('🔢 [submitCandidateApplication] member.currentYear type:', typeof member.currentYear);
+    console.log('🔢 [submitCandidateApplication] member.academicYearLevel:', member.academicYearLevel);
+    console.log('🔢 [submitCandidateApplication] member.batch:', member.batch);
+    console.log('🔢 [submitCandidateApplication] member._id:', member._id);
+    console.log('🚨🚨🚨 END MEMBER DATA CHECK 🚨🚨🚨\n');
 
     if (member.membershipStatus?.status !== "Active") {
       throw new ApiError(400, "Only active members can apply as candidates");
     }
 
     // Check if already applied for this election and phase
+    // Use the actual member being registered, not the logged-in user
     const existingApplication = await ElectionCandidate.findOne({
       electionId: payload.electionId,
-      memberId: member._id,
+      memberId: member._id,  // This is now the correct member (either from payload or logged-in user)
       phase: payload.phase
     });
 
     if (existingApplication) {
-      throw new ApiError(409, "You have already submitted an application for this phase");
+      throw new ApiError(409, `${member.userId?.firstName || 'This member'} has already submitted an application for this phase`);
     }
 
     // Validate phase-specific requirements
@@ -220,6 +253,16 @@ class EnhancedElectionService {
       // Check EC experience eligibility
       const memberEcYears = this.computeEcYears(member);
       const memberYear = member.currentYear;
+
+      console.log('\n🚨🚨🚨 [submitCandidateApplication PHASE 2 CHECK] 🚨🚨🚨');
+      console.log('🔢 memberYear (from member.currentYear):', memberYear);
+      console.log('🔢 memberYear type:', typeof memberYear);
+      console.log('🔢 memberEcYears:', memberEcYears);
+      console.log('🔢 targetPost.title:', targetPost.title);
+      console.log('🔢 targetPost.minYear:', targetPost.minYear);
+      console.log('🔢 targetPost.minEcYears:', targetPost.minEcYears);
+      console.log('🔢 Check: memberYear < targetPost.minYear =', memberYear < targetPost.minYear);
+      console.log('🚨🚨🚨 END PHASE 2 CHECK 🚨🚨🚨\n');
 
       // Validate minimum year requirement
       if (targetPost.minYear && memberYear < targetPost.minYear) {
@@ -1056,6 +1099,77 @@ class EnhancedElectionService {
   static async updatePhase(electionId, payload, actorId, requestId) {
     return ElectionCommissionService.updateElectionPhase(electionId, payload, actorId, requestId);
   }
+  
+  // Get eligible posts for a member (checks year and EC experience requirements)
+  static async getEligiblePostsForMember(memberId, electionId) {
+    const member = await Member.findById(memberId)
+      .populate('userId', 'firstName lastName email studentId');
+
+    if (!member) {
+      throw new ApiError(404, "Member not found");
+    }
+
+    const election = await Election.findById(electionId);
+    if (!election) {
+      throw new ApiError(404, "Election not found");
+    }
+
+    // Get all active EC posts
+    const posts = await EcPost.find({ isActive: true }).sort({ displayOrder: 1 });
+
+    // Calculate member's EC years
+    const memberEcYears = this.computeEcYears(member);
+    const memberYear = member.currentYear;
+
+    // Check eligibility for each post
+    const eligibility = posts.map(post => {
+      const eligible = {
+        post: {
+          _id: post._id,
+          title: post.title,
+          code: post.code,
+          displayOrder: post.displayOrder,
+          minYear: post.minYear,
+          minEcYears: post.minEcYears,
+        },
+        isEligible: true,
+        reasons: []
+      };
+
+      // Check minimum year requirement
+      if (post.minYear && memberYear < post.minYear) {
+        eligible.isEligible = false;
+        eligible.reasons.push(
+          `Requires ${post.minYear}${this.getOrdinalSuffix(post.minYear)} year, but you are in ${memberYear}${this.getOrdinalSuffix(memberYear)} year`
+        );
+      }
+
+      // Check minimum EC experience requirement
+      if (post.minEcYears && memberEcYears < post.minEcYears) {
+        eligible.isEligible = false;
+        eligible.reasons.push(
+          `Requires ${post.minEcYears} ${post.minEcYears === 1 ? 'year' : 'years'} of EC experience, but you have ${memberEcYears} ${memberEcYears === 1 ? 'year' : 'years'}`
+        );
+      }
+
+      return eligible;
+    });
+
+    return {
+      member: {
+        _id: member._id,
+        studentId: member.studentId || member.userId?.studentId,
+        name: `${member.userId?.firstName} ${member.userId?.lastName}`,
+        batch: member.batch,
+        currentYear: memberYear,
+        ecYears: memberEcYears,
+        ecExperience: member.ecExperience
+      },
+      eligibility: eligibility.filter(e => e.isEligible),
+      ineligible: eligibility.filter(e => !e.isEligible)
+    };
+  }
+
 
   /**
    * Delete an election and all related data (cascading delete)
@@ -1174,3 +1288,4 @@ class EnhancedElectionService {
 
 
 module.exports = { EnhancedElectionService };
+

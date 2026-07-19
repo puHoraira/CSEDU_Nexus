@@ -390,7 +390,8 @@ export function ElectionVotingPage() {
       </div>
 
       {/* ── Video Recording Section ─────────────────────────────────────── */}
-      {!hasVoted && isActive && memberRecordId && (
+      {/* Keep VideoRecorder mounted until upload completes (don't unmount on hasVoted) */}
+      {isActive && memberRecordId && !voteCastSuccessfully && (
         <div className="ui-card">
           <div className="ui-card__header">
             <h3 className="ui-card__title">Camera verification</h3>
@@ -415,6 +416,8 @@ export function ElectionVotingPage() {
               onRecordingComplete={(vid) => {
                 setVideoRecordingId(vid);
                 setVideoError(null);
+                // Mark vote as fully complete (video uploaded)
+                setVoteCastSuccessfully(true);
               }}
               onError={(msg) => setVideoError(msg)}
               onSessionStart={handleSessionStart}

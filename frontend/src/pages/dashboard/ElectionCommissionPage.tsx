@@ -269,12 +269,50 @@ export function ElectionCommissionPage() {
   }, [phase2Candidates]);
 
   const phaseMutation = useMutation({
-    mutationFn: ({ nextPhase, nextStatus }: { nextPhase: number; nextStatus: PhaseStatus }) =>
-      apiRequest(`/enhanced-elections/${selectedElectionId}/phase`, {
+    mutationFn: ({ nextPhase, nextStatus, phase1, phase2 }: { 
+      nextPhase: number; 
+      nextStatus: PhaseStatus;
+      phase1?: any;
+      phase2?: any;
+    }) => {
+      const payload: any = { 
+        currentPhase: nextPhase, 
+        status: nextStatus 
+      };
+      
+      // If phase1 or phase2 data is provided, use it
+      if (phase1) {
+        payload.phase1 = phase1;
+      } else if (nextStatus === "Phase1_Active" && nextPhase === 1 && !phase1) {
+        // Auto-set Phase 1 registration when opening Phase 1 (backward compatibility)
+        const now = new Date();
+        const registrationEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        payload.phase1 = {
+          status: "Registration_Open",
+          candidateRegistrationStart: now.toISOString(),
+          candidateRegistrationEnd: registrationEnd.toISOString(),
+        };
+      }
+      
+      if (phase2) {
+        payload.phase2 = phase2;
+      } else if (nextStatus === "Phase2_Active" && nextPhase === 2 && !phase2) {
+        // Auto-set Phase 2 registration when opening Phase 2 (backward compatibility)
+        const now = new Date();
+        const registrationEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        payload.phase2 = {
+          status: "Registration_Open",
+          candidateRegistrationStart: now.toISOString(),
+          candidateRegistrationEnd: registrationEnd.toISOString(),
+        };
+      }
+      
+      return apiRequest(`/enhanced-elections/${selectedElectionId}/phase`, {
         method: "PUT",
         token,
-        body: JSON.stringify({ currentPhase: nextPhase, status: nextStatus }),
-      }),
+        body: JSON.stringify(payload),
+      });
+    },
     onSuccess: async () => {
       toast.success("Election phase updated");
       await queryClient.invalidateQueries({ queryKey: ["commission-elections", token] });
@@ -661,6 +699,294 @@ export function ElectionCommissionPage() {
                   : "Phase 2 remains locked until Phase 1 is completed. That keeps the main election visible only after the batch representative stage finishes."}
               </Alert>
             </div>
+
+            {/* Detailed Phase Status Management */}
+            {selectedElection && (
+              <motion.div
+                style={{
+                  marginTop: 32,
+                  padding: 24,
+                  background: "var(--surface-soft)",
+                  borderRadius: 16,
+                  border: "2px solid var(--border)",
+                }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9 }}
+              >
+                <h4 style={{ 
+                  margin: "0 0 20px 0", 
+                  fontSize: "1.1rem", 
+                  fontWeight: 700,
+                  color: "var(--text)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}>
+                  <Settings size={20} style={{ color: "var(--accent)" }} />
+                  Phase Status Management
+                </h4>
+
+                {/* Phase 1 Controls */}
+                {(!selectedElection.electionType || selectedElection.electionType === 'full') && (
+                  <div style={{
+                    padding: 20,
+                    background: "var(--surface)",
+                    borderRadius: 12,
+                    border: "2px solid var(--border)",
+                    marginBottom: 20,
+                  }}>
+                    <div style={{ 
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      alignItems: "center",
+                      marginBottom: 16,
+                    }}>
+                      <h5 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>
+                        Phase 1 - Batch Representatives
+                      </h5>
+                      <Badge 
+                        variant={
+                          selectedElection.phase1?.status === "Registration_Open" ? "success" :
+                          selectedElection.phase1?.status === "Voting_Active" ? "info" :
+                          selectedElection.phase1?.status === "Completed" ? "neutral" : "warning"
+                        }
+                      >
+                        {selectedElection.phase1?.status || "Not_Started"}
+                      </Badge>
+                    </div>
+
+                    <div style={{ display: "grid", gap: 16 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                        <Button
+                          size="sm"
+                          variant="success"
+                          onClick={() => {
+                            const now = new Date();
+                            const registrationEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                            phaseMutation.mutate({
+                              nextPhase: 1,
+                              nextStatus: "Phase1_Active",
+                              phase1: {
+                                status: "Registration_Open",
+                                candidateRegistrationStart: now.toISOString(),
+                                candidateRegistrationEnd: registrationEnd.toISOString(),
+                              }
+                            } as any);
+                          }}
+                          disabled={phaseMutation.isPending}
+                        >
+                          Open Registration
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => {
+                            phaseMutation.mutate({
+                              nextPhase: 1,
+                              nextStatus: "Phase1_Active",
+                              phase1: {
+                                status: "Campaign_Period",
+                              }
+                            } as any);
+                          }}
+                          disabled={phaseMutation.isPending}
+                        >
+                          Start Campaign
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="info"
+                          onClick={() => {
+                            const now = new Date();
+                            const votingEnd = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+                            phaseMutation.mutate({
+                              nextPhase: 1,
+                              nextStatus: "Phase1_Active",
+                              phase1: {
+                                status: "Voting_Active",
+                                votingStart: now.toISOString(),
+                                votingEnd: votingEnd.toISOString(),
+                              }
+                            } as any);
+                          }}
+                          disabled={phaseMutation.isPending}
+                        >
+                          Start Voting
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            phaseMutation.mutate({
+                              nextPhase: 1,
+                              nextStatus: "Phase1_Completed",
+                              phase1: {
+                                status: "Completed",
+                              }
+                            } as any);
+                          }}
+                          disabled={phaseMutation.isPending}
+                        >
+                          Mark Complete
+                        </Button>
+                      </div>
+
+                      <div style={{ 
+                        padding: 14, 
+                        background: "var(--surface-soft)", 
+                        borderRadius: 8,
+                        fontSize: "0.85rem",
+                        color: "var(--muted)",
+                      }}>
+                        <strong>Current dates:</strong><br />
+                        Registration: {selectedElection.phase1?.candidateRegistrationStart 
+                          ? new Date(selectedElection.phase1.candidateRegistrationStart).toLocaleString() 
+                          : "Not set"} → {selectedElection.phase1?.candidateRegistrationEnd 
+                          ? new Date(selectedElection.phase1.candidateRegistrationEnd).toLocaleString() 
+                          : "Not set"}<br />
+                        Voting: {selectedElection.phase1?.votingStart 
+                          ? new Date(selectedElection.phase1.votingStart).toLocaleString() 
+                          : "Not set"} → {selectedElection.phase1?.votingEnd 
+                          ? new Date(selectedElection.phase1.votingEnd).toLocaleString() 
+                          : "Not set"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase 2 Controls */}
+                <div style={{
+                  padding: 20,
+                  background: "var(--surface)",
+                  borderRadius: 12,
+                  border: "2px solid var(--border)",
+                }}>
+                  <div style={{ 
+                    display: "flex", 
+                    justifyContent: "space-between", 
+                    alignItems: "center",
+                    marginBottom: 16,
+                  }}>
+                    <h5 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>
+                      Phase 2 - Executive Posts
+                    </h5>
+                    <Badge 
+                      variant={
+                        selectedElection.phase2?.status === "Registration_Open" ? "success" :
+                        selectedElection.phase2?.status === "Voting_Active" ? "info" :
+                        selectedElection.phase2?.status === "Completed" ? "neutral" : "warning"
+                      }
+                    >
+                      {selectedElection.phase2?.status || "Not_Started"}
+                    </Badge>
+                  </div>
+
+                  <div style={{ display: "grid", gap: 16 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={() => {
+                          const now = new Date();
+                          const registrationEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                          phaseMutation.mutate({
+                            nextPhase: 2,
+                            nextStatus: "Phase2_Active",
+                            phase2: {
+                              status: "Registration_Open",
+                              candidateRegistrationStart: now.toISOString(),
+                              candidateRegistrationEnd: registrationEnd.toISOString(),
+                            }
+                          } as any);
+                        }}
+                        disabled={phaseMutation.isPending}
+                      >
+                        Open Registration
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => {
+                          phaseMutation.mutate({
+                            nextPhase: 2,
+                            nextStatus: "Phase2_Active",
+                            phase2: {
+                              status: "Campaign_Period",
+                            }
+                          } as any);
+                        }}
+                        disabled={phaseMutation.isPending}
+                      >
+                        Start Campaign
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="info"
+                        onClick={() => {
+                          const now = new Date();
+                          const votingEnd = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+                          phaseMutation.mutate({
+                            nextPhase: 2,
+                            nextStatus: "Phase2_Active",
+                            phase2: {
+                              status: "Voting_Active",
+                              votingStart: now.toISOString(),
+                              votingEnd: votingEnd.toISOString(),
+                            }
+                          } as any);
+                        }}
+                        disabled={phaseMutation.isPending}
+                      >
+                        Start Voting
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          phaseMutation.mutate({
+                            nextPhase: 2,
+                            nextStatus: "Phase2_Completed",
+                            phase2: {
+                              status: "Completed",
+                            }
+                          } as any);
+                        }}
+                        disabled={phaseMutation.isPending}
+                      >
+                        Mark Complete
+                      </Button>
+                    </div>
+
+                    <div style={{ 
+                      padding: 14, 
+                      background: "var(--surface-soft)", 
+                      borderRadius: 8,
+                      fontSize: "0.85rem",
+                      color: "var(--muted)",
+                    }}>
+                      <strong>Current dates:</strong><br />
+                      Registration: {selectedElection.phase2?.candidateRegistrationStart 
+                        ? new Date(selectedElection.phase2.candidateRegistrationStart).toLocaleString() 
+                        : "Not set"} → {selectedElection.phase2?.candidateRegistrationEnd 
+                        ? new Date(selectedElection.phase2.candidateRegistrationEnd).toLocaleString() 
+                        : "Not set"}<br />
+                      Voting: {selectedElection.phase2?.votingStart 
+                        ? new Date(selectedElection.phase2.votingStart).toLocaleString() 
+                        : "Not set"} → {selectedElection.phase2?.votingEnd 
+                        ? new Date(selectedElection.phase2.votingEnd).toLocaleString() 
+                        : "Not set"}
+                    </div>
+                  </div>
+                </div>
+
+                <Alert variant="info" style={{ marginTop: 16 }}>
+                  💡 <strong>Quick Actions:</strong> Use these buttons to control the election workflow. 
+                  "Open Registration" automatically sets dates 7 days from now. 
+                  "Start Voting" sets a 3-day voting window.
+                </Alert>
+              </motion.div>
+            )}
           </div>
         </motion.section>
 

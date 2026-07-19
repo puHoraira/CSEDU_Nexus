@@ -58,6 +58,7 @@ const enhancedElectionValidators = {
   // Candidate Management
   submitCandidateApplication: z.object({
     electionId: z.string().regex(/^[0-9a-fA-F]{24}$/),
+    memberId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(), // Optional: if provided, add this member as candidate; otherwise use logged-in user
     phase: z.number().int().min(1).max(2),
     postId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
     batch: z.string().length(4).optional(),
@@ -89,7 +90,8 @@ const enhancedElectionValidators = {
   }),
 
   reviewCandidateApplication: z.object({
-    status: z.enum(["Approved", "Rejected", "Under_Review"]),
+    status: z.enum(["Approved", "Rejected", "Under_Review"]).optional(),
+    action: z.enum(["Approved", "Rejected", "Under_Review"]).optional(),
     reason: z.string().trim().max(500).optional().default(""),
     comments: z.string().trim().max(1000).optional().default(""),
     conditions: z.string().trim().max(500).optional().default(""),
@@ -98,6 +100,9 @@ const enhancedElectionValidators = {
       vote: z.enum(["Approve", "Reject", "Abstain"]),
       reason: z.string().trim().max(200).optional().default("")
     })).optional().default([])
+  }).refine(data => data.status || data.action, {
+    message: "Either 'status' or 'action' field is required",
+    path: ["status"]
   }),
 
   // Voting System

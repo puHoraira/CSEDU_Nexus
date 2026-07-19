@@ -624,13 +624,12 @@ class ElectionService {
       
       election.status = mappedStatus;
       
-      // Update phase-specific status
+      // Only update phase-specific status to Completed when election transitions to completed
+      // DO NOT automatically set to Voting_Active - let phase status be managed separately
       if (currentPhase === 1 && election.phase1) {
-        if (mappedStatus === 'Phase1_Active') election.phase1.status = 'Voting_Active';
         if (mappedStatus === 'Phase1_Completed') election.phase1.status = 'Completed';
       }
       if (currentPhase === 2 && election.phase2) {
-        if (mappedStatus === 'Phase2_Active') election.phase2.status = 'Voting_Active';
         if (mappedStatus === 'Phase2_Completed') election.phase2.status = 'Completed';
       }
     }

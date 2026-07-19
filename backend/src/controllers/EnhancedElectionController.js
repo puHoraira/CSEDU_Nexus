@@ -153,9 +153,17 @@ class EnhancedElectionController {
 
   static reviewCandidateApplication = asyncHandler(async (req, res) => {
     const { candidateId } = req.params;
+    
+    // Normalize: frontend sends 'action', backend expects 'status'
+    const decision = { ...req.body };
+    if (decision.action && !decision.status) {
+      decision.status = decision.action;
+      delete decision.action;
+    }
+    
     const candidate = await ElectionCommissionService.reviewCandidateApplication(
       candidateId,
-      req.body,
+      decision,
       req.auth.userId,
       req.requestMeta.requestId,
       req.auth.roles  // Pass roles from JWT token

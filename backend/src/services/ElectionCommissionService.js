@@ -265,11 +265,16 @@ class ElectionCommissionService {
     }
 
     const eligibilityDetails = {
-      cgpa: member.cgpa || 0,
-      attendancePercentage: member.attendancePercentage || 0,
-      disciplinaryActions: member.disciplinaryActions || 0,
+      cgpa: member.academicRecord?.currentCgpa || 0,
+      attendancePercentage: member.attendanceRecord?.overallAttendancePercentage || 0,
+      disciplinaryActions: member.disciplinaryRecord?.totalActions || 0,
       isGraduating: member.isGraduating || false
     };
+
+    console.log('🔍 [checkCandidateEligibility] Member ID:', member._id);
+    console.log('🔍 [checkCandidateEligibility] Student ID:', member.studentId);
+    console.log('🔍 [checkCandidateEligibility] CGPA from member.academicRecord.currentCgpa:', member.academicRecord?.currentCgpa);
+    console.log('🔍 [checkCandidateEligibility] Eligibility Details:', JSON.stringify(eligibilityDetails, null, 2));
 
     // Get election configuration
     const election = await Election.findById(candidate.electionId);

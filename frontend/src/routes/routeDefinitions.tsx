@@ -69,6 +69,8 @@ import { TeacherDashboard } from "../pages/dashboard/TeacherDashboard";
 import { AlumniDashboard } from "../pages/dashboard/AlumniDashboard";
 import { SocialPostsPage } from "../pages/posts/SocialPostsPage";
 import { ChatPage } from "../pages/chat/ChatPage";
+import { ElectionVideosPage } from "../pages/admin/ElectionVideosPage";
+import { ElectionVideoManagementPage } from "../pages/admin/ElectionVideoManagementPage";
 import { UserProfilePage } from "../pages/profile/UserProfilePage";
 
 type RouteDef = {
@@ -251,6 +253,16 @@ export const routeDefinitions: RouteDef[] = [
     element: <ElectionVotingPage />,
   },
   { path: "/dashboard/elections/:id/results", element: <ElectionResultsPage /> },
+  { 
+    path: "/dashboard/admin/election-videos", 
+    element: <ElectionVideoManagementPage />,
+    requiredRoles: ["Admin", "Moderator"]
+  },
+  { 
+    path: "/dashboard/admin/election-videos/:electionId", 
+    element: <ElectionVideosPage />,
+    requiredRoles: ["Admin", "Moderator"]
+  },
   { path: "/dashboard/events", element: <ModernEventsPage /> },
   { path: "/dashboard/events/:id", element: <ModernEventDetailPage /> },
   { path: "/dashboard/events/:eventId/register", element: <EventRegistrationPage /> },

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Home, Calendar, Users, Vote, FileText, DollarSign,
   Award, Bell, Settings, ChevronLeft, ChevronRight, UserCircle, LogOut, BookOpen,
-  Shield, GraduationCap, Gavel, DoorOpen, Briefcase, MessageCircle, Sparkles
+  Shield, GraduationCap, Gavel, DoorOpen, Briefcase, MessageCircle, Sparkles, Video
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { getDefaultDashboardRoute, getUserType } from '../../utils/dashboardRouter';
@@ -36,6 +36,7 @@ const NAV: NavItem[] = [
   { label: 'Finance',         to: '/dashboard/finance',                 icon: DollarSign,  roles: ['Treasurer','Moderator','Chief Patron'] },
   { label: 'Certificates',    to: '/dashboard/certificates',            icon: Award },
   { label: 'Rooms',           to: '/dashboard/admin/rooms',             icon: DoorOpen,    roles: ['System Admin', 'Moderator','Chief Patron'] },
+  { label: 'Election Videos', to: '/dashboard/admin/election-videos',   icon: Video,       roles: ['System Admin', 'Moderator'] },
   { label: 'Notifications',   to: '/dashboard/notifications',           icon: Bell },
   // Role-specific pages — shown only to the relevant role
   { label: 'Moderator',       to: '/dashboard/moderator',               icon: Shield,      roles: ['Moderator'] },

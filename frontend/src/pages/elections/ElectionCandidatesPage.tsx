@@ -137,17 +137,30 @@ export function ElectionCandidatesPage() {
   });
 
   const addMut = useMutation({
-    mutationFn: () => apiRequest('/enhanced-elections/candidates', {
-      method: 'POST', token,
-      body: JSON.stringify({
+    mutationFn: () => {
+      console.log('🚨🚨🚨 [Frontend addMut] form.memberId:', form.memberId);
+      console.log('🚨🚨🚨 [Frontend addMut] form.postId:', form.postId);
+      console.log('🚨🚨🚨 [Frontend addMut] isPhase1:', isPhase1);
+      
+      const payload: any = {
         electionId: id,
         memberId: form.memberId,
-        // Never send postId for Phase 1 — backend will reject it
-        postId: isPhase1 ? null : (form.postId || null),
         phase: isPhase1 ? 1 : 2,
-        // EC years are calculated on the backend from member's ecExperience
-      }),
-    }),
+      };
+      
+      // Only include postId for Phase 2 candidates
+      if (!isPhase1 && form.postId) {
+        payload.postId = form.postId;
+      }
+      
+      console.log('🚨🚨🚨 [Frontend addMut] Final payload:', JSON.stringify(payload));
+      
+      return apiRequest('/enhanced-elections/candidates', {
+        method: 'POST', 
+        token,
+        body: JSON.stringify(payload),
+      });
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['election-candidates', id, token] });
       setForm({ memberId: '', postId: '' });

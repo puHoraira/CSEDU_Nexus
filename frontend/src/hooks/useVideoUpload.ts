@@ -88,11 +88,20 @@ export function useVideoUpload({
 
   const upload = useCallback(
     (blob: Blob) => {
+      console.log('📤 [useVideoUpload] Starting upload...', {
+        blobSize: blob.size,
+        electionId,
+        voterId,
+        hasToken: !!token,
+        uploadUrl: UPLOAD_URL
+      });
+
       // Store the blob for potential retries (Req 4.4)
       blobRef.current = blob;
 
       // Abort any in-flight request before starting a new one
       if (xhrRef.current) {
+        console.log('📤 [useVideoUpload] Aborting previous XHR');
         xhrRef.current.abort();
         xhrRef.current = null;
       }
@@ -107,6 +116,8 @@ export function useVideoUpload({
       formData.append("electionId", electionId);
       formData.append("voterId", voterId);
 
+      console.log('📤 [useVideoUpload] FormData prepared, creating XHR');
+
       const xhr = new XMLHttpRequest();
       xhrRef.current = xhr;
 
@@ -114,6 +125,7 @@ export function useVideoUpload({
       xhr.upload.onprogress = (event: ProgressEvent) => {
         if (event.lengthComputable) {
           const percent = Math.round((event.loaded / event.total) * 100);
+          console.log(`📤 [useVideoUpload] Progress: ${percent}%`);
           setUploadProgress(percent);
         }
       };
@@ -121,6 +133,11 @@ export function useVideoUpload({
       // ── Successful response (Req 4.3) ─────────────────────────────────────
       xhr.onload = () => {
         xhrRef.current = null;
+
+        console.log('📤 [useVideoUpload] XHR onload triggered', {
+          status: xhr.status,
+          responseText: xhr.responseText?.substring(0, 200)
+        });
 
         if (xhr.status >= 200 && xhr.status < 300) {
           // Parse JSON and extract videoRecordingId
@@ -134,10 +151,12 @@ export function useVideoUpload({
             if (!videoRecordingId) {
               throw new Error("Missing videoRecordingId in response");
             }
+            console.log('📤 [useVideoUpload] Upload successful! Video ID:', videoRecordingId);
             setUploadProgress(100);
             setStatus("complete");
             onCompleteRef.current(videoRecordingId);
-          } catch {
+          } catch (err) {
+            console.error('📤 [useVideoUpload] Failed to parse response:', err);
             handleFailure("Upload succeeded but response was malformed.");
           }
         } else {
@@ -153,6 +172,7 @@ export function useVideoUpload({
           } catch {
             // ignore parse errors; use the default message
           }
+          console.error('📤 [useVideoUpload] Upload failed:', message);
           handleFailure(message);
         }
       };
@@ -160,6 +180,7 @@ export function useVideoUpload({
       // ── Network error (Req 4.4) ────────────────────────────────────────────
       xhr.onerror = () => {
         xhrRef.current = null;
+        console.error('📤 [useVideoUpload] Network error occurred');
         handleFailure(
           "Network error — please check your connection and try again."
         );
@@ -180,6 +201,7 @@ export function useVideoUpload({
         xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       }
 
+      console.log('📤 [useVideoUpload] Sending XHR request to', UPLOAD_URL);
       xhr.send(formData);
     },
     [electionId, voterId, token]

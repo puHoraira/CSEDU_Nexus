@@ -19,12 +19,20 @@ class VideoRecordingController {
    * Returns 201 { videoRecordingId } on success.
    */
   static upload = asyncHandler(async (req, res) => {
+    console.log('🎥 [VideoRecordingController] Upload endpoint hit');
+    console.log('🎥 [VideoRecordingController] Headers:', req.headers);
+    console.log('🎥 [VideoRecordingController] Body:', req.body);
+    console.log('🎥 [VideoRecordingController] File:', req.file ? `${req.file.size} bytes, ${req.file.mimetype}` : 'NO FILE');
+    
     // Multer populates req.file when a `video` field is present
     if (!req.file) {
+      console.log('❌ [VideoRecordingController] No video file in request');
       throw new ApiError(400, "No video file uploaded");
     }
 
     const { electionId, voterId } = req.body;
+    console.log('🎥 [VideoRecordingController] Election ID:', electionId);
+    console.log('🎥 [VideoRecordingController] Voter ID:', voterId);
 
     // Resolve the authenticated user's Member record to enforce ownership
     const member = await Member.findOne({ userId: req.auth.userId }).select("_id");

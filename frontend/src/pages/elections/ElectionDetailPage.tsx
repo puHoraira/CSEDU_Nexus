@@ -212,10 +212,20 @@ export function ElectionDetailPage() {
   });
 
   const applyMut = useMutation({
-    mutationFn: (postId?: string) => apiRequest(`/elections/${id}/self-nominate`, {
-      method: 'POST', token,
-      body: JSON.stringify({ postId: postId || null }),
-    }),
+    mutationFn: (postId?: string) => {
+      const payload: any = {};
+      
+      // Only include postId if provided (for Phase 2 candidates)
+      if (postId) {
+        payload.postId = postId;
+      }
+      
+      return apiRequest(`/elections/${id}/self-nominate`, {
+        method: 'POST', 
+        token,
+        body: JSON.stringify(payload),
+      });
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['my-election-application', id, token] });
       setShowPostSelectionModal(false);
