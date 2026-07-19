@@ -491,7 +491,8 @@ export function EventCreatePage() {
               <select 
                 value={form.visibility} 
                 onChange={(e) => setForm((current) => ({ ...current, visibility: e.target.value }))}
-                style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd' }}
+                style={{ padding: '8px 12px', borderRadius: 6 }}
+                className="ui-select"
               >
                 <option value="Public">Public - Everyone can see</option>
                 <option value="Members_Only">Members Only - Active members only</option>
@@ -607,7 +608,7 @@ export function EventCreatePage() {
               )}
             </div>
 
-            <div className="alert" style={{ marginTop: 20, background: '#fff3cd', borderColor: '#ffc107', color: '#856404' }}>
+            <div className="alert alert-warning" style={{ marginTop: 20 }}>
               <strong>🔐 How filtering works:</strong> If you use multiple filters, users need to match at least one criterion. 
               Invited users always have access regardless of other filters.
             </div>
@@ -804,7 +805,8 @@ export function EventCreatePage() {
                   <select 
                     value={selectedRoomId}
                     onChange={(e) => setSelectedRoomId(e.target.value)}
-                    style={{ flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd' }}
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: 6 }}
+                    className="ui-select"
                   >
                     <option value="">Select a room...</option>
                     {rooms.map((room: any) => (
@@ -877,7 +879,7 @@ export function EventCreatePage() {
                       );
                     })}
                     
-                    <div className="alert" style={{ marginTop: 10, background: '#e7f5ff', borderColor: '#339af0', color: '#1971c2' }}>
+                    <div className="alert alert-info" style={{ marginTop: 10 }}>
                       <strong>Total Capacity:</strong> {totalRoomCapacity} seats across {form.roomAssignment.rooms.length} room(s)
                     </div>
                   </div>
