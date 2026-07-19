@@ -212,20 +212,69 @@ class WorkshopEngagementService {
       status: { $in: ["Approved", "Attended"] },
     }).populate("userId", "firstName lastName email avatarUrl");
 
-    const submissions = await WorkshopSubmission.find({ workshopId });
+    console.log('[Leaderboard Debug] Total registrations:', regs.length);
+    console.log('[Leaderboard Debug] Sample registration:', regs[0] ? {
+      _id: regs[0]._id,
+      userId: regs[0].userId,
+      participantName: regs[0].participantName,
+      participantEmail: regs[0].participantEmail,
+    } : 'No registrations');
+
+    const submissions = await WorkshopSubmission.find({ workshopId }).populate('userId', 'email');
+    console.log('[Leaderboard Debug] Total submissions found:', submissions.length);
+    
     const byUser = new Map();
+    const byEmail = new Map(); // Add email-based lookup as fallback
+    
     for (const s of submissions) {
-      const key = s.userId.toString();
-      if (!byUser.has(key)) byUser.set(key, []);
-      byUser.get(key).push(s);
+      // Handle both populated and non-populated userId
+      const userIdObj = s.userId;
+      const key = userIdObj && typeof userIdObj === 'object' && userIdObj._id 
+        ? userIdObj._id.toString() 
+        : userIdObj?.toString();
+      
+      if (key) {
+        if (!byUser.has(key)) byUser.set(key, []);
+        byUser.get(key).push(s);
+      }
+      
+      // Also index by email for fallback matching
+      if (userIdObj && typeof userIdObj === 'object' && userIdObj.email) {
+        const email = userIdObj.email.toLowerCase();
+        if (!byEmail.has(email)) byEmail.set(email, []);
+        byEmail.get(email).push(s);
+      }
     }
+    
+    console.log('[Leaderboard Debug] Submissions grouped by user. Total users with submissions:', byUser.size);
+    console.log('[Leaderboard Debug] Submissions grouped by email:', byEmail.size);
+    console.log('[Leaderboard Debug] byUser map keys:', Array.from(byUser.keys()));
+    console.log('[Leaderboard Debug] byEmail map keys:', Array.from(byEmail.keys()));
 
     const rows = regs.map((reg) => {
       const u = reg.userId;
-      const subs = byUser.get(reg.userId?.toString() || u?._id?.toString()) || [];
+      // Get userId - handle both populated and non-populated cases
+      const userIdKey = u?._id?.toString() || reg.userId?.toString();
+      
+      console.log('[Leaderboard Debug] Processing registration:', {
+        regId: reg._id.toString(),
+        userId: u?._id?.toString(),
+        userIdKey,
+        userName: u ? `${u.firstName} ${u.lastName}`.trim() : reg.participantName,
+      });
+      
+      const subs = byUser.get(userIdKey) || [];
+      console.log('[Leaderboard Debug] Found submissions for user:', {
+        userIdKey,
+        submissionCount: subs.length,
+        submissions: subs.map(s => ({ _id: s._id.toString(), userId: s.userId.toString(), grade: s.grade }))
+      });
+      
       const graded = subs.filter((s) => typeof s.grade === "number");
       const totalPoints = graded.reduce((sum, s) => sum + (s.grade || 0), 0);
+      
       return {
+        registrationId: reg._id.toString(), // Add registrationId for unique key
         userId: u?._id,
         name: u ? `${u.firstName} ${u.lastName}`.trim() : reg.participantName,
         email: u?.email || reg.participantEmail,
@@ -247,6 +296,15 @@ class WorkshopEngagementService {
       b.completionPercentage - a.completionPercentage
     );
     rows.forEach((r, i) => { r.rank = i + 1; });
+
+    console.log('[Leaderboard Debug] Final leaderboard:', rows.map(r => ({
+      rank: r.rank,
+      name: r.name,
+      submitted: r.submitted,
+      graded: r.graded,
+      totalPoints: r.totalPoints,
+      userIdKey: r.userId?.toString()
+    })));
 
     return { assignmentCount, maxTotal, leaderboard: rows };
   }

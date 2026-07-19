@@ -77,7 +77,11 @@ class WorkshopSessionService {
     const session = workshop.sessions.id(sessionId);
     if (!session) throw new ApiError(404, "Session not found");
 
-    const reg = await WorkshopRegistration.findOne({ workshopId, userId: targetUserId });
+    // Try to find by userId first, if not found, try by registration _id (fallback)
+    let reg = await WorkshopRegistration.findOne({ workshopId, userId: targetUserId });
+    if (!reg) {
+      reg = await WorkshopRegistration.findOne({ workshopId, _id: targetUserId });
+    }
     if (!reg) throw new ApiError(404, "Registration not found");
 
     const existing = reg.sessionAttendance.find((a) => a.sessionId.toString() === sessionId.toString());
@@ -174,7 +178,7 @@ class WorkshopSessionService {
 
     const participants = regs.map((reg) => ({
       registrationId: reg._id,
-      userId: reg.userId?._id,
+      userId: reg.userId?._id?.toString() || reg._id.toString(), // Fallback to registrationId if userId is null
       name: reg.userId ? `${reg.userId.firstName} ${reg.userId.lastName}` : reg.participantName,
       email: reg.userId?.email || reg.participantEmail,
       avatarUrl: reg.userId?.avatarUrl,

@@ -1,0 +1,545 @@
+/* ============================================
+   EVENT CREATE PAGE - ENHANCED VISUAL DESIGN
+   ============================================ */
+
+/* Main Layout with Glass Effect */
+.event-create-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.72fr);
+  gap: 24px;
+  align-items: start;
+  padding: 20px;
+}
+
+/* Form Container with Gradient Background */
+.event-create-form {
+  display: grid;
+  gap: 24px;
+}
+
+/* Enhanced Input Grid with Better Spacing */
+.event-create-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--surface) 95%, #4a7fd9 5%),
+    var(--surface));
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.event-create-grid .field:nth-child(1) { grid-column: span 4; }
+.event-create-grid .field:nth-child(2) { grid-column: span 8; }
+.event-create-grid .field:nth-child(3) { grid-column: span 4; }
+.event-create-grid .field:nth-child(4) { grid-column: span 4; }
+.event-create-grid .field:nth-child(5) { grid-column: span 4; }
+
+/* Enhanced Section Cards */
+.event-create-section.card {
+  background: linear-gradient(180deg, 
+    color-mix(in srgb, var(--panel-strong) 95%, #fff 5%), 
+    var(--panel-strong));
+  border: 1px solid color-mix(in srgb, var(--border) 90%, var(--accent) 10%);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle gradient overlay at top */
+.event-create-section.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    var(--accent), 
+    transparent);
+  opacity: 0.6;
+}
+
+.event-create-section.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border) 60%);
+}
+
+/* Section Headers with Icons */
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.section-head h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--text), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.section-head .eyebrow {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0 0 6px 0;
+}
+
+.section-head .chip {
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000 20%));
+  color: #fff;
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+/* Enhanced Button Grid */
+.event-create-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--surface) 50%, transparent 50%);
+  border-radius: 14px;
+  border: 1px dashed var(--border);
+}
+
+.event-create-chip-grid button {
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.event-create-chip-grid .primary-button {
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 85%, #000 15%));
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px var(--accent-glow);
+  transform: translateY(-2px);
+}
+
+.event-create-chip-grid .secondary-button {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.event-create-chip-grid .secondary-button:hover {
+  background: var(--surface-soft);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced Inline Input Row */
+.event-inline-input-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 16px;
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--surface) 80%, var(--accent) 1%),
+    var(--surface));
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+
+.event-inline-input-row input {
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: all 200ms ease;
+}
+
+.event-inline-input-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.event-inline-input-row button {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced Chip Cloud */
+.chip-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent 40%);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.chip,
+.chip--interactive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--accent) 90%, #fff 10%),
+    var(--accent));
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: all 200ms ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.chip--interactive:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Enhanced Position Builder */
+.event-position-builder {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--surface) 92%, var(--accent) 3%),
+    var(--surface));
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Position name takes 9 columns, slots takes 3 columns */
+.event-position-builder .field:nth-child(1) {
+  grid-column: span 9;
+}
+
+.event-position-builder .field:nth-child(2) {
+  grid-column: span 3;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+/* Enhanced Position Cards */
+.event-position-card {
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--surface) 95%, #fff 5%), 
+    var(--surface));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: grid;
+  gap: 14px;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.event-position-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, transparent 40%));
+}
+
+.event-position-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border) 50%);
+}
+
+.event-position-card h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.event-position-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.event-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+
+/* Enhanced Form Fields */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field > span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.field input,
+.field textarea,
+.field select {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: all 200ms ease;
+  font-family: inherit;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: color-mix(in srgb, var(--surface) 95%, var(--accent) 1%);
+}
+
+.field textarea {
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+/* Enhanced Alert Boxes */
+.alert {
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1px solid;
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.alert-warning {
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, #f59e0b 12%, var(--surface) 88%),
+    color-mix(in srgb, #f59e0b 8%, var(--surface) 92%));
+  border-color: color-mix(in srgb, #f59e0b 40%, var(--border) 60%);
+  color: var(--text);
+}
+
+.alert-warning strong {
+  color: #f59e0b;
+}
+
+.alert-info {
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--accent) 10%, var(--surface) 90%),
+    color-mix(in srgb, var(--accent) 6%, var(--surface) 94%));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border) 65%);
+  color: var(--text);
+}
+
+/* Enhanced Empty State */
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  background: color-mix(in srgb, var(--surface) 40%, transparent 60%);
+  border-radius: 14px;
+  border: 1px dashed var(--border);
+}
+
+/* Enhanced Stack Layout */
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
+/* Muted Inline Text */
+.muted-inline {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 8px;
+}
+
+.event-create-actions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px 0;
+}
+
+/* Button Row for Tags/Chips */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.button-row .chip {
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--surface-soft) 100%, var(--accent) 5%),
+    var(--surface-soft));
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  padding: 6px 12px;
+}
+
+/* Select Dropdown Enhancement */
+.ui-select {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 200ms ease;
+  font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236ba3ff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.ui-select:hover {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border) 40%);
+  background-color: color-mix(in srgb, var(--surface) 97%, var(--accent) 3%);
+}
+
+.ui-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.ui-select option {
+  padding: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Room Assignment Enhancements */
+.event-create-note-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .event-create-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .event-create-note-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .event-position-builder {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .event-create-grid {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .event-create-grid .field {
+    grid-column: 1 / -1 !important;
+  }
+
+  .event-create-section.card {
+    padding: 20px;
+  }
+
+  .section-head {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .event-inline-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .event-inline-input-row input {
+    max-width: 100%;
+  }
+}
+
+/* Animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.event-create-section.card {
+  animation: slideIn 0.3s ease-out;
+}

@@ -597,10 +597,10 @@ export function WorkshopCreatePage() {
                     right: 0,
                     maxHeight: '200px',
                     overflowY: 'auto',
-                    background: 'var(--surface)',
+                    background: 'var(--bg)',
                     border: '1px solid var(--border)',
                     borderRadius: 8,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
                     zIndex: 1000,
                     marginTop: '-6px',
                   }}>
@@ -613,9 +613,10 @@ export function WorkshopCreatePage() {
                           cursor: 'pointer',
                           borderBottom: '1px solid var(--border)',
                           transition: 'background 0.2s',
+                          background: 'var(--bg)',
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(107,163,255,0.08)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(107,163,255,0.12)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg)'}
                       >
                         <div style={{ fontWeight: 500, fontSize: '0.88rem', color: 'var(--text)' }}>
                           {user.fullName}

@@ -378,7 +378,7 @@ button, input { font: inherit; }
 
 .icon-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(107, 163, 255, 0.2);
+  box-shadow: 0 6px 20px var(--accent-glow);
   border-color: var(--accent);
   background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--accent) 10%, var(--surface) 90%));
 }
@@ -393,7 +393,7 @@ button, input { font: inherit; }
     box-shadow: 0 0 0 0 var(--accent-glow), 0 2px 8px rgba(0, 0, 0, 0.08);
   }
   50% { 
-    box-shadow: 0 0 0 10px rgba(107, 163, 255, 0.05), 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 0 0 10px var(--accent-glow), 0 2px 8px rgba(0, 0, 0, 0.08);
   }
 }
 
@@ -401,7 +401,7 @@ button, input { font: inherit; }
   position: absolute;
   top: -6px;
   right: -6px;
-  background: linear-gradient(135deg, #f97316, #ea580c);
+  background: var(--error);
   color: white;
   font-size: 0.7rem;
   font-weight: 700;
@@ -410,7 +410,7 @@ button, input { font: inherit; }
   border-radius: 999px;
   display: grid;
   place-items: center;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4), 0 0 0 2px var(--bg);
+  box-shadow: 0 4px 12px var(--error-glow), 0 0 0 2px var(--bg);
   animation: badgePop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 

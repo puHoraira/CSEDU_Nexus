@@ -5,6 +5,8 @@ function validate(schema, source = "body") {
     const payload = req[source];
     const result = schema.safeParse(payload);
     if (!result.success) {
+      console.log('[Validation] Failed. Payload:', JSON.stringify(payload, null, 2));
+      console.log('[Validation] Issues:', JSON.stringify(result.error.issues, null, 2));
       return next(
         new ApiError(400, "Validation failed", result.error.issues.map((issue) => ({
           path: issue.path.join("."),

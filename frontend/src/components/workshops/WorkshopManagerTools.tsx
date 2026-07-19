@@ -98,8 +98,10 @@ export function AttendanceGrid({ workshopId, token }: Props) {
   });
 
   const markMut = useMutation({
-    mutationFn: ({ sessionId, userId, attended }: { sessionId: string; userId: string; attended: boolean }) =>
-      apiRequest(`/workshops/${workshopId}/sessions/${sessionId}/attendance`, { method: 'POST', token, body: JSON.stringify({ userId, attended }) }),
+    mutationFn: ({ sessionId, userId, attended }: { sessionId: string; userId: string; attended: boolean }) => {
+      console.log('[Attendance] Sending:', { sessionId, userId, attended });
+      return apiRequest(`/workshops/${workshopId}/sessions/${sessionId}/attendance`, { method: 'POST', token, body: JSON.stringify({ userId, attended }) });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ws-attendance', workshopId, token] }),
     onError: (e) => toast.error(normalizeApiError(e)),
   });
@@ -421,7 +423,7 @@ export function Leaderboard({ workshopId, token }: Props) {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.userId}>
+                  <tr key={r.registrationId || r.userId}>
                     <td>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 800, color: medalColor(r.rank) }}>
                         {r.rank <= 3 ? <Medal size={16} style={{ color: medalColor(r.rank) }} /> : null}#{r.rank}

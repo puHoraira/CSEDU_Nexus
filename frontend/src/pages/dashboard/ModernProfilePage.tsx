@@ -87,6 +87,15 @@ export function ModernProfilePage() {
     if (!profileQ.data) return;
     const u = profileQ.data.user;
     const m = profileQ.data.membership;
+    
+    console.log('🔄 [PROFILE EFFECT] Syncing form with profile data');
+    console.log('📊 User data from API:', {
+      gender: u.gender,
+      bloodGroup: u.bloodGroup,
+      dateOfBirth: u.dateOfBirth,
+      fullUser: u
+    });
+    
     setForm({
       firstName: u.firstName || '', lastName: u.lastName || '',
       fullNameBangla: u.fullNameBangla || '', phone: u.phone || '',
@@ -98,11 +107,22 @@ export function ModernProfilePage() {
       facebook: u.socialMedia?.facebook || '', linkedin: u.socialMedia?.linkedin || '',
       github: u.socialMedia?.github || '', twitter: u.socialMedia?.twitter || '',
     });
+    
+    console.log('✅ [PROFILE EFFECT] Form state updated with gender:', u.gender || '(empty)');
+    
     if (u.avatarUrl) setImagePreview(u.avatarUrl);
   }, [profileQ.data]);
 
   const updateMut = useMutation({
     mutationFn: async () => {
+      console.log('🚀 [MUTATION START] Submitting profile update');
+      console.log('📤 Form data being sent:', {
+        gender: form.gender,
+        bloodGroup: form.bloodGroup,
+        dateOfBirth: form.dateOfBirth,
+        fullForm: form
+      });
+      
       let avatarUrl = profileQ.data?.user.avatarUrl || '';
       if (imageFile) {
         const fd = new FormData();
@@ -110,29 +130,80 @@ export function ModernProfilePage() {
         const res = await apiRequest<{ url: string }>('/upload/avatar', { method: 'POST', token, body: fd, isFormData: true });
         avatarUrl = res.url;
       }
+      
+      const payload = {
+        firstName: form.firstName, lastName: form.lastName,
+        fullNameBangla: form.fullNameBangla, phone: form.phone,
+        dateOfBirth: form.dateOfBirth || undefined, gender: form.gender || undefined,
+        bloodGroup: form.bloodGroup || undefined, bio: form.bio, avatarUrl,
+        technicalSkills: form.technicalSkills, programmingLanguages: form.programmingLanguages,
+        socialMedia: { facebook: form.facebook, linkedin: form.linkedin, github: form.github, twitter: form.twitter },
+        memberData: {
+          academicRecord: { currentCgpa: form.currentCgpa ? parseFloat(form.currentCgpa) : undefined },
+          attendanceRecord: { overallAttendancePercentage: form.attendancePercentage ? parseFloat(form.attendancePercentage) : undefined },
+        },
+      };
+      
+      console.log('📦 Payload to API:', JSON.stringify(payload, null, 2));
+      
       return apiRequest<ApiUser>('/auth/profile', {
         method: 'PATCH', token,
-        body: JSON.stringify({
-          firstName: form.firstName, lastName: form.lastName,
-          fullNameBangla: form.fullNameBangla, phone: form.phone,
-          dateOfBirth: form.dateOfBirth || undefined, gender: form.gender || undefined,
-          bloodGroup: form.bloodGroup || undefined, bio: form.bio, avatarUrl,
-          technicalSkills: form.technicalSkills, programmingLanguages: form.programmingLanguages,
-          socialMedia: { facebook: form.facebook, linkedin: form.linkedin, github: form.github, twitter: form.twitter },
-          memberData: {
-            academicRecord: { currentCgpa: form.currentCgpa ? parseFloat(form.currentCgpa) : undefined },
-            attendanceRecord: { overallAttendancePercentage: form.attendancePercentage ? parseFloat(form.attendancePercentage) : undefined },
-          },
-        }),
+        body: JSON.stringify(payload),
       });
     },
-    onSuccess: (updated) => {
+    onSuccess: async (updated) => {
+      console.log('✅ [MUTATION SUCCESS] Profile updated');
+      console.log('📥 Updated user from API response:', {
+        gender: updated.gender,
+        bloodGroup: updated.bloodGroup,
+        fullUser: updated
+      });
+      
       setUserProfile(updated);
-      profileQ.refetch();
+      
+      console.log('🔄 [REFETCH] Fetching fresh profile data...');
+      const freshData = await profileQ.refetch();
+      
+      console.log('📊 [REFETCH RESULT] Fresh data received:', {
+        hasData: !!freshData.data,
+        gender: freshData.data?.user?.gender,
+        bloodGroup: freshData.data?.user?.bloodGroup,
+        fullData: freshData.data
+      });
+      
+      if (freshData.data) {
+        const u = freshData.data.user;
+        const m = freshData.data.membership;
+        
+        const newFormState = {
+          firstName: u.firstName || '', lastName: u.lastName || '',
+          fullNameBangla: u.fullNameBangla || '', phone: u.phone || '',
+          dateOfBirth: u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '',
+          gender: u.gender || '', bloodGroup: u.bloodGroup || '', bio: u.bio || '',
+          currentCgpa: m?.academicRecord?.currentCgpa?.toString() || '',
+          attendancePercentage: m?.attendanceRecord?.overallAttendancePercentage?.toString() || '',
+          technicalSkills: u.technicalSkills || [], programmingLanguages: u.programmingLanguages || [],
+          facebook: u.socialMedia?.facebook || '', linkedin: u.socialMedia?.linkedin || '',
+          github: u.socialMedia?.github || '', twitter: u.socialMedia?.twitter || '',
+        };
+        
+        console.log('📝 [FORM UPDATE] Setting form state to:', {
+          gender: newFormState.gender,
+          bloodGroup: newFormState.bloodGroup,
+          dateOfBirth: newFormState.dateOfBirth
+        });
+        
+        setForm(newFormState);
+        
+        console.log('✅ [FORM UPDATE] Form state has been set');
+      }
       setImageFile(null);
       toast.success('Profile updated successfully!');
     },
-    onError: e => toast.error(normalizeApiError(e)),
+    onError: e => {
+      console.error('❌ [MUTATION ERROR]', e);
+      toast.error(normalizeApiError(e));
+    },
   });
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -153,6 +224,15 @@ export function ModernProfilePage() {
   const isAlumni = authUser?.roles?.includes('Alumni');
   const canVote = profileQ.data?.membership?.electionEligibility?.isEligibleForVoting;
   const canRun  = profileQ.data?.membership?.electionEligibility?.isEligibleForCandidacy;
+
+  // Debug: Log current form state on every render
+  console.log('🎨 [RENDER] Current form state:', {
+    gender: form.gender,
+    bloodGroup: form.bloodGroup,
+    dateOfBirth: form.dateOfBirth,
+    firstName: form.firstName,
+    lastName: form.lastName
+  });
 
   if (profileQ.isLoading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '72px 0' }}>
@@ -434,9 +514,20 @@ export function ModernProfilePage() {
                     </div>
                     <div className="ui-input-wrap">
                       <label className="ui-input-label">Gender</label>
-                      <select className="ui-select" value={form.gender} onChange={e => setForm(p => ({ ...p, gender: e.target.value }))}>
+                      <select 
+                        className="ui-select" 
+                        value={form.gender} 
+                        onChange={e => {
+                          console.log('🔄 [GENDER CHANGE] User selected:', e.target.value);
+                          setForm(p => {
+                            const updated = { ...p, gender: e.target.value };
+                            console.log('📝 [GENDER CHANGE] Updated form state:', updated);
+                            return updated;
+                          });
+                        }}
+                      >
                         <option value="">Select…</option>
-                        {['Male','Female','Other','Prefer not to say'].map(g => <option key={g}>{g}</option>)}
+                        {['Male','Female','Other','Prefer not to say'].map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </div>
                     <div className="ui-input-wrap">

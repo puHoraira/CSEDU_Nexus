@@ -5,6 +5,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { apiRequest, normalizeApiError } from "../../lib/api";
 import { queryKeys, invalidateQueries } from "../../lib/queryKeys";
 import { PageScreen } from "../../components/ui/PageScreen";
+import "./EventCreatePage.css";
 
 const SUPPORTED_YEARS = [1, 2, 3, 4, 5];
 
@@ -92,6 +93,25 @@ export function EventCreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState("");
 
+  // Fetch available batches from the backend
+  const { data: availableBatchesData, isLoading: batchesLoading, error: batchesError } = useQuery({
+    queryKey: ['available-batches'],
+    queryFn: async () => {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1'}/enhanced-elections/utils/eligible-batches`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch batches');
+      const data = await response.json();
+      return data.data || data;
+    },
+    enabled: !!token,
+  });
+  const availableBatches = availableBatchesData || [];
+
   // Fetch rooms with time-aware availability for the chosen event time.
   // Events use a single start (eventDate); the backend reserves a 3h block,
   // so we probe availability with the same window here.
@@ -140,7 +160,7 @@ export function EventCreatePage() {
         }),
       }),
     onSuccess: async () => {
-      await Promise.all(invalidateQueries.events.all(queryClient, token));
+      await Promise.all(invalidateQueries.events.all(queryClient, token!));
       navigate("/dashboard/events");
     },
     onError: (err) => setError(formatValidationMessage(err)),
@@ -167,9 +187,14 @@ export function EventCreatePage() {
   }
 
   function addBatch() {
+    if (!batchInput) {
+      setError("Please select a batch.");
+      return;
+    }
+    
     const value = Number(batchInput);
     if (!Number.isInteger(value) || value <= 0) {
-      setError("Batch must be a positive number.");
+      setError("Invalid batch value.");
       return;
     }
 
@@ -216,9 +241,14 @@ export function EventCreatePage() {
   }
 
   function addAudienceBatch() {
+    if (!audienceBatchInput) {
+      setError("Please select a batch.");
+      return;
+    }
+    
     const value = Number(audienceBatchInput);
     if (!Number.isInteger(value) || value <= 0) {
-      setError("Batch must be a positive number.");
+      setError("Invalid batch value.");
       return;
     }
 
@@ -325,9 +355,14 @@ export function EventCreatePage() {
   }
 
   function addPositionBatch() {
+    if (!positionBatchInput) {
+      setError("Please select a batch.");
+      return;
+    }
+    
     const value = Number(positionBatchInput);
     if (!Number.isInteger(value) || value <= 0) {
-      setError("Position batch must be a positive number.");
+      setError("Invalid batch value.");
       return;
     }
 
@@ -531,13 +566,19 @@ export function EventCreatePage() {
             <div style={{ marginTop: 20 }}>
               <p style={{ fontWeight: 600, marginBottom: 10 }}>Batch Filtering</p>
               <div className="event-inline-input-row">
-                <input
-                  type="number"
-                  min={1}
-                  placeholder="Add batch e.g. 29"
+                <select
+                  className="ui-select"
                   value={audienceBatchInput}
                   onChange={(e) => setAudienceBatchInput(e.target.value)}
-                />
+                  style={{ flex: 1, minWidth: '200px', maxWidth: '300px' }}
+                >
+                  <option value="">Select a batch</option>
+                  {availableBatches.map((batch) => (
+                    <option key={batch} value={batch}>
+                      Batch {batch}
+                    </option>
+                  ))}
+                </select>
                 <button type="button" className="secondary-button" onClick={addAudienceBatch}>Add batch</button>
               </div>
 
@@ -641,13 +682,19 @@ export function EventCreatePage() {
             </div>
 
             <div className="event-inline-input-row">
-              <input
-                type="number"
-                min={1}
-                placeholder="Add batch e.g. 29"
+              <select
+                className="ui-select"
                 value={batchInput}
                 onChange={(e) => setBatchInput(e.target.value)}
-              />
+                style={{ flex: 1, minWidth: '200px', maxWidth: '300px' }}
+              >
+                <option value="">Select a batch</option>
+                {availableBatches.map((batch) => (
+                  <option key={batch} value={batch}>
+                    Batch {batch}
+                  </option>
+                ))}
+              </select>
               <button type="button" className="secondary-button" onClick={addBatch}>Add batch</button>
             </div>
 
@@ -699,9 +746,9 @@ export function EventCreatePage() {
             </div>
 
             <div className="event-position-builder">
-              <label className="field"><span>Position name</span><input value={positionDraft.name} onChange={(e) => setPositionDraft((current) => ({ ...current, name: e.target.value }))} placeholder="Registration desk" /></label>
-              <label className="field"><span>Slots</span><input type="number" min={1} value={positionDraft.slots} onChange={(e) => setPositionDraft((current) => ({ ...current, slots: Number(e.target.value) }))} /></label>
-              <label className="field field--full"><span>Description</span><textarea value={positionDraft.description} onChange={(e) => setPositionDraft((current) => ({ ...current, description: e.target.value }))} placeholder="Short duty summary" /></label>
+              <label className="field"><span>Position name</span><input value={positionDraft.name} onChange={(e) => setPositionDraft((current) => ({ ...current, name: e.target.value }))} placeholder="e.g., Registration desk, Stage manager, Usher, Tech support" /></label>
+              <label className="field"><span>Slots</span><input type="number" min={1} value={positionDraft.slots} onChange={(e) => setPositionDraft((current) => ({ ...current, slots: Number(e.target.value) }))} placeholder="Number of volunteers needed" /></label>
+              <label className="field field--full"><span>Description</span><textarea value={positionDraft.description} onChange={(e) => setPositionDraft((current) => ({ ...current, description: e.target.value }))} placeholder="Describe the volunteer's responsibilities, tasks, and requirements for this position" /></label>
               <label className="field field--full">
                 <span>Required years</span>
                 <div className="event-create-chip-grid">
@@ -718,7 +765,19 @@ export function EventCreatePage() {
               <label className="field field--full">
                 <span>Required batches</span>
                 <div className="event-inline-input-row">
-                  <input type="number" min={1} placeholder="Add batch e.g. 29" value={positionBatchInput} onChange={(e) => setPositionBatchInput(e.target.value)} />
+                  <select
+                    className="ui-select"
+                    value={positionBatchInput}
+                    onChange={(e) => setPositionBatchInput(e.target.value)}
+                    style={{ flex: 1, minWidth: '200px', maxWidth: '300px' }}
+                  >
+                    <option value="">Select a batch</option>
+                    {availableBatches.map((batch) => (
+                      <option key={batch} value={batch}>
+                        Batch {batch}
+                      </option>
+                    ))}
+                  </select>
                   <button type="button" className="secondary-button" onClick={addPositionBatch}>Add batch</button>
                 </div>
               </label>

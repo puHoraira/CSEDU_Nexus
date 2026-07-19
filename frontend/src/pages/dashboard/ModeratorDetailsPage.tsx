@@ -317,32 +317,6 @@ export function ModeratorDetailsPage() {
         </div>
       </div>
 
-      {/* ── Access Capabilities ── */}
-      <div className="ui-card">
-        <div className="ui-card__header">
-          <h3 className="ui-card__title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Shield size={16} style={{ color: "var(--accent)" }} /> Access Capabilities
-          </h3>
-        </div>
-        <div className="ui-card__body">
-          <div style={{ marginBottom: 12 }}>
-            <p style={{ margin: "0 0 6px", fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase" }}>Roles</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {(data?.access.roles ?? []).map(r => (
-                <Badge key={r} variant="primary">{r}</Badge>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p style={{ margin: "0 0 6px", fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase" }}>Permissions</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {(data?.access.permissions ?? []).map(p => (
-                <Badge key={p} variant="neutral" style={{ fontSize: "0.7rem" }}>{p}</Badge>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
