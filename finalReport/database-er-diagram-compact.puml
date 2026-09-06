@@ -1,0 +1,272 @@
+@startuml CSEDU_Nexus_ER_Compact
+!theme plain
+scale 1.2
+skinparam dpi 200
+skinparam defaultFontSize 9
+skinparam packageFontSize 10
+skinparam classFontSize 8
+
+title CSEDU Nexus - Database ER Diagram (Compact)
+header Student Organization Management System - Complete Database Architecture
+
+' Compact layout - focus on relationships
+skinparam linetype ortho
+skinparam nodesep 40
+skinparam ranksep 40
+
+' Core entities with key fields only
+entity "User" as user <<AUTH>> {
+  **_id** : ObjectId
+  --
+  email : String
+  firstName : String
+  lastName : String
+  roles : Array
+}
+
+entity "Member" as member <<MEMBER>> {
+  **_id** : ObjectId
+  --
+  **userId** : ObjectId FK
+  studentId : String
+  batch : Number
+  currentYear : Number
+  cgpa : Number
+  eligibility : Object
+}
+
+entity "Teacher" as teacher <<MEMBER>> {
+  **_id** : ObjectId
+  --
+  **userId** : ObjectId FK
+  employeeId : String
+  designation : Enum
+}
+
+' Elections
+entity "Election" as election <<ELECTION>> {
+  **_id** : ObjectId
+  --
+  **termId** : ObjectId FK
+  currentPhase : [0-2]
+  status : Enum
+}
+
+entity "ElectionCandidate" as candidate <<ELECTION>> {
+  **_id** : ObjectId
+  --
+  **electionId** : ObjectId FK
+  **memberId** : ObjectId FK
+  **postId** : ObjectId FK
+  phase : [1,2]
+  status : Enum
+}
+
+entity "Vote" as vote <<ELECTION>> {
+  **_id** : ObjectId
+  --
+  **electionId** : ObjectId FK
+  **voterMemberId** : ObjectId FK
+  **candidateId** : ObjectId FK
+  voteHash : String
+}
+
+' Governance
+entity "EcTerm" as ecterm <<GOV>> {
+  **_id** : ObjectId
+  --
+  name : String
+  startsOn : Date
+  status : Enum
+}
+
+entity "EcPost" as ecpost <<GOV>> {
+  **_id** : ObjectId
+  --
+  code : String
+  title : String
+  minYear : Number
+}
+
+entity "EcAppointment" as ecappt <<GOV>> {
+  **_id** : ObjectId
+  --
+  **termId** : ObjectId FK
+  **postId** : ObjectId FK
+  **memberId** : ObjectId FK
+}
+
+' Events
+entity "Event" as event <<EVENT>> {
+  **_id** : ObjectId
+  --
+  title : String
+  eventDate : Date
+  status : Enum
+}
+
+entity "EventRegistration" as eventreg <<EVENT>> {
+  **_id** : ObjectId
+  --
+  **eventId** : ObjectId FK
+  **userId** : ObjectId FK
+  status : Enum
+}
+
+' Workshops
+entity "Workshop" as workshop <<WORKSHOP>> {
+  **_id** : ObjectId
+  --
+  title : String
+  startDate : Date
+  capacity : Number
+}
+
+entity "WorkshopRegistration" as workshopreg <<WORKSHOP>> {
+  **_id** : ObjectId
+  --
+  **workshopId** : ObjectId FK
+  **userId** : ObjectId FK
+}
+
+entity "WorkshopCertificate" as wspcert <<WORKSHOP>> {
+  **_id** : ObjectId
+  --
+  **workshopId** : ObjectId FK
+  **userId** : ObjectId FK
+  certificateNumber : String
+}
+
+' Communication
+entity "Post" as post <<SOCIAL>> {
+  **_id** : ObjectId
+  --
+  **authorId** : ObjectId FK
+  content : Text
+  stats : Object
+}
+
+entity "PostComment" as comment <<SOCIAL>> {
+  **_id** : ObjectId
+  --
+  **postId** : ObjectId FK
+  **authorId** : ObjectId FK
+}
+
+entity "Notification" as notif <<SOCIAL>> {
+  **_id** : ObjectId
+  --
+  **userId** : ObjectId FK
+  type : Enum
+  isRead : Boolean
+}
+
+' Rooms
+entity "Room" as room <<RESOURCE>> {
+  **_id** : ObjectId
+  --
+  roomNumber : String
+  capacity : Number
+  seats : Array
+}
+
+entity "RoomBooking" as booking <<RESOURCE>> {
+  **_id** : ObjectId
+  --
+  **roomId** : ObjectId FK
+  **eventId** : ObjectId FK
+}
+
+' Finance & Others
+entity "Transaction" as trans <<FINANCE>> {
+  **_id** : ObjectId
+  --
+  type : Enum
+  amount : Number
+}
+
+entity "Meeting" as meeting <<OTHER>> {
+  **_id** : ObjectId
+  --
+  title : String
+  scheduledAt : Timestamp
+}
+
+entity "Role" as role <<RBAC>> {
+  **_id** : ObjectId
+  --
+  name : String
+}
+
+entity "Permission" as perm <<RBAC>> {
+  **_id** : ObjectId
+  --
+  key : String
+}
+
+' Key relationships
+user "1" -- "0..1" member : has >
+user "1" -- "0..1" teacher : has >
+user "1" -- "*" post : creates >
+user "1" -- "*" eventreg : registers >
+user "1" -- "*" notif : receives >
+
+member "*" -- "*" candidate : applies >
+member "1" -- "*" vote : casts >
+member "*" -- "1" ecappt : appointed >
+
+ecterm "1" -- "*" election : conducts >
+ecterm "1" -- "*" ecappt : period >
+
+election "1" -- "*" candidate : has >
+election "1" -- "*" vote : receives >
+
+ecpost "1" -- "*" candidate : for >
+ecpost "1" -- "*" ecappt : for >
+
+event "1" -- "*" eventreg : has >
+event "*" -- "*" booking : books >
+
+workshop "1" -- "*" workshopreg : has >
+workshop "1" -- "*" wspcert : issues >
+
+post "1" -- "*" comment : has >
+
+room "1" -- "*" booking : books >
+
+candidate "1" -- "*" vote : receives >
+
+note right of user
+  **Core Users**
+  - Students
+  - Teachers
+  - Admins
+  - EC Members
+end note
+
+note right of election
+  **Two-Phase Elections**
+  Phase 1: Batch Reps
+  Phase 2: EC Posts
+end note
+
+note bottom of room
+  **Room Management**
+  - Seat allocation
+  - Capacity tracking
+  - Auto-assignment
+end note
+
+legend right
+  |<#FFE6E6>| Authentication & RBAC |
+  |<#E6F3FF>| Elections System |
+  |<#FFF4E6>| Governance & EC |
+  |<#F0FFE6>| Events & Workshops |
+  |<#F5E6FF>| Communication |
+  |<#E6FFF9>| Resources & Finance |
+  
+  **48+ Models across 8 Subsystems**
+  Simplified view - Full details in models
+endlegend
+
+@enduml

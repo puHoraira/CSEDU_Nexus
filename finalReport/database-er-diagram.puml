@@ -1,0 +1,661 @@
+@startuml CSEDU_Nexus_ER_Diagram
+!define ENTITY_COLOR #E8F4F8
+!define AUTH_COLOR #FFE6E6
+!define ELECTION_COLOR #E6F3FF
+!define EVENT_COLOR #F0FFE6
+!define GOVERNANCE_COLOR #FFF4E6
+!define COMMUNICATION_COLOR #F5E6FF
+!define FINANCE_COLOR #E6FFF9
+
+title CSEDU Nexus - Entity Relationship Diagram
+header Student Organization Management System
+footer PlantUML ER Diagram - CSEDU Nexus
+
+' ===================================
+' AUTHENTICATION & USER MANAGEMENT
+' ===================================
+
+package "Authentication & User Management" <<Rectangle>> AUTH_COLOR {
+  entity "User" as user {
+    * _id : ObjectId <<PK>>
+    --
+    * email : String <<unique>>
+    * passwordHash : String
+    * firstName : String
+    * lastName : String
+    * phone : String
+    dateOfBirth : Date
+    gender : Enum
+    bloodGroup : Enum
+    avatarUrl : String
+    bio : String
+    isActive : Boolean
+    isVerified : Boolean
+    emailVerificationToken : String
+    passwordResetToken : String
+    profileCompleteness : Number
+    createdAt : Timestamp
+    updatedAt : Timestamp
+  }
+
+  entity "Member" as member {
+    * _id : ObjectId <<PK>>
+    --
+    * userId : ObjectId <<FK>>
+    * studentId : String <<unique>>
+    * batch : Number
+    * currentYear : Number [1-5]
+    * academicYearLevel : Enum
+    session : String
+    currentCgpa : Number
+    overallAttendancePercentage : Number
+    membershipStatus : Enum
+    electionEligibility : Object
+    createdAt : Timestamp
+  }
+
+  entity "Teacher" as teacher {
+    * _id : ObjectId <<PK>>
+    --
+    * userId : ObjectId <<FK>>
+    * employeeId : String <<unique>>
+    * designation : Enum
+    * joiningDate : Date
+    department : String
+    researchArea : Enum
+    totalPublications : Number
+    hIndex : Number
+    isActive : Boolean
+  }
+
+  entity "Role" as role {
+    * _id : ObjectId <<PK>>
+    --
+    * name : String <<unique>>
+    scope : Enum [system, governance]
+    createdAt : Timestamp
+  }
+
+  entity "Permission" as permission {
+    * _id : ObjectId <<PK>>
+    --
+    * key : String <<unique>>
+    * resource : String
+    * action : String
+  }
+
+  entity "UserRole" as userrole {
+    * _id : ObjectId <<PK>>
+    --
+    * userId : ObjectId <<FK>>
+    * roleId : ObjectId <<FK>>
+  }
+
+  entity "RolePermission" as rolepermission {
+    * _id : ObjectId <<PK>>
+    --
+    * roleId : ObjectId <<FK>>
+    * permissionId : ObjectId <<FK>>
+  }
+}
+
+' ===================================
+' ELECTIONS SUBSYSTEM
+' ===================================
+
+package "Elections System" <<Rectangle>> ELECTION_COLOR {
+  entity "Election" as election {
+    * _id : ObjectId <<PK>>
+    --
+    * name : String
+    * termId : ObjectId <<FK>>
+    * electionType : Enum
+    * currentPhase : Number [0-2]
+    targetYears : Array<String>
+    phase1 : Object
+    phase2 : Object
+    status : Enum
+    config : Object
+    results : Object
+    createdAt : Timestamp
+  }
+
+  entity "ElectionCandidate" as electioncandidate {
+    * _id : ObjectId <<PK>>
+    --
+    * electionId : ObjectId <<FK>>
+    * memberId : ObjectId <<FK>>
+    * phase : Number [1,2]
+    postId : ObjectId <<FK>>
+    batch : String
+    nominationType : Enum
+    candidateStatement : Text
+    status : Enum
+    eligibilityChecked : Boolean
+    votingResults : Object
+    createdAt : Timestamp
+  }
+
+  entity "Vote" as vote {
+    * _id : ObjectId <<PK>>
+    --
+    * electionId : ObjectId <<FK>>
+    * voterMemberId : ObjectId <<FK>>
+    * candidateId : ObjectId <<FK>>
+    * phase : Number [1,2]
+    * voteHash : String <<unique>>
+    postId : ObjectId <<FK>>
+    castAt : Timestamp
+    isValid : Boolean
+  }
+
+  entity "VoteRecording" as voterecording {
+    * _id : ObjectId <<PK>>
+    --
+    * electionId : ObjectId <<FK>>
+    * voterId : ObjectId <<FK>>
+    * phase : Number
+    postId : ObjectId <<FK>>
+    recordedAt : Timestamp
+  }
+
+  entity "ElectionCommission" as electioncommission {
+    * _id : ObjectId <<PK>>
+    --
+    * termId : ObjectId <<FK>>
+    * electionId : ObjectId <<FK>>
+    commissioners : Array<Object>
+    isActive : Boolean
+    createdAt : Timestamp
+  }
+
+  entity "ElectionDispute" as electiondispute {
+    * _id : ObjectId <<PK>>
+    --
+    * electionId : ObjectId <<FK>>
+    raisedBy : ObjectId <<FK>>
+    disputeType : Enum
+    description : Text
+    status : Enum
+    resolution : Text
+  }
+
+  entity "ElectionNomination" as electionnomination {
+    * _id : ObjectId <<PK>>
+    --
+    * electionId : ObjectId <<FK>>
+    nominatorId : ObjectId <<FK>>
+    nomineeId : ObjectId <<FK>>
+    status : Enum
+  }
+}
+
+' ===================================
+' GOVERNANCE SUBSYSTEM
+' ===================================
+
+package "Governance & EC Management" <<Rectangle>> GOVERNANCE_COLOR {
+  entity "EcTerm" as ecterm {
+    * _id : ObjectId <<PK>>
+    --
+    * name : String <<unique>>
+    * startsOn : Date
+    * endsOn : Date
+    status : Enum [Draft, Active, Closed]
+    createdAt : Timestamp
+  }
+
+  entity "EcPost" as ecpost {
+    * _id : ObjectId <<PK>>
+    --
+    * code : String <<unique>>
+    * title : String <<unique>>
+    minYear : Number [1-5]
+    minEcYears : Number
+    displayOrder : Number
+    isActive : Boolean
+  }
+
+  entity "EcAppointment" as ecappointment {
+    * _id : ObjectId <<PK>>
+    --
+    * termId : ObjectId <<FK>>
+    * postId : ObjectId <<FK>>
+    * memberId : ObjectId <<FK>>
+    appointmentType : Enum
+    isApproved : Boolean
+    startDate : Date
+    endDate : Date
+  }
+
+  entity "GovernanceProposal" as governanceproposal {
+    * _id : ObjectId <<PK>>
+    --
+    * title : String
+    * description : Text
+    * proposedBy : ObjectId <<FK>>
+    type : Enum
+    status : Enum
+    approvals : Array<Object>
+    createdAt : Timestamp
+  }
+
+  entity "ConstitutionDocument" as constitutiondocument {
+    * _id : ObjectId <<PK>>
+    --
+    * title : String
+    * version : String
+    documentUrl : String
+    isActive : Boolean
+    approvedBy : ObjectId <<FK>>
+  }
+}
+
+' ===================================
+' EVENTS & WORKSHOPS
+' ===================================
+
+package "Events & Workshops" <<Rectangle>> EVENT_COLOR {
+  entity "Event" as event {
+    * _id : ObjectId <<PK>>
+    --
+    * title : String
+    * description : Text
+    * eventDate : Date
+    * venue : String
+    category : Enum
+    status : Enum
+    registrationRequired : Boolean
+    maxParticipants : Number
+    coverImage : String
+    createdBy : ObjectId <<FK>>
+    stats : Object
+    createdAt : Timestamp
+  }
+
+  entity "EventRegistration" as eventregistration {
+    * _id : ObjectId <<PK>>
+    --
+    * eventId : ObjectId <<FK>>
+    * userId : ObjectId <<FK>>
+    registrationStatus : Enum
+    paymentStatus : Enum
+    hasAttended : Boolean
+    checkInTime : Timestamp
+    roomAssignment : Object
+    createdAt : Timestamp
+  }
+
+  entity "EventPost" as eventpost {
+    * _id : ObjectId <<PK>>
+    --
+    * eventId : ObjectId <<FK>>
+    * authorId : ObjectId <<FK>>
+    content : Text
+    images : Array<String>
+    createdAt : Timestamp
+  }
+
+  entity "EventComment" as eventcomment {
+    * _id : ObjectId <<PK>>
+    --
+    * eventPostId : ObjectId <<FK>>
+    * authorId : ObjectId <<FK>>
+    content : Text
+    createdAt : Timestamp
+  }
+
+  entity "EventGallery" as eventgallery {
+    * _id : ObjectId <<PK>>
+    --
+    * eventId : ObjectId <<FK>>
+    images : Array<Object>
+    uploadedBy : ObjectId <<FK>>
+    createdAt : Timestamp
+  }
+
+  entity "Workshop" as workshop {
+    * _id : ObjectId <<PK>>
+    --
+    * title : String
+    * description : Text
+    * startDate : Date
+    * endDate : Date
+    * venue : String
+    * capacity : Number
+    category : Enum
+    level : Enum
+    isFree : Boolean
+    fee : Number
+    status : Enum
+    sessions : Array<Object>
+    assignments : Array<Object>
+    createdBy : ObjectId <<FK>>
+    createdAt : Timestamp
+  }
+
+  entity "WorkshopRegistration" as workshopregistration {
+    * _id : ObjectId <<PK>>
+    --
+    * workshopId : ObjectId <<FK>>
+    * userId : ObjectId <<FK>>
+    registrationStatus : Enum
+    paymentStatus : Enum
+    attendancePercentage : Number
+    hasCompleted : Boolean
+    roomAssignment : Object
+    createdAt : Timestamp
+  }
+
+  entity "WorkshopCertificate" as workshopcertificate {
+    * _id : ObjectId <<PK>>
+    --
+    * workshopId : ObjectId <<FK>>
+    * userId : ObjectId <<FK>>
+    certificateNumber : String <<unique>>
+    issuedAt : Timestamp
+    certificateUrl : String
+  }
+
+  entity "WorkshopSubmission" as workshopsubmission {
+    * _id : ObjectId <<PK>>
+    --
+    * workshopId : ObjectId <<FK>>
+    * assignmentIndex : Number
+    * userId : ObjectId <<FK>>
+    submissionType : Enum
+    fileUrl : String
+    linkUrl : String
+    grade : Number
+    submittedAt : Timestamp
+  }
+
+  entity "WorkshopFeedback" as workshopfeedback {
+    * _id : ObjectId <<PK>>
+    --
+    * workshopId : ObjectId <<FK>>
+    * userId : ObjectId <<FK>>
+    rating : Number [1-5]
+    comment : Text
+    createdAt : Timestamp
+  }
+
+  entity "Volunteer" as volunteer {
+    * _id : ObjectId <<PK>>
+    --
+    * eventId : ObjectId <<FK>>
+    * userId : ObjectId <<FK>>
+    position : String
+    status : Enum
+    appliedAt : Timestamp
+  }
+}
+
+' ===================================
+' COMMUNICATION & SOCIAL
+' ===================================
+
+package "Communication & Social" <<Rectangle>> COMMUNICATION_COLOR {
+  entity "Post" as post {
+    * _id : ObjectId <<PK>>
+    --
+    * authorId : ObjectId <<FK>>
+    * content : Text
+    images : Array<String>
+    isAnnouncement : Boolean
+    isPinned : Boolean
+    visibility : Enum
+    stats : Object
+    createdAt : Timestamp
+  }
+
+  entity "PostComment" as postcomment {
+    * _id : ObjectId <<PK>>
+    --
+    * postId : ObjectId <<FK>>
+    * authorId : ObjectId <<FK>>
+    content : Text
+    createdAt : Timestamp
+  }
+
+  entity "PostLike" as postlike {
+    * _id : ObjectId <<PK>>
+    --
+    * postId : ObjectId <<FK>>
+    * userId : ObjectId <<FK>>
+    likedAt : Timestamp
+  }
+
+  entity "Notification" as notification {
+    * _id : ObjectId <<PK>>
+    --
+    * userId : ObjectId <<FK>>
+    type : Enum
+    title : String
+    message : Text
+    isRead : Boolean
+    relatedEntity : Object
+    createdAt : Timestamp
+  }
+
+  entity "ChatConversation" as chatconversation {
+    * _id : ObjectId <<PK>>
+    --
+    participants : Array<ObjectId>
+    conversationType : Enum
+    lastMessage : ObjectId <<FK>>
+    createdAt : Timestamp
+  }
+
+  entity "ChatMessage" as chatmessage {
+    * _id : ObjectId <<PK>>
+    --
+    * conversationId : ObjectId <<FK>>
+    * senderId : ObjectId <<FK>>
+    content : Text
+    messageType : Enum
+    isRead : Boolean
+    sentAt : Timestamp
+  }
+
+  entity "HomepageMessage" as homepagemessage {
+    * _id : ObjectId <<PK>>
+    --
+    * title : String
+    * message : Text
+    priority : Number
+    isActive : Boolean
+    createdBy : ObjectId <<FK>>
+    createdAt : Timestamp
+  }
+}
+
+' ===================================
+' MEETINGS & CERTIFICATES
+' ===================================
+
+package "Meetings & Certificates" <<Rectangle>> ENTITY_COLOR {
+  entity "Meeting" as meeting {
+    * _id : ObjectId <<PK>>
+    --
+    * title : String
+    * scheduledAt : Timestamp
+    venue : String
+    onlineLink : String
+    status : Enum
+    minutesUrl : String
+    createdBy : ObjectId <<FK>>
+  }
+
+  entity "MeetingAttendance" as meetingattendance {
+    * _id : ObjectId <<PK>>
+    --
+    * meetingId : ObjectId <<FK>>
+    * userId : ObjectId <<FK>>
+    status : Enum
+    checkedInAt : Timestamp
+  }
+
+  entity "CertificateRequest" as certificaterequest {
+    * _id : ObjectId <<PK>>
+    --
+    * userId : ObjectId <<FK>>
+    certificateType : Enum
+    reason : Text
+    status : Enum
+    approvedBy : ObjectId <<FK>>
+    createdAt : Timestamp
+  }
+}
+
+' ===================================
+' ROOMS & RESOURCES
+' ===================================
+
+package "Rooms & Resources" <<Rectangle>> ENTITY_COLOR {
+  entity "Room" as room {
+    * _id : ObjectId <<PK>>
+    --
+    * roomNumber : String <<unique>>
+    * roomName : String
+    * building : String
+    * floor : Number
+    roomType : Enum
+    totalCapacity : Number
+    seatManagementMode : Enum
+    seats : Array<Object>
+    isActive : Boolean
+    currentUsage : Object
+  }
+
+  entity "RoomBooking" as roombooking {
+    * _id : ObjectId <<PK>>
+    --
+    * roomId : ObjectId <<FK>>
+    eventId : ObjectId <<FK>>
+    workshopId : ObjectId <<FK>>
+    bookedBy : ObjectId <<FK>>
+    startTime : Timestamp
+    endTime : Timestamp
+    status : Enum
+  }
+
+  entity "RoomLog" as roomlog {
+    * _id : ObjectId <<PK>>
+    --
+    * roomId : ObjectId <<FK>>
+    action : String
+    performedBy : ObjectId <<FK>>
+    timestamp : Timestamp
+  }
+}
+
+' ===================================
+' FINANCE
+' ===================================
+
+package "Finance" <<Rectangle>> FINANCE_COLOR {
+  entity "Transaction" as transaction {
+    * _id : ObjectId <<PK>>
+    --
+    * type : Enum [Income, Expenditure]
+    * amount : Number
+    * category : String
+    * reference : String
+    occurredOn : Timestamp
+    createdBy : ObjectId <<FK>>
+    requiresCheque : Boolean
+  }
+}
+
+' ===================================
+' AUDIT & SYSTEM
+' ===================================
+
+package "Audit & System" <<Rectangle>> ENTITY_COLOR {
+  entity "AuditLog" as auditlog {
+    * _id : ObjectId <<PK>>
+    --
+    * userId : ObjectId <<FK>>
+    * action : String
+    * resource : String
+    * resourceId : ObjectId
+    ipAddress : String
+    userAgent : String
+    timestamp : Timestamp
+  }
+
+  entity "MembershipCancellation" as membershipcancellation {
+    * _id : ObjectId <<PK>>
+    --
+    * memberId : ObjectId <<FK>>
+    reason : Text
+    cancelledBy : ObjectId <<FK>>
+    cancelledAt : Timestamp
+  }
+}
+
+' ===================================
+' RELATIONSHIPS
+' ===================================
+
+' User relationships
+user ||--o{ member : "has profile"
+user ||--o{ teacher : "has profile"
+user ||--o{ userrole : "has roles"
+user ||--o{ post : "creates"
+user ||--o{ notification : "receives"
+user ||--o{ eventregistration : "registers for"
+user ||--o{ workshopregistration : "registers for"
+user ||--o{ auditlog : "performs actions"
+
+' Member relationships
+member ||--o{ electioncandidate : "candidate in"
+member ||--o{ vote : "casts vote"
+member ||--o{ ecappointment : "appointed to"
+
+' Role & Permission
+role ||--o{ userrole : "assigned to users"
+role ||--o{ rolepermission : "has permissions"
+permission ||--o{ rolepermission : "granted to roles"
+
+' Election relationships
+ecterm ||--o{ election : "has elections"
+ecterm ||--o{ ecappointment : "has appointments"
+ecterm ||--o{ electioncommission : "has commission"
+election ||--o{ electioncandidate : "has candidates"
+election ||--o{ vote : "receives votes"
+election ||--o{ voterecording : "tracks voting"
+election ||--o{ electiondispute : "has disputes"
+electioncandidate ||--o{ vote : "receives votes"
+ecpost ||--o{ electioncandidate : "candidate for"
+ecpost ||--o{ ecappointment : "appointment to"
+
+' Event relationships
+event ||--o{ eventregistration : "has registrations"
+event ||--o{ eventpost : "has posts"
+event ||--o{ eventgallery : "has gallery"
+event ||--o{ volunteer : "has volunteers"
+event ||--o{ roombooking : "books rooms"
+eventpost ||--o{ eventcomment : "has comments"
+
+' Workshop relationships
+workshop ||--o{ workshopregistration : "has registrations"
+workshop ||--o{ workshopcertificate : "issues certificates"
+workshop ||--o{ workshopsubmission : "has submissions"
+workshop ||--o{ workshopfeedback : "receives feedback"
+workshop ||--o{ roombooking : "books rooms"
+
+' Social/Communication
+post ||--o{ postcomment : "has comments"
+post ||--o{ postlike : "has likes"
+chatconversation ||--o{ chatmessage : "contains messages"
+
+' Room relationships
+room ||--o{ roombooking : "has bookings"
+room ||--o{ roomlog : "has logs"
+
+' Meeting relationships
+meeting ||--o{ meetingattendance : "tracks attendance"
+
+@enduml

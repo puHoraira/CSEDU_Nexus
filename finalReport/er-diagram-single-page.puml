@@ -1,0 +1,202 @@
+@startuml CSEDU_Nexus_Single_Page_ER
+!theme plain
+skinparam dpi 150
+skinparam defaultFontSize 7
+skinparam packageFontSize 8
+skinparam classFontSize 6
+skinparam arrowFontSize 6
+
+title CSEDU Nexus - Complete System Architecture (ER Overview)
+
+' Ultra-compact - show major entities and relationships only
+left to right direction
+
+package "Core Users" as core #FFE6E6 {
+  entity User {
+    **_id**
+    email
+    name
+  }
+  entity Member {
+    **_id**
+    userId FK
+    studentId
+    batch
+  }
+  entity Teacher {
+    **_id**
+    userId FK
+    employeeId
+  }
+}
+
+package "RBAC" as rbac #FFE6CC {
+  entity Role {
+    **_id**
+    name
+  }
+  entity Permission {
+    **_id**
+    key
+  }
+}
+
+package "Elections (2-Phase)" as elec #E6F3FF {
+  entity Election {
+    **_id**
+    termId FK
+    phase [0-2]
+  }
+  entity Candidate {
+    **_id**
+    electionId FK
+    memberId FK
+    postId FK
+  }
+  entity Vote {
+    **_id**
+    candidateId FK
+    voterId FK
+  }
+}
+
+package "Governance" as gov #FFF4E6 {
+  entity EcTerm {
+    **_id**
+    name
+  }
+  entity EcPost {
+    **_id**
+    title
+  }
+  entity Appointment {
+    **_id**
+    termId FK
+    postId FK
+    memberId FK
+  }
+}
+
+package "Events & Workshops" as events #F0FFE6 {
+  entity Event {
+    **_id**
+    title
+    date
+  }
+  entity Workshop {
+    **_id**
+    title
+  }
+  entity EventReg {
+    **_id**
+    eventId FK
+    userId FK
+  }
+  entity WsReg {
+    **_id**
+    workshopId FK
+    userId FK
+  }
+  entity Certificate {
+    **_id**
+    workshopId FK
+    userId FK
+  }
+}
+
+package "Social & Comm" as social #F5E6FF {
+  entity Post {
+    **_id**
+    authorId FK
+  }
+  entity Comment {
+    **_id**
+    postId FK
+  }
+  entity Notification {
+    **_id**
+    userId FK
+  }
+}
+
+package "Resources" as res #E6FFF9 {
+  entity Room {
+    **_id**
+    number
+    capacity
+  }
+  entity Booking {
+    **_id**
+    roomId FK
+    eventId FK
+  }
+  entity Transaction {
+    **_id**
+    amount
+  }
+  entity Meeting {
+    **_id**
+    title
+  }
+}
+
+' Relationships
+User "1" -- "0..1" Member
+User "1" -- "0..1" Teacher
+User "1" .. "*" Role
+Member "*" -- "*" Candidate
+Member "1" -- "*" Vote
+Member "*" -- "1" Appointment
+
+EcTerm "1" -- "*" Election
+EcTerm "1" -- "*" Appointment
+Election "1" -- "*" Candidate
+Election "1" -- "*" Vote
+EcPost "1" -- "*" Candidate
+EcPost "1" -- "*" Appointment
+Candidate "1" -- "*" Vote
+
+Event "1" -- "*" EventReg
+Workshop "1" -- "*" WsReg
+Workshop "1" -- "*" Certificate
+User "1" -- "*" EventReg
+User "1" -- "*" WsReg
+
+User "1" -- "*" Post
+Post "1" -- "*" Comment
+User "1" -- "*" Notification
+
+Room "1" -- "*" Booking
+Event "*" -- "*" Booking
+
+note top of elec
+  **48+ Models**
+  **8 Subsystems**
+  - Auth & Users (7)
+  - Elections (7)
+  - Governance (5)
+  - Events/Workshops (10)
+  - Social/Comm (7)
+  - Rooms/Resources (6)
+  - Finance & Audit (3)
+  - Meetings (3)
+end note
+
+note bottom of events
+  **Complex Features:**
+  - Room seat assignment
+  - Payment integration
+  - Certificate generation
+  - QR code attendance
+end note
+
+note right of elec
+  **Democratic Elections:**
+  Phase 1: Batch Representatives
+  Phase 2: EC Office Bearers
+  - Eligibility validation
+  - Secure voting (hash)
+  - Dispute resolution
+end note
+
+@enduml

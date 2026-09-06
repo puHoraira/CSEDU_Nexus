@@ -1,0 +1,285 @@
+@startuml CSEDU_Nexus_UML_Compact
+!theme plain
+scale 1.2
+skinparam dpi 200
+skinparam defaultFontSize 8
+skinparam classFontSize 7
+skinparam packageFontSize 9
+
+title CSEDU Nexus - UML Class Diagram (Compact)
+header Mongoose Models - Key Attributes & Methods
+
+skinparam linetype ortho
+skinparam nodesep 30
+skinparam ranksep 40
+
+' Authentication
+package "Auth & Users" <<Rectangle>> {
+  class User {
+    +ObjectId _id
+    +String email
+    +String firstName
+    +String lastName
+    +Number profileCompleteness
+    ..methods..
+    +calculateProfileCompleteness()
+    +virtual fullName()
+  }
+  
+  class Member {
+    +ObjectId userId FK
+    +String studentId
+    +Number batch
+    +Number currentYear
+    +Object academicRecord
+    +Object eligibility
+    ..methods..
+    +checkEcEligibility()
+    +checkVotingEligibility()
+    +promoteToNextYear()
+  }
+  
+  class Teacher {
+    +ObjectId userId FK
+    +String employeeId
+    +Enum designation
+    +Array publications
+    +Number hIndex
+  }
+  
+  class Role {
+    +String name
+    +Enum scope
+  }
+  
+  class Permission {
+    +String key
+    +String resource
+  }
+}
+
+' Elections
+package "Elections" <<Rectangle>> {
+  class Election {
+    +String name
+    +ObjectId termId FK
+    +Number currentPhase
+    +Enum status
+    +Object phase1
+    +Object phase2
+    +Object results
+  }
+  
+  class ElectionCandidate {
+    +ObjectId electionId FK
+    +ObjectId memberId FK
+    +ObjectId postId FK
+    +Number phase
+    +String batch
+    +Enum status
+    +Object votingResults
+  }
+  
+  class Vote {
+    +ObjectId electionId FK
+    +ObjectId voterMemberId FK
+    +ObjectId candidateId FK
+    +String voteHash
+    +Boolean isValid
+  }
+  
+  class VoteRecording {
+    +ObjectId electionId FK
+    +ObjectId voterId FK
+    +Number phase
+  }
+}
+
+' Governance
+package "Governance" <<Rectangle>> {
+  class EcTerm {
+    +String name
+    +Date startsOn
+    +Date endsOn
+    +Enum status
+  }
+  
+  class EcPost {
+    +String code
+    +String title
+    +Number minYear
+    +Number minEcYears
+  }
+  
+  class EcAppointment {
+    +ObjectId termId FK
+    +ObjectId postId FK
+    +ObjectId memberId FK
+    +Enum appointmentType
+    +Boolean isApproved
+  }
+}
+
+' Events
+package "Events & Workshops" <<Rectangle>> {
+  class Event {
+    +String title
+    +Date eventDate
+    +String venue
+    +Enum status
+    +Object registrationSettings
+    +Object roomAssignment
+    ..methods..
+    +virtual registrationStatus()
+  }
+  
+  class EventRegistration {
+    +ObjectId eventId FK
+    +ObjectId userId FK
+    +Enum registrationStatus
+    +Object roomAssignment
+  }
+  
+  class Workshop {
+    +String title
+    +Date startDate
+    +Number capacity
+    +Array sessions
+    +Array assignments
+    +Object completion
+  }
+  
+  class WorkshopRegistration {
+    +ObjectId workshopId FK
+    +ObjectId userId FK
+    +Number attendancePercentage
+    +Boolean hasCompleted
+  }
+  
+  class WorkshopCertificate {
+    +ObjectId workshopId FK
+    +ObjectId userId FK
+    +String certificateNumber
+  }
+}
+
+' Communication
+package "Communication" <<Rectangle>> {
+  class Post {
+    +ObjectId authorId FK
+    +String content
+    +Array images
+    +Object stats
+    +Boolean isPinned
+  }
+  
+  class PostComment {
+    +ObjectId postId FK
+    +ObjectId authorId FK
+    +String content
+  }
+  
+  class Notification {
+    +ObjectId userId FK
+    +Enum type
+    +String message
+    +Boolean isRead
+  }
+  
+  class ChatMessage {
+    +ObjectId conversationId FK
+    +ObjectId senderId FK
+    +String content
+  }
+}
+
+' Resources
+package "Resources & Finance" <<Rectangle>> {
+  class Room {
+    +String roomNumber
+    +Number totalCapacity
+    +Array seats
+    +Object currentUsage
+    ..methods..
+    +generateSeats()
+    +assignSeat()
+    +releaseSeat()
+  }
+  
+  class RoomBooking {
+    +ObjectId roomId FK
+    +ObjectId eventId FK
+    +Timestamp startTime
+  }
+  
+  class Transaction {
+    +Enum type
+    +Number amount
+    +String category
+  }
+  
+  class Meeting {
+    +String title
+    +Timestamp scheduledAt
+    +String venue
+  }
+}
+
+' Key Relationships
+User "1" -- "0..1" Member
+User "1" -- "0..1" Teacher
+User "1" -- "*" Post
+User "1" -- "*" Notification
+User "1" -- "*" EventRegistration
+User "1" -- "*" WorkshopRegistration
+
+Member "1" -- "*" ElectionCandidate
+Member "1" -- "*" Vote
+Member "*" -- "1" EcAppointment
+
+EcTerm "1" -- "*" Election
+EcTerm "1" -- "*" EcAppointment
+Election "1" -- "*" ElectionCandidate
+Election "1" -- "*" Vote
+ElectionCandidate "1" -- "*" Vote
+EcPost "1" -- "*" ElectionCandidate
+EcPost "1" -- "*" EcAppointment
+
+Event "1" -- "*" EventRegistration
+Event "*" -- "*" RoomBooking
+Workshop "1" -- "*" WorkshopRegistration
+Workshop "1" -- "*" WorkshopCertificate
+
+Post "1" -- "*" PostComment
+Room "1" -- "*" RoomBooking
+
+note right of Member
+  **Complex Eligibility Logic**
+  - CGPA validation
+  - Attendance tracking
+  - EC experience checking
+  - Year-level promotions
+end note
+
+note right of Election
+  **Two-Phase System**
+  Phase 1: Batch Representatives
+  Phase 2: EC Office Bearers
+  Per-batch voting in Phase 1
+end note
+
+note right of Room
+  **Seat Management**
+  Two modes:
+  - Individual seats
+  - Capacity-only
+end note
+
+legend bottom
+  **CSEDU Nexus - 48+ Models**
+  Comprehensive student organization system
+  8 major subsystems with full CRUD operations
+  Complex business logic in service layer
+endlegend
+
+@enduml

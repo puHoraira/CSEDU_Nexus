@@ -1,0 +1,175 @@
+@startuml CSEDU_Nexus_Single_Page_UML
+!theme plain
+skinparam dpi 150
+skinparam defaultFontSize 7
+skinparam classFontSize 6
+skinparam packageFontSize 8
+
+title CSEDU Nexus - System Class Architecture (UML Overview)
+
+left to right direction
+
+package "Authentication" {
+  class User {
+    +email: String
+    +passwordHash: String
+    +profileCompleteness: Number
+    ..
+    +calculateProfile()
+  }
+  
+  class Member {
+    +userId: ObjectId
+    +studentId: String
+    +batch: Number
+    +cgpa: Number
+    ..
+    +checkEcEligibility()
+    +promoteToNextYear()
+  }
+  
+  class Teacher {
+    +userId: ObjectId
+    +designation: Enum
+    +publications: Array
+  }
+}
+
+package "Elections" {
+  class Election {
+    +name: String
+    +termId: ObjectId
+    +currentPhase: [0-2]
+    +phase1: Object
+    +phase2: Object
+  }
+  
+  class ElectionCandidate {
+    +electionId: ObjectId
+    +memberId: ObjectId
+    +phase: [1,2]
+    +status: Enum
+  }
+  
+  class Vote {
+    +candidateId: ObjectId
+    +voterMemberId: ObjectId
+    +voteHash: String
+  }
+}
+
+package "Governance" {
+  class EcTerm {
+    +name: String
+    +startsOn: Date
+  }
+  
+  class EcPost {
+    +code: String
+    +title: String
+    +minYear: Number
+  }
+  
+  class EcAppointment {
+    +termId: ObjectId
+    +postId: ObjectId
+    +memberId: ObjectId
+  }
+}
+
+package "Events" {
+  class Event {
+    +title: String
+    +eventDate: Date
+    +registrationSettings: Object
+    +roomAssignment: Object
+  }
+  
+  class EventRegistration {
+    +eventId: ObjectId
+    +userId: ObjectId
+    +roomAssignment: Object
+  }
+  
+  class Workshop {
+    +title: String
+    +sessions: Array
+    +assignments: Array
+  }
+}
+
+package "Communication" {
+  class Post {
+    +authorId: ObjectId
+    +content: String
+    +stats: Object
+  }
+  
+  class Notification {
+    +userId: ObjectId
+    +type: Enum
+    +isRead: Boolean
+  }
+}
+
+package "Resources" {
+  class Room {
+    +roomNumber: String
+    +capacity: Number
+    +seats: Array
+    ..
+    +generateSeats()
+    +assignSeat()
+  }
+  
+  class Transaction {
+    +type: Enum
+    +amount: Number
+  }
+}
+
+User "1" -- "0..1" Member
+User "1" -- "0..1" Teacher
+Member "*" -- "*" ElectionCandidate
+Member "1" -- "*" Vote
+EcTerm "1" -- "*" Election
+Election "1" -- "*" ElectionCandidate
+ElectionCandidate "1" -- "*" Vote
+EcPost "1" -- "*" EcAppointment
+Event "1" -- "*" EventRegistration
+User "1" -- "*" Post
+User "1" -- "*" Notification
+
+note right of Member
+  **Complex Business Logic:**
+  - CGPA validation
+  - Attendance tracking
+  - EC experience validation
+  - Year-level promotions
+  - Eligibility calculations
+end note
+
+note bottom of Election
+  **Two-Phase Election System:**
+  Phase 1: Per-batch voting
+  Phase 2: EC post elections
+  Automated result calculation
+end note
+
+note left of Room
+  **Seat Management:**
+  - Individual seat assignment
+  - Capacity-only tracking
+  - Auto-generation
+  - Real-time availability
+end note
+
+legend bottom
+  **CSEDU Nexus - Complete Architecture**
+  48+ Mongoose Models | 8 Major Subsystems
+  Complex eligibility logic | Democratic elections
+  Room management | Payment integration
+  Certificate generation | Real-time notifications
+endlegend
+
+@enduml

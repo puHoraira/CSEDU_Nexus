@@ -1,0 +1,660 @@
+@startuml CSEDU_Nexus_Class_Diagram
+!define CLASS_COLOR #E8F4F8
+!define AUTH_COLOR #FFE6E6
+!define ELECTION_COLOR #E6F3FF
+!define EVENT_COLOR #F0FFE6
+!define GOVERNANCE_COLOR #FFF4E6
+
+title CSEDU Nexus - UML Class Diagram
+header Student Organization Management System - Mongoose Models
+footer PlantUML Class Diagram - CSEDU Nexus
+
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor CLASS_COLOR
+  BorderColor #2C3E50
+  ArrowColor #2C3E50
+}
+
+' ===================================
+' AUTHENTICATION & USER MANAGEMENT
+' ===================================
+
+package "Authentication & Authorization" <<Rectangle>> AUTH_COLOR {
+  class User {
+    +ObjectId _id
+    +String email
+    +String passwordHash
+    +String firstName
+    +String lastName
+    +String phone
+    +Date dateOfBirth
+    +Enum gender
+    +String avatarUrl
+    +String bio
+    +Object socialMedia
+    +Array technicalSkills
+    +Boolean isActive
+    +Boolean isVerified
+    +String emailVerificationToken
+    +String passwordResetToken
+    +Number profileCompleteness
+    +Object privacySettings
+    ..
+    +calculateProfileCompleteness()
+    +virtual fullName()
+    +virtual age()
+  }
+
+  class Member {
+    +ObjectId _id
+    +ObjectId userId
+    +String studentId
+    +Number batch
+    +Number currentYear
+    +Enum academicYearLevel
+    +String session
+    +Object academicRecord
+    +Object attendanceRecord
+    +Object disciplinaryRecord
+    +Array ecExperience
+    +Object electionEligibility
+    +Array electionHistory
+    +Object membershipStatus
+    +Object financialRecord
+    +Array promotionHistory
+    +Object retentionStatus
+    ..
+    +checkEcEligibility()
+    +checkVotingEligibility()
+    +promoteToNextYear()
+    +retainInCurrentYear()
+    +calculateLeadershipScore()
+  }
+
+  class Teacher {
+    +ObjectId _id
+    +ObjectId userId
+    +String employeeId
+    +Enum designation
+    +String department
+    +Date joiningDate
+    +Array qualifications
+    +Array researchInterests
+    +Array publications
+    +Number totalPublications
+    +Number hIndex
+    +Array coursesTeaching
+    +Array studentsSupervised
+    +Array clubRoles
+    +Boolean isActive
+    ..
+    +calculateProfileCompleteness()
+    +getCurrentSemester()
+  }
+
+  class Role {
+    +ObjectId _id
+    +String name
+    +Enum scope
+    +Timestamp createdAt
+  }
+
+  class Permission {
+    +ObjectId _id
+    +String key
+    +String resource
+    +String action
+  }
+
+  class UserRole {
+    +ObjectId _id
+    +ObjectId userId
+    +ObjectId roleId
+  }
+
+  class RolePermission {
+    +ObjectId _id
+    +ObjectId roleId
+    +ObjectId permissionId
+  }
+}
+
+' ===================================
+' ELECTIONS SUBSYSTEM
+' ===================================
+
+package "Elections System" <<Rectangle>> ELECTION_COLOR {
+  class Election {
+    +ObjectId _id
+    +String name
+    +String description
+    +ObjectId termId
+    +Enum electionType
+    +Array targetYears
+    +Number currentPhase
+    +Object phase1
+    +Object phase2
+    +Array phase1Batches
+    +Boolean usePerBatchPhase1
+    +Enum status
+    +Object config
+    +Object results
+    +Array auditLog
+    ..
+    +Pre-save middleware
+  }
+
+  class ElectionCandidate {
+    +ObjectId _id
+    +ObjectId electionId
+    +ObjectId memberId
+    +Number phase
+    +ObjectId postId
+    +String batch
+    +Enum nominationType
+    +Array nominators
+    +String candidateStatement
+    +Object eligibilityDetails
+    +Enum status
+    +Object commissionDecision
+    +Object votingResults
+    ..
+    +Pre-save validation
+  }
+
+  class Vote {
+    +ObjectId _id
+    +ObjectId electionId
+    +ObjectId voterMemberId
+    +ObjectId candidateId
+    +Number phase
+    +ObjectId postId
+    +String batch
+    +String voteHash
+    +Boolean voterVerified
+    +Timestamp castAt
+    +Boolean isValid
+    +Object disputeDetails
+    ..
+    +Pre-save validation
+  }
+
+  class VoteRecording {
+    +ObjectId _id
+    +ObjectId electionId
+    +ObjectId voterId
+    +Number phase
+    +ObjectId postId
+    +Timestamp recordedAt
+  }
+
+  class ElectionCommission {
+    +ObjectId _id
+    +ObjectId termId
+    +ObjectId electionId
+    +Array commissioners
+    +Boolean isActive
+    +Timestamp createdAt
+  }
+
+  class ElectionDispute {
+    +ObjectId _id
+    +ObjectId electionId
+    +ObjectId raisedBy
+    +Enum disputeType
+    +String description
+    +Enum status
+    +String resolution
+    +ObjectId resolvedBy
+  }
+
+  class ElectionNomination {
+    +ObjectId _id
+    +ObjectId electionId
+    +ObjectId nominatorId
+    +ObjectId nomineeId
+    +Enum status
+    +Timestamp nominatedAt
+  }
+}
+
+' ===================================
+' GOVERNANCE & EC
+' ===================================
+
+package "Governance & EC Management" <<Rectangle>> GOVERNANCE_COLOR {
+  class EcTerm {
+    +ObjectId _id
+    +String name
+    +Date startsOn
+    +Date endsOn
+    +Enum status
+    +Timestamp createdAt
+  }
+
+  class EcPost {
+    +ObjectId _id
+    +String code
+    +String title
+    +Number minYear
+    +Number minEcYears
+    +Number displayOrder
+    +Boolean isActive
+  }
+
+  class EcAppointment {
+    +ObjectId _id
+    +ObjectId termId
+    +ObjectId postId
+    +ObjectId memberId
+    +Enum appointmentType
+    +Boolean isApproved
+    +Date startDate
+    +Date endDate
+    +Object approvalWorkflow
+  }
+
+  class GovernanceProposal {
+    +ObjectId _id
+    +Enum type
+    +String title
+    +String description
+    +ObjectId proposedBy
+    +Enum status
+    +Array approvals
+    +Timestamp createdAt
+  }
+
+  class ConstitutionDocument {
+    +ObjectId _id
+    +String title
+    +String version
+    +String documentUrl
+    +Boolean isActive
+    +ObjectId approvedBy
+    +Timestamp approvedAt
+  }
+}
+
+' ===================================
+' EVENTS & WORKSHOPS
+' ===================================
+
+package "Events & Workshops" <<Rectangle>> EVENT_COLOR {
+  class Event {
+    +ObjectId _id
+    +String title
+    +String description
+    +Date eventDate
+    +Date endDate
+    +String venue
+    +Object venueDetails
+    +Enum category
+    +Array tags
+    +String coverImage
+    +Boolean registrationRequired
+    +Object registrationSettings
+    +Object attendanceTracking
+    +Enum status
+    +Enum visibility
+    +Array organizers
+    +Array speakers
+    +Array schedule
+    +Object stats
+    +Object roomAssignment
+    ..
+    +virtual duration()
+    +virtual registrationStatus()
+    +virtual isPastEvent()
+  }
+
+  class EventRegistration {
+    +ObjectId _id
+    +ObjectId eventId
+    +ObjectId userId
+    +Enum registrationStatus
+    +Enum paymentStatus
+    +Number amountPaid
+    +Boolean hasAttended
+    +Timestamp checkInTime
+    +Object roomAssignment
+    +String seatNumber
+  }
+
+  class EventPost {
+    +ObjectId _id
+    +ObjectId eventId
+    +ObjectId authorId
+    +String content
+    +Array images
+    +Timestamp createdAt
+  }
+
+  class EventComment {
+    +ObjectId _id
+    +ObjectId eventPostId
+    +ObjectId authorId
+    +String content
+    +Timestamp createdAt
+  }
+
+  class EventGallery {
+    +ObjectId _id
+    +ObjectId eventId
+    +Array images
+    +ObjectId uploadedBy
+    +Timestamp createdAt
+  }
+
+  class Workshop {
+    +ObjectId _id
+    +String title
+    +String description
+    +Date startDate
+    +Date endDate
+    +String venue
+    +Boolean isOnline
+    +Number capacity
+    +Enum category
+    +Enum level
+    +Boolean isFree
+    +Number fee
+    +Array speakers
+    +Array materials
+    +Array sessions
+    +Array prework
+    +Array assignments
+    +Object completion
+    +Enum status
+    +Object stats
+    +Object roomAssignment
+    ..
+    +Auto-update stats
+  }
+
+  class WorkshopRegistration {
+    +ObjectId _id
+    +ObjectId workshopId
+    +ObjectId userId
+    +Enum registrationStatus
+    +Enum paymentStatus
+    +Number attendancePercentage
+    +Boolean hasCompleted
+    +Object roomAssignment
+    +String seatNumber
+  }
+
+  class WorkshopCertificate {
+    +ObjectId _id
+    +ObjectId workshopId
+    +ObjectId userId
+    +String certificateNumber
+    +String certificateUrl
+    +Timestamp issuedAt
+  }
+
+  class WorkshopSubmission {
+    +ObjectId _id
+    +ObjectId workshopId
+    +Number assignmentIndex
+    +ObjectId userId
+    +Enum submissionType
+    +String fileUrl
+    +String linkUrl
+    +Number grade
+    +Timestamp submittedAt
+  }
+
+  class WorkshopFeedback {
+    +ObjectId _id
+    +ObjectId workshopId
+    +ObjectId userId
+    +Number rating
+    +String comment
+    +Timestamp createdAt
+  }
+
+  class Volunteer {
+    +ObjectId _id
+    +ObjectId eventId
+    +ObjectId userId
+    +String position
+    +Enum status
+    +Timestamp appliedAt
+  }
+}
+
+' ===================================
+' COMMUNICATION
+' ===================================
+
+package "Communication & Social" <<Rectangle>> CLASS_COLOR {
+  class Post {
+    +ObjectId _id
+    +ObjectId authorId
+    +String content
+    +Array images
+    +Boolean isAnnouncement
+    +Boolean isPinned
+    +Array mentions
+    +Enum visibility
+    +Object stats
+    +Array tags
+    +Boolean isEdited
+    +Array editHistory
+    ..
+    +virtual engagementRate()
+  }
+
+  class PostComment {
+    +ObjectId _id
+    +ObjectId postId
+    +ObjectId authorId
+    +String content
+    +Timestamp createdAt
+  }
+
+  class PostLike {
+    +ObjectId _id
+    +ObjectId postId
+    +ObjectId userId
+    +Timestamp likedAt
+  }
+
+  class Notification {
+    +ObjectId _id
+    +ObjectId userId
+    +Enum type
+    +String title
+    +String message
+    +Boolean isRead
+    +Object relatedEntity
+    +Timestamp createdAt
+  }
+
+  class ChatConversation {
+    +ObjectId _id
+    +Array participants
+    +Enum conversationType
+    +ObjectId lastMessageId
+    +Timestamp lastActivity
+  }
+
+  class ChatMessage {
+    +ObjectId _id
+    +ObjectId conversationId
+    +ObjectId senderId
+    +String content
+    +Enum messageType
+    +Boolean isRead
+    +Timestamp sentAt
+  }
+
+  class HomepageMessage {
+    +ObjectId _id
+    +String title
+    +String message
+    +Number priority
+    +Boolean isActive
+    +ObjectId createdBy
+  }
+}
+
+' ===================================
+' OTHER SYSTEMS
+' ===================================
+
+package "Meetings & Rooms" <<Rectangle>> CLASS_COLOR {
+  class Meeting {
+    +ObjectId _id
+    +String title
+    +Timestamp scheduledAt
+    +String venue
+    +String onlineLink
+    +Enum status
+    +String minutesUrl
+    +ObjectId createdBy
+  }
+
+  class MeetingAttendance {
+    +ObjectId _id
+    +ObjectId meetingId
+    +ObjectId userId
+    +Enum status
+    +Timestamp checkedInAt
+  }
+
+  class Room {
+    +ObjectId _id
+    +String roomNumber
+    +String roomName
+    +String building
+    +Number floor
+    +Enum roomType
+    +Number totalCapacity
+    +Enum seatManagementMode
+    +Array seats
+    +Object features
+    +Object currentUsage
+    ..
+    +generateSeats()
+    +getAvailableCapacity()
+    +assignSeat()
+    +releaseSeat()
+    +getSeatMap()
+  }
+
+  class RoomBooking {
+    +ObjectId _id
+    +ObjectId roomId
+    +ObjectId eventId
+    +ObjectId workshopId
+    +ObjectId bookedBy
+    +Timestamp startTime
+    +Timestamp endTime
+    +Enum status
+  }
+
+  class RoomLog {
+    +ObjectId _id
+    +ObjectId roomId
+    +String action
+    +ObjectId performedBy
+    +Timestamp timestamp
+  }
+}
+
+package "Finance & Certificates" <<Rectangle>> CLASS_COLOR {
+  class Transaction {
+    +ObjectId _id
+    +Enum type
+    +Number amount
+    +String category
+    +String reference
+    +Timestamp occurredOn
+    +ObjectId createdBy
+    +Boolean requiresCheque
+  }
+
+  class CertificateRequest {
+    +ObjectId _id
+    +ObjectId userId
+    +Enum certificateType
+    +String reason
+    +Enum status
+    +ObjectId approvedBy
+    +Timestamp createdAt
+  }
+
+  class AuditLog {
+    +ObjectId _id
+    +ObjectId userId
+    +String action
+    +String resource
+    +ObjectId resourceId
+    +String ipAddress
+    +Timestamp timestamp
+  }
+}
+
+' ===================================
+' RELATIONSHIPS
+' ===================================
+
+' User to Profiles
+User "1" -- "0..1" Member : has profile >
+User "1" -- "0..1" Teacher : has profile >
+User "1" -- "*" UserRole : has roles >
+User "1" -- "*" Post : creates >
+User "1" -- "*" EventRegistration : registers >
+User "1" -- "*" WorkshopRegistration : registers >
+
+' Member to Elections
+Member "1" -- "*" ElectionCandidate : candidate >
+Member "1" -- "*" Vote : votes >
+Member "1" -- "*" EcAppointment : appointed >
+
+' RBAC
+Role "1" -- "*" UserRole
+Role "1" -- "*" RolePermission
+Permission "1" -- "*" RolePermission
+
+' Elections
+EcTerm "1" -- "*" Election : conducts >
+EcTerm "1" -- "*" EcAppointment : period >
+Election "1" -- "*" ElectionCandidate : has >
+Election "1" -- "*" Vote : receives >
+Election "1" -- "*" VoteRecording : tracks >
+ElectionCandidate "1" -- "*" Vote : receives >
+EcPost "1" -- "*" ElectionCandidate : for post >
+EcPost "1" -- "*" EcAppointment : for post >
+
+' Events
+Event "1" -- "*" EventRegistration : has >
+Event "1" -- "*" EventPost : has >
+Event "1" -- "*" EventGallery : has >
+Event "1" -- "*" Volunteer : has >
+EventPost "1" -- "*" EventComment : has >
+
+' Workshops
+Workshop "1" -- "*" WorkshopRegistration : has >
+Workshop "1" -- "*" WorkshopCertificate : issues >
+Workshop "1" -- "*" WorkshopSubmission : receives >
+Workshop "1" -- "*" WorkshopFeedback : receives >
+
+' Communication
+Post "1" -- "*" PostComment : has >
+Post "1" -- "*" PostLike : receives >
+ChatConversation "1" -- "*" ChatMessage : contains >
+
+' Rooms
+Room "1" -- "*" RoomBooking : has bookings >
+Room "1" -- "*" RoomLog : logs >
+Event "1" -- "*" RoomBooking : books >
+Workshop "1" -- "*" RoomBooking : books >
+
+' Meetings
+Meeting "1" -- "*" MeetingAttendance : tracks >
+
+@enduml

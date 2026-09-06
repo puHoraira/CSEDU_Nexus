@@ -1,0 +1,75 @@
+\contentsline {section}{\numberline {1}Project Links}{4}{section.1}%
+\contentsline {section}{\numberline {2}Introduction}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Problem Definition \& Context}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Target Users \& Use Cases}{5}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Core Features}{5}{subsection.2.3}%
+\contentsline {subsubsection}{\numberline {2.3.1}Authentication \& Authorization}{5}{subsubsection.2.3.1}%
+\contentsline {subsubsection}{\numberline {2.3.2}Membership Management}{5}{subsubsection.2.3.2}%
+\contentsline {subsubsection}{\numberline {2.3.3}Democratic Election System}{6}{subsubsection.2.3.3}%
+\contentsline {subsubsection}{\numberline {2.3.4}Event \& Workshop Management}{6}{subsubsection.2.3.4}%
+\contentsline {subsubsection}{\numberline {2.3.5}Governance \& Administration}{6}{subsubsection.2.3.5}%
+\contentsline {subsubsection}{\numberline {2.3.6}Meeting Management}{6}{subsubsection.2.3.6}%
+\contentsline {subsubsection}{\numberline {2.3.7}Financial Management}{6}{subsubsection.2.3.7}%
+\contentsline {subsubsection}{\numberline {2.3.8}Communication System}{6}{subsubsection.2.3.8}%
+\contentsline {subsection}{\numberline {2.4}Tech Stack Overview}{7}{subsection.2.4}%
+\contentsline {subsubsection}{\numberline {2.4.1}Frontend Technologies}{7}{subsubsection.2.4.1}%
+\contentsline {subsubsection}{\numberline {2.4.2}Backend Technologies}{7}{subsubsection.2.4.2}%
+\contentsline {subsubsection}{\numberline {2.4.3}DevOps \& Infrastructure}{7}{subsubsection.2.4.3}%
+\contentsline {subsubsection}{\numberline {2.4.4}Third-Party Services}{8}{subsubsection.2.4.4}%
+\contentsline {subsubsection}{\numberline {2.4.5}State Management Solution}{8}{subsubsection.2.4.5}%
+\contentsline {section}{\numberline {3}System Architecture}{9}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Architectural Overview}{9}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}High-Level System Architecture}{9}{subsubsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.2}Frontend Architecture}{10}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Component Architecture \& State Management}{11}{subsubsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.3}Backend Architecture}{12}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Database Design \& ERD}{14}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Data Synchronization Mechanics}{15}{subsection.3.5}%
+\contentsline {section}{\numberline {4}API Documentation}{18}{section.4}%
+\contentsline {subsection}{\numberline {4.1}API Design Overview}{18}{subsection.4.1}%
+\contentsline {subsubsection}{\numberline {4.1.1}Standard Response Format}{18}{subsubsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.2}API Endpoints by Module}{18}{subsection.4.2}%
+\contentsline {subsubsection}{\numberline {4.2.1}Authentication \& User Management}{19}{subsubsection.4.2.1}%
+\contentsline {subsubsection}{\numberline {4.2.2}Elections System}{19}{subsubsection.4.2.2}%
+\contentsline {subsubsection}{\numberline {4.2.3}Events \& Workshops}{19}{subsubsection.4.2.3}%
+\contentsline {subsubsection}{\numberline {4.2.4}Events \& Workshops}{19}{subsubsection.4.2.4}%
+\contentsline {subsubsection}{\numberline {4.2.5}Membership Management}{20}{subsubsection.4.2.5}%
+\contentsline {subsubsection}{\numberline {4.2.6}Governance \& EC Management}{20}{subsubsection.4.2.6}%
+\contentsline {subsubsection}{\numberline {4.2.7}Meetings \& Minutes}{21}{subsubsection.4.2.7}%
+\contentsline {subsubsection}{\numberline {4.2.8}Social \& Communication}{21}{subsubsection.4.2.8}%
+\contentsline {subsubsection}{\numberline {4.2.9}Admin \& Moderation}{22}{subsubsection.4.2.9}%
+\contentsline {subsubsection}{\numberline {4.2.10}File Upload \& Media}{22}{subsubsection.4.2.10}%
+\contentsline {subsection}{\numberline {4.3}Sample API Request/Response Examples}{22}{subsection.4.3}%
+\contentsline {subsubsection}{\numberline {4.3.1}Example 1: User Login}{22}{subsubsection.4.3.1}%
+\contentsline {section}{\numberline {5}Authentication \& Security}{25}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Authentication Strategy}{25}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Authorization \& Role Management}{25}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Security Measures}{26}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Known Vulnerabilities \& Mitigations}{26}{subsection.5.4}%
+\contentsline {section}{\numberline {6}Testing \& Quality Assurance}{27}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Testing Strategy}{27}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Test Scenarios \& Results}{28}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Bug Tracking \& Resolution}{29}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Performance Testing}{30}{subsection.6.4}%
+\contentsline {section}{\numberline {7}CI/CD \& Deployment}{30}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Deployment Pipeline Overview}{30}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Environments}{31}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Deployment Steps}{31}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Health Monitoring}{32}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}Backup \& Recovery}{33}{subsection.7.5}%
+\contentsline {subsection}{\numberline {7.6}Production URL}{34}{subsection.7.6}%
+\contentsline {section}{\numberline {8}Repository \& Documentation Quality}{34}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Branching Strategy}{34}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}README Completeness}{34}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Code Organization}{35}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Local Setup Instructions}{35}{subsection.8.4}%
+\contentsline {section}{\numberline {9}Evaluation \& Reflection}{37}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Web Performance \& Core Web Vitals}{37}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Challenges \& Solutions}{38}{subsection.9.2}%
+\contentsline {subsubsection}{\numberline {9.2.1}Technical Challenges}{38}{subsubsection.9.2.1}%
+\contentsline {subsection}{\numberline {9.3}Limitations \& Future Work}{45}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}Lessons Learned}{46}{subsection.9.4}%
+\contentsline {section}{\numberline {10}Conclusion}{47}{section.10}%
+\contentsline {section}{Appendix A: Screenshots \& UI Walkthrough}{48}{section.10}%
+\contentsline {section}{Appendix B: Team Contributions}{78}{figure.78}%
+\contentsline {section}{References}{81}{figure.78}%

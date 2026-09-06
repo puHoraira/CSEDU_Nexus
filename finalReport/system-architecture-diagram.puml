@@ -1,0 +1,156 @@
+@startuml System_Architecture
+!theme plain
+skinparam dpi 200
+skinparam packageStyle rectangle
+
+title CSEDU Nexus - System Architecture & Database Overview
+
+skinparam component {
+  BackgroundColor #F0F8FF
+  BorderColor #2C3E50
+  FontSize 10
+}
+
+skinparam database {
+  BackgroundColor #E6F3FF
+  BorderColor #2C3E50
+}
+
+skinparam note {
+  BackgroundColor #FFFACD
+  BorderColor #DAA520
+  FontSize 9
+}
+
+' Frontend
+package "Client Layer" {
+  component [React SPA\n(TypeScript)] as frontend #FFE6E6
+}
+
+' Backend API
+package "Application Layer" {
+  component [Express.js REST API\nJWT Authentication\nRole-Based Access Control] as api #E6F3FF
+}
+
+' Business Logic
+package "Service Layer" {
+  component [Auth Service] as auth
+  component [Election Service\n(2-Phase System)] as election
+  component [Event Service\n(Room Assignment)] as event
+  component [Governance Service\n(EC Management)] as gov
+  component [Workshop Service\n(Certificates)] as workshop
+  component [Notification Service] as notif
+}
+
+' Database
+database "MongoDB\n48+ Collections" as db #F0FFE6 {
+  folder "Authentication (7)" {
+    [User]
+    [Member]
+    [Teacher]
+    [Role/Permission]
+  }
+  folder "Elections (7)" {
+    [Election]
+    [ElectionCandidate]
+    [Vote]
+    [VoteRecording]
+  }
+  folder "Governance (5)" {
+    [EcTerm]
+    [EcPost]
+    [EcAppointment]
+  }
+  folder "Events (10)" {
+    [Event]
+    [EventRegistration]
+    [Workshop]
+    [Certificate]
+  }
+  folder "Communication (7)" {
+    [Post]
+    [Notification]
+    [ChatMessage]
+  }
+  folder "Resources (6)" {
+    [Room]
+    [RoomBooking]
+    [Transaction]
+  }
+}
+
+' External Services
+cloud "External Services" {
+  component [Email (Gmail SMTP)] as email
+  component [Payment Gateway\n(bKash, SSLCommerz)] as payment
+  component [Media Storage\n(Cloudinary)] as media
+  component [Video Calls\n(ZegoCloud)] as video
+}
+
+' Connections
+frontend --> api : "HTTPS/REST"
+api --> auth
+api --> election
+api --> event
+api --> gov
+api --> workshop
+api --> notif
+
+auth --> db
+election --> db
+event --> db
+gov --> db
+workshop --> db
+notif --> db
+
+api --> email : "Nodemailer"
+api --> payment : "API"
+api --> media : "Upload/CDN"
+api --> video : "SDK"
+
+' Key Features Note
+note right of election
+  **Elections: Complex 2-Phase System**
+  • Phase 1: Per-batch representative voting
+  • Phase 2: EC post elections with validation
+  • Secure voting (cryptographic hashing)
+  • Eligibility checking (CGPA, attendance, EC experience)
+  • Dispute resolution mechanism
+end note
+
+note right of event
+  **Event Management**
+  • Room seat assignment (individual/capacity)
+  • QR code attendance tracking
+  • Payment integration
+  • Certificate auto-generation
+  • Gallery & social features
+end note
+
+note bottom of db
+  **Database Schema Highlights:**
+  • 48+ interconnected Mongoose models
+  • 8 major functional subsystems
+  • Complex relationships (1:1, 1:N, N:M)
+  • Embedded documents and arrays
+  • Comprehensive audit logging
+  • Full RBAC implementation
+end note
+
+legend right
+  **Technology Stack**
+  |= Layer |= Technology |
+  | Frontend | React 18, TypeScript, TanStack Query |
+  | Backend | Node.js, Express.js, Mongoose |
+  | Database | MongoDB 7.x |
+  | Auth | JWT, bcrypt, Email OTP |
+  | Payment | bKash, SSLCommerz |
+  | Media | Cloudinary CDN |
+  | Email | Nodemailer + Gmail SMTP |
+  | Video | ZegoCloud SDK |
+  | Deployment | Azure VM, Docker, Nginx |
+  
+  **Scale: 48+ Models, 8 Subsystems**
+endlegend
+
+@enduml

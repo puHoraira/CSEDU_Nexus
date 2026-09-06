@@ -60,7 +60,7 @@ const enhancedElectionValidators = {
     electionId: z.string().regex(/^[0-9a-fA-F]{24}$/),
     memberId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(), // Optional: if provided, add this member as candidate; otherwise use logged-in user
     phase: z.number().int().min(1).max(2),
-    postId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+    postId: z.string().regex(/^[0-9a-fA-F]{24}$/).nullable().optional(),
     batch: z.string().length(4).optional(),
     candidateStatement: z.string().trim().max(2000).optional().default(""),
     campaignSlogan: z.string().trim().max(200).optional().default(""),
@@ -188,7 +188,7 @@ const enhancedElectionValidators = {
   listCandidates: z.object({
     phase: z.number().int().min(1).max(2).optional(),
     status: z.enum(["Draft", "Submitted", "Under_Review", "Approved", "Rejected", "Withdrawn"]).optional(),
-    postId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+    postId: z.string().regex(/^[0-9a-fA-F]{24}$/).nullable().optional(),
     batch: z.string().length(4).optional()
   }),
 

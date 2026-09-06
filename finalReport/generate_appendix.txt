@@ -1,0 +1,73 @@
+I've created the correct image list based on your actual files.
+
+Please replace the Appendix A section (starting from line 2470) with the content from appendix_a_screenshots.tex file.
+
+The actual images in your folder are:
+- startingPage1.png  
+- ProfileSection.png  
+- ProfileUpdation.png  
+- Notification.png  
+- newElection.png  
+- ElectionCOmmissionPage.png  
+- phase1.png  
+- addCandidate.png  
+- ApplyAsCandidate.png  
+- ecommissionReviewCandidates.png  
+- phase2Election.png  
+- batchwisePhaseWinner.png  
+- voting.png  
+- votingOfAnElection.png  
+- voteCasting.png  
+- votevideo.png  
+- fullVotingVideoWindow.png  
+- voteDiscarededDUEvotingVideoOFF.png  
+- votingVideoUploadingAUTO.png  
+- electionResulta.png  
+- electionResults2.png  
+- ecAppointmen.png  
+- eventListPage.png  
+- evenCreation.png  
+- eventVisibility.png  
+- EventRoom.png  
+- EventVolunteer.png  
+- VolunteerManagement.png  
+- EventsDiscussion.png  
+- EventsUpdateSharing.png  
+- WorkshopPoster.png  
+- WorkshopManagement.png  
+- WorkshopSubmission.png  
+- MaterialOFWORKSHOP.png  
+- WorkshopAttendanace.png  
+- WorkshopDiscussionAndRating.png  
+- posts.png  
+- postsComment.png  
+- messaging.png  
+- constitution.png  
+- MeetingTime.png  
+- MeetingStart.png  
+- MeetingEnds.png  
+- finance.png  
+- searchFinanceBYTreasurer.png  
+- certificatePDF.png  
+- ECCertificate.png  
+- ecTerm.png  
+- roomManagements.png  
+- RoomView.png  
+- RoomSchedule.png  
+- RoomHistory.png  
+- roomActivityLog.png  
+- createOrDeleteECPOSTDYNAMICALLY.png  
+- adminDashboad.png  
+- adminStudentControl.png  
+- adminStudentModification.png  
+- adminEDIT.png  
+- adminRoleSelectionAndEmailVerification.png  
+- adminECExperienceModification.png  
+- AcademicYearChanging.png  
+- moderatorDashboard.png  
+- dashboardTeacher.png  
+- chairmanPanel.png
+
+Total: 62 images
+
+All image references have been corrected to match your actual filenames.

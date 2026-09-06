@@ -1,0 +1,663 @@
+@startuml CSEDU_Nexus_ER_Diagram
+!theme plain
+skinparam dpi 300
+skinparam linetype ortho
+
+title CSEDU Nexus - Complete Database Entity Relationship Diagram\n48 Entities across 8 Subsystems
+
+' Define colors for subsystems
+skinparam class {
+  BackgroundColor<<Auth>> #FFE6E6
+  BackgroundColor<<Election>> #E6F3FF
+  BackgroundColor<<Governance>> #F0FFE6
+  BackgroundColor<<Event>> #FFF9E6
+  BackgroundColor<<Communication>> #F5E6FF
+  BackgroundColor<<Meeting>> #FFE6F0
+  BackgroundColor<<Resource>> #E6FFFF
+  BackgroundColor<<System>> #F0F0F0
+}
+
+' ====== AUTHENTICATION & USER MANAGEMENT (7 entities) ======
+package "Authentication & User" <<Auth>> {
+  entity "User" as user {
+    * _id : ObjectId
+    --
+    * email : String [unique]
+    * passwordHash : String
+    * firstName : String
+    * lastName : String
+    dateOfBirth : Date
+    phone : String
+    avatarUrl : String
+    isActive : Boolean
+    isVerified : Boolean
+    --
+    timestamps
+  }
+  
+  entity "Member" as member {
+    * _id : ObjectId
+    --
+    * userId : ObjectId [FK, unique]
+    * studentId : String [unique]
+    * batch : Number
+    * currentYear : Number
+    * academicYearLevel : Enum
+    currentCgpa : Number
+    overallAttendancePercentage : Number
+    ecExperience : Array
+    --
+    timestamps
+  }
+  
+  entity "Teacher" as teacher {
+    * _id : ObjectId
+    --
+    * userId : ObjectId [FK]
+    * employeeId : String [unique]
+    designation : String
+    department : String
+    --
+    timestamps
+  }
+  
+  entity "Role" as role {
+    * _id : ObjectId
+    --
+    * name : String [unique]
+    description : String
+    --
+    timestamps
+  }
+  
+  entity "Permission" as permission {
+    * _id : ObjectId
+    --
+    * name : String [unique]
+    resource : String
+    action : String
+    --
+    timestamps
+  }
+  
+  entity "UserRole" as userrole {
+    * _id : ObjectId
+    --
+    * userId : ObjectId [FK]
+    * roleId : ObjectId [FK]
+    assignedAt : Date
+    --
+    timestamps
+  }
+  
+  entity "RolePermission" as rolepermission {
+    * _id : ObjectId
+    --
+    * roleId : ObjectId [FK]
+    * permissionId : ObjectId [FK]
+    --
+    timestamps
+  }
+}
+
+' ====== ELECTION SYSTEM (7 entities) ======
+package "Election System" <<Election>> {
+  entity "Election" as election {
+    * _id : ObjectId
+    --
+    * name : String
+    * termId : ObjectId [FK]
+    currentPhase : Number [0,1,2]
+    status : Enum
+    phase1Batches : Array
+    config : Object
+    results : Object
+    --
+    timestamps
+  }
+  
+  entity "ElectionCandidate" as candidate {
+    * _id : ObjectId
+    --
+    * electionId : ObjectId [FK]
+    * memberId : ObjectId [FK]
+    * phase : Number
+    postId : ObjectId [FK, nullable]
+    status : Enum
+    votes : Number
+    --
+    timestamps
+  }
+  
+  entity "Vote" as vote {
+    * _id : ObjectId
+    --
+    * electionId : ObjectId [FK]
+    * voterId : ObjectId [FK]
+    * phase : Number
+    votedAt : Date
+    --
+    timestamps
+  }
+  
+  entity "VoteRecording" as voterecording {
+    * _id : ObjectId
+    --
+    * voteId : ObjectId [FK]
+    * candidateId : ObjectId [FK]
+    encryptedVote : String
+    --
+    timestamps
+  }
+  
+  entity "ElectionCommission" as commission {
+    * _id : ObjectId
+    --
+    * electionId : ObjectId [FK]
+    * commissioners : Array
+    status : Enum
+    --
+    timestamps
+  }
+  
+  entity "ElectionNomination" as nomination {
+    * _id : ObjectId
+    --
+    * electionId : ObjectId [FK]
+    * nomineeId : ObjectId [FK]
+    * nominatorId : ObjectId [FK]
+    status : Enum
+    --
+    timestamps
+  }
+  
+  entity "ElectionDispute" as dispute {
+    * _id : ObjectId
+    --
+    * electionId : ObjectId [FK]
+    * reportedBy : ObjectId [FK]
+    description : String
+    status : Enum
+    --
+    timestamps
+  }
+}
+
+' ====== GOVERNANCE (5 entities) ======
+package "Governance & EC" <<Governance>> {
+  entity "EcTerm" as ecterm {
+    * _id : ObjectId
+    --
+    * name : String
+    * startDate : Date
+    * endDate : Date
+    status : Enum
+    --
+    timestamps
+  }
+  
+  entity "EcPost" as ecpost {
+    * _id : ObjectId
+    --
+    * name : String
+    * orderIndex : Number
+    * phase : Number [1,2]
+    description : String
+    --
+    timestamps
+  }
+  
+  entity "EcAppointment" as appointment {
+    * _id : ObjectId
+    --
+    * termId : ObjectId [FK]
+    * postId : ObjectId [FK]
+    * memberId : ObjectId [FK]
+    * startDate : Date
+    endDate : Date
+    --
+    timestamps
+  }
+  
+  entity "GovernanceProposal" as proposal {
+    * _id : ObjectId
+    --
+    * title : String
+    * submittedBy : ObjectId [FK]
+    status : Enum
+    votesFor : Number
+    votesAgainst : Number
+    --
+    timestamps
+  }
+  
+  entity "ConstitutionDocument" as constitution {
+    * _id : ObjectId
+    --
+    * version : String
+    * documentUrl : String
+    * effectiveDate : Date
+    status : Enum
+    --
+    timestamps
+  }
+}
+
+' ====== EVENTS & WORKSHOPS (10 entities) ======
+package "Events & Workshops" <<Event>> {
+  entity "Event" as event {
+    * _id : ObjectId
+    --
+    * title : String
+    * eventDate : Date
+    * venue : String
+    * createdBy : ObjectId [FK]
+    category : Enum
+    status : Enum
+    registrationRequired : Boolean
+    --
+    timestamps
+  }
+  
+  entity "EventRegistration" as eventreg {
+    * _id : ObjectId
+    --
+    * eventId : ObjectId [FK]
+    * userId : ObjectId [FK]
+    seatAssignment : Object
+    paymentStatus : Enum
+    attendanceMarked : Boolean
+    --
+    timestamps
+  }
+  
+  entity "Workshop" as workshop {
+    * _id : ObjectId
+    --
+    * title : String
+    * eventDate : Date
+    * facilitator : String
+    maxParticipants : Number
+    status : Enum
+    --
+    timestamps
+  }
+  
+  entity "WorkshopRegistration" as workshopreg {
+    * _id : ObjectId
+    --
+    * workshopId : ObjectId [FK]
+    * userId : ObjectId [FK]
+    paymentStatus : Enum
+    certificateIssued : Boolean
+    --
+    timestamps
+  }
+  
+  entity "CertificateRequest" as certrequest {
+    * _id : ObjectId
+    --
+    * userId : ObjectId [FK]
+    * eventId : ObjectId [FK]
+    workshopId : ObjectId [FK, nullable]
+    certificateUrl : String
+    status : Enum
+    --
+    timestamps
+  }
+  
+  entity "WorkshopCertificate" as workcert {
+    * _id : ObjectId
+    --
+    * workshopId : ObjectId [FK]
+    * userId : ObjectId [FK]
+    * certificateUrl : String
+    issuedAt : Date
+    --
+    timestamps
+  }
+  
+  entity "EventPost" as eventpost {
+    * _id : ObjectId
+    --
+    * eventId : ObjectId [FK]
+    * authorId : ObjectId [FK]
+    content : String
+    mediaUrls : Array
+    --
+    timestamps
+  }
+  
+  entity "EventComment" as eventcomment {
+    * _id : ObjectId
+    --
+    * postId : ObjectId [FK]
+    * authorId : ObjectId [FK]
+    content : String
+    --
+    timestamps
+  }
+  
+  entity "EventGallery" as gallery {
+    * _id : ObjectId
+    --
+    * eventId : ObjectId [FK]
+    * uploadedBy : ObjectId [FK]
+    imageUrl : String
+    --
+    timestamps
+  }
+  
+  entity "Volunteer" as volunteer {
+    * _id : ObjectId
+    --
+    * eventId : ObjectId [FK]
+    * memberId : ObjectId [FK]
+    position : String
+    status : Enum
+    --
+    timestamps
+  }
+}
+
+' ====== COMMUNICATION & SOCIAL (7 entities) ======
+package "Communication" <<Communication>> {
+  entity "Post" as post {
+    * _id : ObjectId
+    --
+    * authorId : ObjectId [FK]
+    * title : String
+    content : String
+    postType : Enum
+    visibility : Enum
+    --
+    timestamps
+  }
+  
+  entity "PostComment" as postcomment {
+    * _id : ObjectId
+    --
+    * postId : ObjectId [FK]
+    * authorId : ObjectId [FK]
+    content : String
+    --
+    timestamps
+  }
+  
+  entity "PostLike" as postlike {
+    * _id : ObjectId
+    --
+    * postId : ObjectId [FK]
+    * userId : ObjectId [FK]
+    --
+    timestamps
+  }
+  
+  entity "Notification" as notification {
+    * _id : ObjectId
+    --
+    * recipientId : ObjectId [FK]
+    * senderId : ObjectId [FK]
+    type : Enum
+    message : String
+    isRead : Boolean
+    --
+    timestamps
+  }
+  
+  entity "HomepageMessage" as homepage {
+    * _id : ObjectId
+    --
+    * message : String
+    * createdBy : ObjectId [FK]
+    priority : Number
+    isActive : Boolean
+    --
+    timestamps
+  }
+  
+  entity "ChatConversation" as chatconv {
+    * _id : ObjectId
+    --
+    participants : Array[ObjectId]
+    lastMessageAt : Date
+    --
+    timestamps
+  }
+  
+  entity "ChatMessage" as chatmsg {
+    * _id : ObjectId
+    --
+    * conversationId : ObjectId [FK]
+    * senderId : ObjectId [FK]
+    content : String
+    --
+    timestamps
+  }
+}
+
+' ====== MEETINGS & CERTIFICATES (3 entities) ======
+package "Meetings" <<Meeting>> {
+  entity "Meeting" as meeting {
+    * _id : ObjectId
+    --
+    * title : String
+    * scheduledAt : Date
+    * organizedBy : ObjectId [FK]
+    meetingType : Enum
+    status : Enum
+    --
+    timestamps
+  }
+  
+  entity "MeetingAttendance" as attendance {
+    * _id : ObjectId
+    --
+    * meetingId : ObjectId [FK]
+    * userId : ObjectId [FK]
+    joinedAt : Date
+    leftAt : Date
+    --
+    timestamps
+  }
+  
+  entity "MembershipCancellation" as cancellation {
+    * _id : ObjectId
+    --
+    * memberId : ObjectId [FK]
+    reason : String
+    status : Enum
+    --
+    timestamps
+  }
+}
+
+' ====== ROOMS & RESOURCES (3 entities) ======
+package "Resources" <<Resource>> {
+  entity "Room" as room {
+    * _id : ObjectId
+    --
+    * name : String
+    * capacity : Number
+    * building : String
+    seatLayout : Array
+    --
+    timestamps
+  }
+  
+  entity "RoomBooking" as booking {
+    * _id : ObjectId
+    --
+    * roomId : ObjectId [FK]
+    * eventId : ObjectId [FK]
+    * bookedBy : ObjectId [FK]
+    startTime : Date
+    endTime : Date
+    --
+    timestamps
+  }
+  
+  entity "RoomLog" as roomlog {
+    * _id : ObjectId
+    --
+    * roomId : ObjectId [FK]
+    * bookingId : ObjectId [FK]
+    action : String
+    --
+    timestamps
+  }
+}
+
+' ====== FINANCE & SYSTEM (5 entities) ======
+package "Finance & System" <<System>> {
+  entity "Transaction" as transaction {
+    * _id : ObjectId
+    --
+    * userId : ObjectId [FK]
+    * amount : Number
+    * transactionType : Enum
+    * status : Enum
+    paymentMethod : String
+    --
+    timestamps
+  }
+  
+  entity "AuditLog" as audit {
+    * _id : ObjectId
+    --
+    * userId : ObjectId [FK]
+    action : String
+    resource : String
+    details : Object
+    --
+    timestamps
+  }
+  
+  entity "WorkshopFeedback" as feedback {
+    * _id : ObjectId
+    --
+    * workshopId : ObjectId [FK]
+    * userId : ObjectId [FK]
+    rating : Number
+    comments : String
+    --
+    timestamps
+  }
+  
+  entity "WorkshopSubmission" as submission {
+    * _id : ObjectId
+    --
+    * workshopId : ObjectId [FK]
+    * userId : ObjectId [FK]
+    submissionUrl : String
+    --
+    timestamps
+  }
+  
+  entity "WorkshopPost" as workshoppost {
+    * _id : ObjectId
+    --
+    * workshopId : ObjectId [FK]
+    * authorId : ObjectId [FK]
+    content : String
+    --
+    timestamps
+  }
+}
+
+' ============ RELATIONSHIPS ============
+
+' Auth relationships
+user ||--o| member : "1:1"
+user ||--o{ teacher : "1:N"
+user ||--o{ userrole : "1:N"
+role ||--o{ userrole : "1:N"
+role ||--o{ rolepermission : "1:N"
+permission ||--o{ rolepermission : "1:N"
+
+' Election relationships
+election ||--o{ candidate : "1:N"
+election ||--o{ vote : "1:N"
+election ||--o{ commission : "1:1"
+election ||--o{ nomination : "1:N"
+election ||--o{ dispute : "1:N"
+ecterm ||--o{ election : "1:N"
+member ||--o{ candidate : "1:N"
+member ||--o{ vote : "1:N"
+vote ||--|| voterecording : "1:1"
+candidate ||--o{ voterecording : "1:N"
+ecpost ||--o{ candidate : "1:N"
+
+' Governance relationships
+ecterm ||--o{ appointment : "1:N"
+ecpost ||--o{ appointment : "1:N"
+member ||--o{ appointment : "1:N"
+member ||--o{ proposal : "1:N"
+
+' Event relationships
+user ||--o{ event : "1:N (created)"
+event ||--o{ eventreg : "1:N"
+event ||--o{ eventpost : "1:N"
+event ||--o{ gallery : "1:N"
+event ||--o{ volunteer : "1:N"
+user ||--o{ eventreg : "1:N"
+member ||--o{ volunteer : "1:N"
+eventpost ||--o{ eventcomment : "1:N"
+user ||--o{ eventcomment : "1:N"
+
+' Workshop relationships
+workshop ||--o{ workshopreg : "1:N"
+workshop ||--o{ workcert : "1:N"
+workshop ||--o{ feedback : "1:N"
+workshop ||--o{ submission : "1:N"
+workshop ||--o{ workshoppost : "1:N"
+user ||--o{ workshopreg : "1:N"
+user ||--o{ workcert : "1:N"
+user ||--o{ certrequest : "1:N"
+
+' Communication relationships
+user ||--o{ post : "1:N (author)"
+post ||--o{ postcomment : "1:N"
+post ||--o{ postlike : "1:N"
+user ||--o{ postcomment : "1:N"
+user ||--o{ postlike : "1:N"
+user ||--o{ notification : "1:N (recipient)"
+user ||--o{ chatmsg : "1:N (sender)"
+chatconv ||--o{ chatmsg : "1:N"
+user ||--o{ homepage : "1:N (created)"
+
+' Meeting relationships
+user ||--o{ meeting : "1:N (organizer)"
+meeting ||--o{ attendance : "1:N"
+user ||--o{ attendance : "1:N"
+member ||--o{ cancellation : "1:1"
+
+' Room relationships
+room ||--o{ booking : "1:N"
+event ||--o{ booking : "1:N"
+user ||--o{ booking : "1:N (booker)"
+booking ||--o{ roomlog : "1:N"
+room ||--o{ roomlog : "1:N"
+
+' Finance relationships
+user ||--o{ transaction : "1:N"
+user ||--o{ audit : "1:N"
+
+legend right
+  **CSEDU Nexus Database Schema**
+  |= Subsystem |= Entities |= Key Features |
+  | Authentication | 7 | User, Member, Teacher, RBAC |
+  | Elections | 7 | 2-Phase Voting, Commission |
+  | Governance | 5 | EC Terms, Posts, Proposals |
+  | Events/Workshops | 10 | Registration, Certificates |
+  | Communication | 7 | Posts, Notifications, Chat |
+  | Meetings | 3 | Scheduling, Attendance |
+  | Resources | 3 | Room Booking, Seat Layout |
+  | Finance/System | 5 | Transactions, Audit Logs |
+  
+  **Total: 48 Entities**
+  **Relationships: 1:1, 1:N, N:M via junction tables**
+  **All entities include timestamps (createdAt, updatedAt)**
+endlegend
+
+@enduml
